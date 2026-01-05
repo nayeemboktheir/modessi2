@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Plus, Edit, Trash2, Eye, EyeOff, ExternalLink, Copy } from "lucide-react";
+import { Plus, Edit, Trash2, Eye, EyeOff, ExternalLink, Copy, Package } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,6 +38,14 @@ interface LandingPage {
   updated_at: string;
 }
 
+interface Product {
+  id: string;
+  name: string;
+  slug: string;
+  images: string[] | null;
+  is_active: boolean;
+}
+
 const AdminLandingPages = () => {
   const queryClient = useQueryClient();
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -52,6 +60,20 @@ const AdminLandingPages = () => {
 
       if (error) throw error;
       return data as LandingPage[];
+    },
+  });
+
+  const { data: products, isLoading: productsLoading } = useQuery({
+    queryKey: ["admin-products-for-landing"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("id, name, slug, images, is_active")
+        .eq("is_active", true)
+        .order("name");
+
+      if (error) throw error;
+      return data as Product[];
     },
   });
 
@@ -244,6 +266,92 @@ const AdminLandingPages = () => {
                           onClick={() => setDeleteId(page.id)}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Product Landing Pages Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Package className="h-5 w-5" />
+            Product Landing Pages
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Auto-generated landing pages for each product at /step/[slug]
+          </p>
+        </CardHeader>
+        <CardContent>
+          {productsLoading ? (
+            <div className="text-center py-8 text-muted-foreground">
+              Loading products...
+            </div>
+          ) : !products?.length ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No active products found.
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Product</TableHead>
+                  <TableHead>Landing URL</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {products.map((product) => (
+                  <TableRow key={product.id}>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-3">
+                        {product.images?.[0] && (
+                          <img
+                            src={product.images[0]}
+                            alt={product.name}
+                            className="w-10 h-10 object-cover rounded"
+                          />
+                        )}
+                        {product.name}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <code className="text-sm bg-muted px-2 py-1 rounded">
+                        /step/{product.slug}
+                      </code>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          asChild
+                          title="View landing page"
+                        >
+                          <a
+                            href={`/step/${product.slug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            navigator.clipboard.writeText(`${window.location.origin}/step/${product.slug}`);
+                            toast.success("URL copied to clipboard");
+                          }}
+                        >
+                          <Copy className="h-4 w-4 mr-1" />
+                          Copy URL
                         </Button>
                       </div>
                     </TableCell>
