@@ -2,17 +2,18 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { 
-  Heart, 
-  ShoppingCart, 
-  Minus, 
-  Plus, 
+import {
+  Heart,
+  ShoppingCart,
+  Minus,
+  Plus,
   ChevronLeft,
   ChevronRight,
   Loader2,
   Phone,
   CheckCircle2
 } from 'lucide-react';
+import Header from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -207,8 +208,10 @@ const ProductDetailPage = () => {
   };
 
   return (
-    <div className="min-h-screen pt-32 pb-16 bg-background">
-      <div className="container-custom">
+    <>
+      <Header />
+      <div className="min-h-screen pt-32 pb-16 bg-background">
+        <div className="container-custom">
         {/* Breadcrumb */}
         <nav className="mb-6 text-sm">
           <ol className="flex items-center gap-2 text-muted-foreground">
@@ -472,8 +475,9 @@ const ProductDetailPage = () => {
             </div>
           </section>
         )}
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

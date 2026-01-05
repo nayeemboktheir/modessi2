@@ -9,6 +9,8 @@ import { AuthProvider } from '@/hooks/useAuth';
 import { FacebookPixelTracker } from '@/components/tracking/FacebookPixelTracker';
 import GoogleAnalyticsTracker from '@/components/tracking/GoogleAnalyticsTracker';
 import { TikTokPixelTracker } from '@/components/tracking/TikTokPixelTracker';
+import CartDrawer from '@/components/cart/CartDrawer';
+
 import FashionHomePage from '@/pages/FashionHomePage';
 import OrderConfirmationPage from '@/pages/OrderConfirmationPage';
 import AuthPage from '@/pages/AuthPage';
@@ -18,6 +20,9 @@ import ProductDetailPage from '@/pages/ProductDetailPage';
 import WishlistPage from '@/pages/WishlistPage';
 import AboutPage from '@/pages/AboutPage';
 import ContactPage from '@/pages/ContactPage';
+import CartPage from '@/pages/CartPage';
+import CheckoutPage from '@/pages/CheckoutPage';
+
 import AdminLayout from '@/components/admin/AdminLayout';
 import AdminDashboard from '@/pages/admin/AdminDashboard';
 import AdminProducts from '@/pages/admin/AdminProducts';
@@ -54,11 +59,14 @@ const App = () => (
             <FacebookPixelTracker />
             <GoogleAnalyticsTracker />
             <TikTokPixelTracker />
+            <CartDrawer />
             <Routes>
               {/* Main Pages */}
               <Route path="/" element={<FashionHomePage />} />
               <Route path="/products" element={<ProductsPage />} />
               <Route path="/product/:slug" element={<ProductDetailPage />} />
+              <Route path="/cart" element={<CartPage />} />
+              <Route path="/checkout" element={<CheckoutPage />} />
               <Route path="/wishlist" element={<WishlistPage />} />
               <Route path="/about" element={<AboutPage />} />
               <Route path="/contact" element={<ContactPage />} />
@@ -87,8 +95,7 @@ const App = () => (
               <Route path="/admin/site-settings" element={<AdminLayout><AdminSiteSettings /></AdminLayout>} />
               <Route path="/admin/home-page-edit" element={<AdminLayout><AdminHomePageEdit /></AdminLayout>} />
               <Route path="/admin/landing-video-settings" element={<AdminLandingVideoSettings />} />
-              
-              
+
               {/* Catch all - redirect to main page */}
               <Route path="*" element={<FashionHomePage />} />
             </Routes>
