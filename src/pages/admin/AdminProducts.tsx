@@ -624,19 +624,20 @@ export default function AdminProducts() {
               <div className="space-y-2">
                 <Label htmlFor="video_url" className="flex items-center gap-2">
                   <Play className="h-4 w-4" />
-                  প্রোডাক্ট ভিডিও URL (Product Video)
+                  প্রোডাক্ট ভিডিও (Product Video)
                 </Label>
-                <Input
+                <Textarea
                   id="video_url"
                   value={formData.video_url}
                   onChange={(e) => setFormData({ ...formData, video_url: e.target.value })}
-                  placeholder="YouTube, Facebook Reel/Video লিংক পেস্ট করুন"
+                  placeholder="YouTube/Facebook লিংক অথবা Facebook Embed কোড (<iframe...>) পেস্ট করুন"
+                  rows={3}
                 />
                 <p className="text-xs text-muted-foreground">
-                  সাপোর্টেড: YouTube, YouTube Shorts, Facebook Video, Facebook Reel, সরাসরি ভিডিও URL (.mp4)
+                  সাপোর্টেড: YouTube, YouTube Shorts, Facebook Video, Facebook Reel, সরাসরি ভিডিও URL (.mp4), অথবা Facebook Embed Code
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  উদাহরণ: https://www.facebook.com/reel/123456789 বা https://www.youtube.com/watch?v=xxxxx
+                  উদাহরণ: https://www.facebook.com/reel/123456789 অথবা সম্পূর্ণ &lt;iframe...&gt; কোড
                 </p>
                 {formData.video_url && (
                   <div className="mt-2 p-2 bg-muted rounded-lg flex items-center gap-2">

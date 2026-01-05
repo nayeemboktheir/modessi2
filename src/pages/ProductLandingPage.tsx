@@ -367,7 +367,57 @@ const VideoSection = memo(({ videoUrl }: { videoUrl?: string }) => {
   
   if (!videoUrl) return null;
 
-  // Detect video type and get embed info
+  // Check if the input is already an iframe embed code
+  const isIframeEmbed = videoUrl.trim().startsWith('<iframe');
+  
+  // Extract dimensions from iframe to detect aspect ratio
+  const getIframeDimensions = (html: string): { width: number; height: number; isVertical: boolean } => {
+    const widthMatch = html.match(/width=["']?(\d+)/);
+    const heightMatch = html.match(/height=["']?(\d+)/);
+    const width = widthMatch ? parseInt(widthMatch[1]) : 560;
+    const height = heightMatch ? parseInt(heightMatch[1]) : 315;
+    return { width, height, isVertical: height > width };
+  };
+
+  // If it's an iframe embed, render it directly
+  if (isIframeEmbed) {
+    const { isVertical } = getIframeDimensions(videoUrl);
+    const aspectClass = isVertical 
+      ? 'aspect-[9/16] max-w-sm' 
+      : 'aspect-video max-w-4xl';
+    
+    return (
+      <section className="py-12 md:py-16 bg-gradient-to-br from-gray-900 to-gray-800">
+        <div className="container mx-auto px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-8"
+          >
+            <h2 className="text-2xl md:text-4xl font-bold text-white mb-2">
+              প্রোডাক্ট ভিডিও
+            </h2>
+            <p className="text-gray-400">বিস্তারিত দেখুন ভিডিওতে</p>
+          </motion.div>
+          
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            className={`mx-auto ${aspectClass}`}
+          >
+            <div 
+              className="relative w-full h-full rounded-2xl overflow-hidden shadow-2xl bg-black [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:absolute [&>iframe]:inset-0"
+              dangerouslySetInnerHTML={{ __html: videoUrl }}
+            />
+          </motion.div>
+        </div>
+      </section>
+    );
+  }
+
+  // Detect video type and get embed info for URLs
   const getVideoInfo = (url: string): { 
     embedUrl: string | null; 
     type: 'youtube' | 'facebook' | 'direct' | 'embed' | null;
@@ -377,7 +427,6 @@ const VideoSection = memo(({ videoUrl }: { videoUrl?: string }) => {
     const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
     const youtubeMatch = url.match(youtubeRegex);
     if (youtubeMatch) {
-      // Check for YouTube Shorts (vertical)
       const isShorts = url.includes('/shorts/');
       return {
         embedUrl: `https://www.youtube.com/embed/${youtubeMatch[1]}?autoplay=0&rel=0`,
@@ -387,8 +436,6 @@ const VideoSection = memo(({ videoUrl }: { videoUrl?: string }) => {
     }
     
     // Handle Facebook video URLs (reels, videos, watch)
-    // Facebook Reels: https://www.facebook.com/reel/123456789
-    // Facebook Videos: https://www.facebook.com/watch/?v=123456789 or https://www.facebook.com/username/videos/123456789
     const facebookReelRegex = /facebook\.com\/reel\/(\d+)/;
     const facebookWatchRegex = /facebook\.com\/watch\/?\?v=(\d+)/;
     const facebookVideoRegex = /facebook\.com\/(?:[^\/]+\/)?videos\/(\d+)/;
@@ -400,7 +447,6 @@ const VideoSection = memo(({ videoUrl }: { videoUrl?: string }) => {
     const shareMatch = url.match(facebookShareRegex);
     
     if (reelMatch || watchMatch || videoMatch || shareMatch) {
-      // Facebook reels are vertical (9:16), regular videos are horizontal (16:9)
       const isReel = !!reelMatch || url.includes('reel');
       const encodedUrl = encodeURIComponent(url);
       return {
