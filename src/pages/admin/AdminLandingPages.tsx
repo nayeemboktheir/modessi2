@@ -1,11 +1,13 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Plus, Edit, Trash2, Eye, EyeOff, ExternalLink, Copy, Package, TrendingUp, ShoppingCart } from "lucide-react";
+import { Plus, Edit, Trash2, Eye, EyeOff, ExternalLink, Copy, Package, TrendingUp, ShoppingCart, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -24,6 +26,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -57,6 +67,8 @@ interface Order {
 const AdminLandingPages = () => {
   const queryClient = useQueryClient();
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [editSlugPage, setEditSlugPage] = useState<LandingPage | null>(null);
+  const [newSlug, setNewSlug] = useState("");
 
   const { data: landingPages, isLoading } = useQuery({
     queryKey: ["admin-landing-pages"],
@@ -157,6 +169,26 @@ const AdminLandingPages = () => {
     },
   });
 
+  const updateSlugMutation = useMutation({
+    mutationFn: async ({ id, slug }: { id: string; slug: string }) => {
+      const { error } = await supabase
+        .from("landing_pages")
+        .update({ slug })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-landing-pages"] });
+      toast.success("Slug updated successfully");
+      setEditSlugPage(null);
+      setNewSlug("");
+    },
+    onError: (error) => {
+      toast.error("Failed to update slug");
+      console.error(error);
+    },
+  });
+
   const copyMutation = useMutation({
     mutationFn: async (id: string) => {
       const { data: original, error: fetchError } = await supabase
@@ -167,7 +199,7 @@ const AdminLandingPages = () => {
 
       if (fetchError) throw fetchError;
 
-      const newSlug = `${original.slug}-copy-${Date.now()}`;
+      const copiedSlug = `${original.slug}-copy-${Date.now()}`;
       const { id: _id, created_at: _created, updated_at: _updated, ...rest } = original;
       
       const { error: insertError } = await supabase
@@ -175,7 +207,7 @@ const AdminLandingPages = () => {
         .insert({
           ...rest,
           title: `${original.title} (Copy)`,
-          slug: newSlug,
+          slug: copiedSlug,
           is_published: false,
           is_active: false,
         });
@@ -292,9 +324,23 @@ const AdminLandingPages = () => {
                     <TableRow key={page.id}>
                       <TableCell className="font-medium">{page.title}</TableCell>
                       <TableCell>
-                        <code className="text-sm bg-muted px-2 py-1 rounded">
-                          /lp/{page.slug}
-                        </code>
+                        <div className="flex items-center gap-2">
+                          <code className="text-sm bg-muted px-2 py-1 rounded">
+                            /lp/{page.slug}
+                          </code>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => {
+                              setEditSlugPage(page);
+                              setNewSlug(page.slug);
+                            }}
+                            title="Edit slug"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Badge
@@ -503,6 +549,51 @@ const AdminLandingPages = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Slug Dialog */}
+      <Dialog open={!!editSlugPage} onOpenChange={() => setEditSlugPage(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Landing Page URL</DialogTitle>
+            <DialogDescription>
+              Change the slug for "{editSlugPage?.title}"
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="slug">URL Slug</Label>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">{window.location.origin}/lp/</span>
+                <Input
+                  id="slug"
+                  value={newSlug}
+                  onChange={(e) => setNewSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+                  placeholder="your-page-slug"
+                  className="flex-1"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Only lowercase letters, numbers, and hyphens are allowed.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditSlugPage(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (editSlugPage && newSlug) {
+                  updateSlugMutation.mutate({ id: editSlugPage.id, slug: newSlug });
+                }
+              }}
+              disabled={!newSlug || updateSlugMutation.isPending}
+            >
+              {updateSlugMutation.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
