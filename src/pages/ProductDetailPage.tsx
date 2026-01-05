@@ -153,8 +153,7 @@ const ProductDetailPage = () => {
     }
     
     dispatch(addToCart({ product, quantity, variation: selectedVariation }));
-    dispatch(openCart());
-    
+    // No popup - just add to cart silently
     // Track AddToCart event
     console.log('Firing AddToCart for product:', product.name);
     trackAddToCart({

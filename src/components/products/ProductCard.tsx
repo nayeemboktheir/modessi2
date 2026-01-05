@@ -22,11 +22,9 @@ const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
   const { trackAddToCart } = useFacebookPixel();
   const isInWishlist = wishlistItems.some((item) => item.id === product.id);
   
-  // State for selected variation
+  // State for selected variation - no auto-select, customer must choose manually
   const hasVariations = product.variations && product.variations.length > 0;
-  const [selectedVariation, setSelectedVariation] = useState<ProductVariation | undefined>(
-    hasVariations ? product.variations![0] : undefined
-  );
+  const [selectedVariation, setSelectedVariation] = useState<ProductVariation | undefined>(undefined);
 
   // Get display price based on variation or base price
   const displayPrice = selectedVariation?.price ?? product.price;
@@ -47,7 +45,7 @@ const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
     }
     
     dispatch(addToCart({ product, variation: selectedVariation }));
-    dispatch(openCart());
+    // No popup - just add to cart silently
     
     // Track AddToCart event
     console.log('Firing AddToCart from ProductCard:', product.name);
@@ -177,7 +175,7 @@ const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
             {/* Variations Selector */}
             {hasVariations && (
               <div className="space-y-2 mb-3">
-                <p className="text-xs font-medium text-muted-foreground">ওজন নির্বাচন করুন:</p>
+                <p className="text-xs font-medium text-muted-foreground">সাইজ নির্বাচন করুন:</p>
                 <div className="flex flex-wrap gap-1.5">
                   {product.variations!.map((variation) => {
                     const isFreeDelivery = variation.name.toLowerCase().includes('5kg') || 
