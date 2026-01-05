@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { 
   Save, BarChart3, Eye, EyeOff, ShoppingCart, CreditCard, Facebook, 
-  Ticket, Plus, Trash2, Pencil, Calendar, Percent, DollarSign, Mail, Bell 
+  Ticket, Plus, Trash2, Pencil, Calendar, Percent, DollarSign, Mail, Bell, Music2
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -68,6 +68,14 @@ interface GoogleSettings {
   ga_server_enabled: boolean;
 }
 
+interface TikTokSettings {
+  tiktok_pixel_id: string;
+  tiktok_pixel_enabled: boolean;
+  tiktok_access_token: string;
+  tiktok_events_api_enabled: boolean;
+  tiktok_test_event_code: string;
+}
+
 export default function AdminMarketing() {
   // Facebook state
   const [pixelId, setPixelId] = useState('');
@@ -90,6 +98,18 @@ export default function AdminMarketing() {
   const [savingGoogle, setSavingGoogle] = useState(false);
   const [loadingGoogle, setLoadingGoogle] = useState(true);
   const [showGaSecret, setShowGaSecret] = useState(false);
+
+  // TikTok state
+  const [tiktokSettings, setTiktokSettings] = useState<TikTokSettings>({
+    tiktok_pixel_id: '',
+    tiktok_pixel_enabled: false,
+    tiktok_access_token: '',
+    tiktok_events_api_enabled: false,
+    tiktok_test_event_code: '',
+  });
+  const [savingTiktok, setSavingTiktok] = useState(false);
+  const [loadingTiktok, setLoadingTiktok] = useState(true);
+  const [showTiktokToken, setShowTiktokToken] = useState(false);
 
   // Coupon state
   const [coupons, setCoupons] = useState<Coupon[]>([]);
@@ -125,9 +145,93 @@ export default function AdminMarketing() {
   useEffect(() => {
     loadFacebookSettings();
     loadGoogleSettings();
+    loadTikTokSettings();
     loadCoupons();
     loadEmailSettings();
   }, []);
+
+  // TikTok functions
+  const loadTikTokSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('admin_settings')
+        .select('key, value')
+        .in('key', [
+          'tiktok_pixel_id',
+          'tiktok_pixel_enabled',
+          'tiktok_access_token',
+          'tiktok_events_api_enabled',
+          'tiktok_test_event_code',
+        ]);
+
+      if (error) throw error;
+
+      const settings: TikTokSettings = {
+        tiktok_pixel_id: '',
+        tiktok_pixel_enabled: false,
+        tiktok_access_token: '',
+        tiktok_events_api_enabled: false,
+        tiktok_test_event_code: '',
+      };
+
+      data?.forEach((setting) => {
+        switch (setting.key) {
+          case 'tiktok_pixel_id':
+            settings.tiktok_pixel_id = setting.value;
+            break;
+          case 'tiktok_pixel_enabled':
+            settings.tiktok_pixel_enabled = setting.value === 'true';
+            break;
+          case 'tiktok_access_token':
+            settings.tiktok_access_token = setting.value;
+            break;
+          case 'tiktok_events_api_enabled':
+            settings.tiktok_events_api_enabled = setting.value === 'true';
+            break;
+          case 'tiktok_test_event_code':
+            settings.tiktok_test_event_code = setting.value;
+            break;
+        }
+      });
+
+      setTiktokSettings(settings);
+    } catch (error) {
+      console.error('Failed to load TikTok settings:', error);
+      toast.error('Failed to load TikTok settings');
+    } finally {
+      setLoadingTiktok(false);
+    }
+  };
+
+  const handleSaveTikTok = async () => {
+    if (tiktokSettings.tiktok_pixel_enabled && !tiktokSettings.tiktok_pixel_id.trim()) {
+      toast.error('Please enter a TikTok Pixel ID');
+      return;
+    }
+
+    if (tiktokSettings.tiktok_events_api_enabled && !tiktokSettings.tiktok_access_token.trim()) {
+      toast.error('Please enter a TikTok Events API Access Token');
+      return;
+    }
+
+    setSavingTiktok(true);
+    try {
+      await Promise.all([
+        upsertSetting('tiktok_pixel_id', tiktokSettings.tiktok_pixel_id.trim()),
+        upsertSetting('tiktok_pixel_enabled', tiktokSettings.tiktok_pixel_enabled.toString()),
+        upsertSetting('tiktok_access_token', tiktokSettings.tiktok_access_token.trim()),
+        upsertSetting('tiktok_events_api_enabled', tiktokSettings.tiktok_events_api_enabled.toString()),
+        upsertSetting('tiktok_test_event_code', tiktokSettings.tiktok_test_event_code.trim()),
+      ]);
+
+      toast.success('TikTok settings saved successfully');
+    } catch (error) {
+      console.error('Save error:', error);
+      toast.error('Failed to save TikTok settings');
+    } finally {
+      setSavingTiktok(false);
+    }
+  };
 
   // Google Analytics functions
   const loadGoogleSettings = async () => {
@@ -514,7 +618,7 @@ export default function AdminMarketing() {
     }
   };
 
-  if (loadingFb && loadingGoogle && loadingCoupons && loadingEmail) {
+  if (loadingFb && loadingGoogle && loadingTiktok && loadingCoupons && loadingEmail) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -530,10 +634,14 @@ export default function AdminMarketing() {
       </div>
 
       <Tabs defaultValue="facebook" className="space-y-6">
-        <TabsList className="grid w-full max-w-2xl grid-cols-4">
+        <TabsList className="grid w-full max-w-3xl grid-cols-5">
           <TabsTrigger value="facebook" className="gap-2">
             <Facebook className="h-4 w-4" />
-            Meta Pixel
+            Meta
+          </TabsTrigger>
+          <TabsTrigger value="tiktok" className="gap-2">
+            <Music2 className="h-4 w-4" />
+            TikTok
           </TabsTrigger>
           <TabsTrigger value="google" className="gap-2">
             <BarChart3 className="h-4 w-4" />
@@ -706,6 +814,183 @@ export default function AdminMarketing() {
           <Button onClick={handleSaveFacebook} disabled={savingFb} className="gap-2">
             <Save className="h-4 w-4" />
             {savingFb ? 'Saving...' : 'Save Facebook Settings'}
+          </Button>
+        </TabsContent>
+
+        {/* TikTok Tab */}
+        <TabsContent value="tiktok" className="space-y-6">
+          {/* TikTok Pixel */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Music2 className="h-5 w-5 text-black dark:text-white" />
+                    TikTok Pixel
+                  </CardTitle>
+                  <CardDescription>
+                    Track website visitors and their actions for TikTok Ads
+                  </CardDescription>
+                </div>
+                <Switch
+                  checked={tiktokSettings.tiktok_pixel_enabled}
+                  onCheckedChange={(checked) => setTiktokSettings({ ...tiktokSettings, tiktok_pixel_enabled: checked })}
+                />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="tiktokPixelId">TikTok Pixel ID</Label>
+                <Input
+                  id="tiktokPixelId"
+                  value={tiktokSettings.tiktok_pixel_id}
+                  onChange={(e) => setTiktokSettings({ ...tiktokSettings, tiktok_pixel_id: e.target.value })}
+                  placeholder="Enter your TikTok Pixel ID"
+                  disabled={!tiktokSettings.tiktok_pixel_enabled}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Find your Pixel ID in TikTok Ads Manager → Assets → Events → Web Events
+                </p>
+              </div>
+
+              {tiktokSettings.tiktok_pixel_enabled && tiktokSettings.tiktok_pixel_id && (
+                <div className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-4">
+                  <p className="text-sm text-zinc-800 dark:text-zinc-200">
+                    ✓ Pixel will track: PageView, ViewContent, AddToCart, InitiateCheckout, CompletePayment
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* TikTok Events API */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <CreditCard className="h-5 w-5 text-cyan-600" />
+                    TikTok Events API
+                  </CardTitle>
+                  <CardDescription>
+                    Server-side tracking for better data accuracy and bypassing ad blockers
+                  </CardDescription>
+                </div>
+                <Switch
+                  checked={tiktokSettings.tiktok_events_api_enabled}
+                  onCheckedChange={(checked) => setTiktokSettings({ ...tiktokSettings, tiktok_events_api_enabled: checked })}
+                />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="tiktokAccessToken">Access Token</Label>
+                <div className="relative">
+                  <Input
+                    id="tiktokAccessToken"
+                    type={showTiktokToken ? 'text' : 'password'}
+                    value={tiktokSettings.tiktok_access_token}
+                    onChange={(e) => setTiktokSettings({ ...tiktokSettings, tiktok_access_token: e.target.value })}
+                    placeholder="Enter your TikTok Events API Access Token"
+                    disabled={!tiktokSettings.tiktok_events_api_enabled}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowTiktokToken(!showTiktokToken)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showTiktokToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Generate a token in TikTok for Business → Assets → Events → Settings → Events API
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="tiktokTestEventCode">Test Event Code (Optional)</Label>
+                <Input
+                  id="tiktokTestEventCode"
+                  value={tiktokSettings.tiktok_test_event_code}
+                  onChange={(e) => setTiktokSettings({ ...tiktokSettings, tiktok_test_event_code: e.target.value })}
+                  placeholder="e.g., TEST12345"
+                  disabled={!tiktokSettings.tiktok_events_api_enabled}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Use this to test events before going live
+                </p>
+              </div>
+
+              {tiktokSettings.tiktok_events_api_enabled && tiktokSettings.tiktok_access_token && (
+                <div className="bg-cyan-50 dark:bg-cyan-950 border border-cyan-200 dark:border-cyan-800 rounded-lg p-4 space-y-2">
+                  <p className="text-sm font-medium text-cyan-800 dark:text-cyan-200">
+                    ✓ Server-Side Tracking Active
+                  </p>
+                  <ul className="text-xs text-cyan-700 dark:text-cyan-300 space-y-1 list-disc list-inside">
+                    <li>InitiateCheckout - When users start checkout</li>
+                    <li>CompletePayment - Order completion with full customer data</li>
+                    <li>Includes: Phone, Email, IP, User Agent, TikTok ClickID (ttclid)</li>
+                  </ul>
+                  <p className="text-xs text-cyan-600 dark:text-cyan-400 pt-2">
+                    💡 Server-side events bypass ad blockers and improve match quality
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* TikTok Events Summary */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Tracked Events</CardTitle>
+              <CardDescription>Events that will be sent to TikTok when enabled</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                  <Eye className="h-5 w-5 text-blue-500" />
+                  <div>
+                    <p className="font-medium text-sm">PageView</p>
+                    <p className="text-xs text-muted-foreground">Every page visit</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                  <Eye className="h-5 w-5 text-green-500" />
+                  <div>
+                    <p className="font-medium text-sm">ViewContent</p>
+                    <p className="text-xs text-muted-foreground">Product views</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                  <ShoppingCart className="h-5 w-5 text-orange-500" />
+                  <div>
+                    <p className="font-medium text-sm">AddToCart</p>
+                    <p className="text-xs text-muted-foreground">Items added</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                  <CreditCard className="h-5 w-5 text-purple-500" />
+                  <div>
+                    <p className="font-medium text-sm">InitiateCheckout</p>
+                    <p className="text-xs text-muted-foreground">Checkout starts</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                  <DollarSign className="h-5 w-5 text-emerald-500" />
+                  <div>
+                    <p className="font-medium text-sm">CompletePayment</p>
+                    <p className="text-xs text-muted-foreground">Purchases</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Save Button */}
+          <Button onClick={handleSaveTikTok} disabled={savingTiktok} className="gap-2">
+            <Save className="h-4 w-4" />
+            {savingTiktok ? 'Saving...' : 'Save TikTok Settings'}
           </Button>
         </TabsContent>
 

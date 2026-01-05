@@ -30,6 +30,24 @@ interface ProductItem {
   quantity?: number;
 }
 
+// Get ttclid from storage (captured by client-side pixel)
+const getTtclid = (): string | null => {
+  try {
+    return sessionStorage.getItem('_ttclid');
+  } catch {
+    return null;
+  }
+};
+
+// Get TikTok external ID
+const getTikTokExternalId = (): string => {
+  try {
+    return localStorage.getItem('_tt_external_id') || '';
+  } catch {
+    return '';
+  }
+};
+
 // Get fbclid from storage (captured by client-side pixel)
 const getFbclid = (): string | null => {
   try {
@@ -212,13 +230,53 @@ export const useServerTracking = () => {
   }, []);
 
   /**
-   * Track both Facebook and Google events simultaneously
+   * Send an event to TikTok Events API via edge function
+   */
+  const trackTikTokEvent = useCallback(async ({
+    eventName,
+    userData = {},
+    customData = {},
+  }: TrackEventParams): Promise<{ success: boolean; error?: string }> => {
+    try {
+      console.log(`[TikTok Server] Sending ${eventName} event...`);
+      
+      const payload = {
+        event_name: eventName,
+        user_data: {
+          email: userData.email,
+          phone: userData.phone,
+          external_id: getTikTokExternalId(),
+          ttclid: getTtclid(),
+        },
+        custom_data: customData,
+        event_source_url: window.location.href,
+      };
+      
+      const { data, error } = await supabase.functions.invoke('tiktok-events-api', {
+        body: payload,
+      });
+      
+      if (error) {
+        console.error('[TikTok Server] Error:', error);
+        return { success: false, error: error.message };
+      }
+      
+      console.log('[TikTok Server] Response:', data);
+      return { success: data?.success ?? false, error: data?.error };
+    } catch (err) {
+      console.error('[TikTok Server] Exception:', err);
+      return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+    }
+  }, []);
+
+  /**
+   * Track Facebook, Google, and TikTok events simultaneously
    */
   const trackServerEvent = useCallback(async ({
     eventName,
     userData = {},
     customData = {},
-  }: TrackEventParams): Promise<{ facebook: { success: boolean; error?: string }; google: { success: boolean; error?: string } }> => {
+  }: TrackEventParams): Promise<{ facebook: { success: boolean; error?: string }; google: { success: boolean; error?: string }; tiktok: { success: boolean; error?: string } }> => {
     // Map FB event names to GA4 event names
     const gaEventMap: Record<string, string> = {
       'PageView': 'page_view',
@@ -238,7 +296,7 @@ export const useServerTracking = () => {
       quantity: 1,
     })) || [];
 
-    const [fbResult, gaResult] = await Promise.all([
+    const [fbResult, gaResult, ttResult] = await Promise.all([
       trackFacebookEvent({ eventName, userData, customData }),
       trackGoogleEvent({
         eventName: gaEventMap[eventName] || eventName.toLowerCase(),
@@ -246,10 +304,11 @@ export const useServerTracking = () => {
         transactionId: customData.order_id,
         items,
       }),
+      trackTikTokEvent({ eventName, userData, customData }),
     ]);
 
-    return { facebook: fbResult, google: gaResult };
-  }, [trackFacebookEvent, trackGoogleEvent]);
+    return { facebook: fbResult, google: gaResult, tiktok: ttResult };
+  }, [trackFacebookEvent, trackGoogleEvent, trackTikTokEvent]);
   
   /**
    * Track a page view event
@@ -409,6 +468,7 @@ export const useServerTracking = () => {
     trackServerEvent,
     trackFacebookEvent,
     trackGoogleEvent,
+    trackTikTokEvent,
     trackPageView,
     trackViewContent,
     trackAddToCart,

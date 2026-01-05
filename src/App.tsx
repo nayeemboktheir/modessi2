@@ -8,6 +8,7 @@ import { store } from '@/store/store';
 import { AuthProvider } from '@/hooks/useAuth';
 import { FacebookPixelTracker } from '@/components/tracking/FacebookPixelTracker';
 import GoogleAnalyticsTracker from '@/components/tracking/GoogleAnalyticsTracker';
+import { TikTokPixelTracker } from '@/components/tracking/TikTokPixelTracker';
 import FashionHomePage from '@/pages/FashionHomePage';
 import OrderConfirmationPage from '@/pages/OrderConfirmationPage';
 import AuthPage from '@/pages/AuthPage';
@@ -52,6 +53,7 @@ const App = () => (
           <BrowserRouter>
             <FacebookPixelTracker />
             <GoogleAnalyticsTracker />
+            <TikTokPixelTracker />
             <Routes>
               {/* Main Pages */}
               <Route path="/" element={<FashionHomePage />} />
