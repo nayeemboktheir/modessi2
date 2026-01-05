@@ -11,6 +11,12 @@ import GoogleAnalyticsTracker from '@/components/tracking/GoogleAnalyticsTracker
 import FashionHomePage from '@/pages/FashionHomePage';
 import OrderConfirmationPage from '@/pages/OrderConfirmationPage';
 import AuthPage from '@/pages/AuthPage';
+import MyAccountPage from '@/pages/MyAccountPage';
+import ProductsPage from '@/pages/ProductsPage';
+import ProductDetailPage from '@/pages/ProductDetailPage';
+import WishlistPage from '@/pages/WishlistPage';
+import AboutPage from '@/pages/AboutPage';
+import ContactPage from '@/pages/ContactPage';
 import AdminLayout from '@/components/admin/AdminLayout';
 import AdminDashboard from '@/pages/admin/AdminDashboard';
 import AdminProducts from '@/pages/admin/AdminProducts';
@@ -47,8 +53,14 @@ const App = () => (
             <FacebookPixelTracker />
             <GoogleAnalyticsTracker />
             <Routes>
-              {/* Main Landing Page */}
+              {/* Main Pages */}
               <Route path="/" element={<FashionHomePage />} />
+              <Route path="/products" element={<ProductsPage />} />
+              <Route path="/product/:slug" element={<ProductDetailPage />} />
+              <Route path="/wishlist" element={<WishlistPage />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/contact" element={<ContactPage />} />
+              <Route path="/my-account" element={<MyAccountPage />} />
               <Route path="/order-confirmation" element={<OrderConfirmationPage />} />
               <Route path="/auth" element={<AuthPage />} />
               {/* Admin Routes */}
