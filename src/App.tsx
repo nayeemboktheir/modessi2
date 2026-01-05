@@ -22,6 +22,8 @@ import AboutPage from '@/pages/AboutPage';
 import ContactPage from '@/pages/ContactPage';
 import CartPage from '@/pages/CartPage';
 import CheckoutPage from '@/pages/CheckoutPage';
+import ProductLandingPage from '@/pages/ProductLandingPage';
+import LandingPage from '@/pages/LandingPage';
 
 import AdminLayout from '@/components/admin/AdminLayout';
 import AdminDashboard from '@/pages/admin/AdminDashboard';
@@ -73,6 +75,11 @@ const App = () => (
               <Route path="/my-account" element={<MyAccountPage />} />
               <Route path="/order-confirmation" element={<OrderConfirmationPage />} />
               <Route path="/auth" element={<AuthPage />} />
+              
+              {/* Landing Pages */}
+              <Route path="/step/:slug" element={<ProductLandingPage />} />
+              <Route path="/lp/:slug" element={<LandingPage />} />
+              
               {/* Admin Routes */}
               <Route path="/admin" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
               <Route path="/admin/reports" element={<AdminLayout><AdminReports /></AdminLayout>} />
