@@ -30,7 +30,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, Search, Package, Upload, X, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Package, Upload, X, Image as ImageIcon, Loader2, Play } from 'lucide-react';
 import { 
   getAllProducts, 
   createProduct, 
@@ -63,6 +63,7 @@ interface Product {
   category_id: string | null;
   stock: number;
   images: string[] | null;
+  video_url: string | null;
   tags: string[] | null;
   is_featured: boolean | null;
   is_new: boolean | null;
@@ -86,6 +87,7 @@ const initialFormState = {
   category_id: '',
   stock: 0,
   images: '',
+  video_url: '',
   tags: '',
   is_featured: false,
   is_new: false,
@@ -196,6 +198,7 @@ export default function AdminProducts() {
       category_id: product.category_id || '',
       stock: product.stock,
       images: '',
+      video_url: product.video_url || '',
       tags: product.tags?.join(', ') || '',
       is_featured: product.is_featured || false,
       is_new: product.is_new || false,
@@ -355,6 +358,7 @@ export default function AdminProducts() {
         category_id: formData.category_id || undefined,
         stock: formData.stock,
         images: productImages.length > 0 ? productImages : [],
+        video_url: formData.video_url || undefined,
         tags: formData.tags ? formData.tags.split(',').map(s => s.trim()) : [],
         is_featured: formData.is_featured,
         is_new: formData.is_new,
@@ -614,6 +618,28 @@ export default function AdminProducts() {
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
+              </div>
+
+              {/* Product Video Section */}
+              <div className="space-y-2">
+                <Label htmlFor="video_url" className="flex items-center gap-2">
+                  <Play className="h-4 w-4" />
+                  প্রোডাক্ট ভিডিও URL (Product Video)
+                </Label>
+                <Input
+                  id="video_url"
+                  value={formData.video_url}
+                  onChange={(e) => setFormData({ ...formData, video_url: e.target.value })}
+                  placeholder="YouTube বা অন্য ভিডিও লিংক পেস্ট করুন"
+                />
+                <p className="text-xs text-muted-foreground">
+                  YouTube লিংক (যেমন: https://www.youtube.com/watch?v=xxxxx) অথবা সরাসরি ভিডিও URL দিন
+                </p>
+                {formData.video_url && (
+                  <div className="mt-2 p-2 bg-muted rounded-lg">
+                    <p className="text-sm text-muted-foreground">✓ ভিডিও যুক্ত হয়েছে - ল্যান্ডিং পেজে দেখা যাবে</p>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">

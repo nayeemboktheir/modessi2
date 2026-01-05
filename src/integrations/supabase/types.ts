@@ -688,6 +688,7 @@ export type Database = {
           stock: number
           tags: string[] | null
           updated_at: string
+          video_url: string | null
         }
         Insert: {
           category_id?: string | null
@@ -709,6 +710,7 @@ export type Database = {
           stock?: number
           tags?: string[] | null
           updated_at?: string
+          video_url?: string | null
         }
         Update: {
           category_id?: string | null
@@ -730,6 +732,7 @@ export type Database = {
           stock?: number
           tags?: string[] | null
           updated_at?: string
+          video_url?: string | null
         }
         Relationships: [
           {

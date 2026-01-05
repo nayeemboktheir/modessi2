@@ -38,6 +38,7 @@ interface ProductData {
   price: number;
   original_price?: number;
   images: string[];
+  video_url?: string;
   description?: string;
   short_description?: string;
   variations: ProductVariation[];
@@ -359,6 +360,86 @@ const GallerySection = memo(({ images }: { images: string[] }) => {
 });
 
 GallerySection.displayName = 'GallerySection';
+
+// ====== Video Section ======
+const VideoSection = memo(({ videoUrl }: { videoUrl?: string }) => {
+  if (!videoUrl) return null;
+
+  // Convert YouTube URL to embed format
+  const getEmbedUrl = (url: string): string | null => {
+    // Handle YouTube URLs
+    const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    const match = url.match(youtubeRegex);
+    if (match) {
+      return `https://www.youtube.com/embed/${match[1]}?autoplay=0&rel=0`;
+    }
+    
+    // Handle direct video URLs (mp4, webm, etc.)
+    if (url.match(/\.(mp4|webm|ogg)$/i)) {
+      return url;
+    }
+    
+    // For other embed URLs, return as-is
+    if (url.includes('embed') || url.includes('player')) {
+      return url;
+    }
+    
+    return null;
+  };
+
+  const embedUrl = getEmbedUrl(videoUrl);
+  const isDirectVideo = videoUrl.match(/\.(mp4|webm|ogg)$/i);
+
+  if (!embedUrl && !isDirectVideo) return null;
+
+  return (
+    <section className="py-12 md:py-16 bg-gradient-to-br from-gray-900 to-gray-800">
+      <div className="container mx-auto px-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="text-center mb-8"
+        >
+          <h2 className="text-2xl md:text-4xl font-bold text-white mb-2">
+            প্রোডাক্ট ভিডিও
+          </h2>
+          <p className="text-gray-400">বিস্তারিত দেখুন ভিডিওতে</p>
+        </motion.div>
+        
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: true }}
+          className="max-w-4xl mx-auto"
+        >
+          <div className="relative aspect-video rounded-2xl overflow-hidden shadow-2xl bg-black">
+            {isDirectVideo ? (
+              <video 
+                src={videoUrl}
+                controls
+                className="w-full h-full object-contain"
+                preload="metadata"
+              >
+                আপনার ব্রাউজার ভিডিও সাপোর্ট করে না।
+              </video>
+            ) : (
+              <iframe
+                src={embedUrl!}
+                title="Product Video"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="w-full h-full"
+              />
+            )}
+          </div>
+        </motion.div>
+      </div>
+    </section>
+  );
+});
+
+VideoSection.displayName = 'VideoSection';
 
 // ====== Delivery Info Section ======
 const DeliverySection = memo(() => {
@@ -762,6 +843,7 @@ const ProductLandingPage = () => {
           return {
             ...productData,
             images: productData.images || [],
+            video_url: productData.video_url || undefined,
             variations: variations || [],
           } as ProductData;
         }
@@ -785,6 +867,7 @@ const ProductLandingPage = () => {
         return {
           ...directProduct,
           images: directProduct.images || [],
+          video_url: directProduct.video_url || undefined,
           variations: variations || [],
         } as ProductData;
       }
@@ -877,6 +960,7 @@ const ProductLandingPage = () => {
       />
       <FeaturesBanner description={product.description} />
       <GallerySection images={product.images} />
+      <VideoSection videoUrl={product.video_url} />
       <DeliverySection />
       <WhatsAppCTA />
       <CheckoutSection 
