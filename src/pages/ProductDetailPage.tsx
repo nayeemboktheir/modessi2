@@ -98,12 +98,8 @@ const ProductDetailPage = () => {
           fetchProducts(),
         ]);
         setProduct(productData);
-        // Set default variation if product has variations
-        if (productData?.variations && productData.variations.length > 0) {
-          setSelectedVariation(productData.variations[0]);
-        } else {
-          setSelectedVariation(undefined);
-        }
+        // Do NOT auto-select variation - customer should select manually
+        setSelectedVariation(undefined);
         if (productData) {
           setRelatedProducts(
             allProducts
@@ -324,7 +320,7 @@ const ProductDetailPage = () => {
             {hasVariations && (
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  ওজন নির্বাচন করুন: <span className="font-semibold text-foreground">{selectedVariation?.name}</span>
+                  সাইজ নির্বাচন করুন: <span className="font-semibold text-foreground">{selectedVariation?.name || ''}</span>
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {product.variations!.map((variation) => (
