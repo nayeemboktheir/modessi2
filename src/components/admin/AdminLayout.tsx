@@ -55,7 +55,7 @@ const adminNavItems = [
   { title: 'Courier Settings', url: '/admin/courier-settings', icon: Truck },
   { title: 'Users', url: '/admin/users', icon: Users },
   { title: 'Inventory', url: '/admin/inventory', icon: Boxes },
-  { title: 'Banners', url: '/admin/banners', icon: Image },
+  { title: 'Slider Settings', url: '/admin/banners', icon: Image },
   { title: 'Marketing', url: '/admin/marketing', icon: Megaphone },
   { title: 'SMS', url: '/admin/sms', icon: MessageSquare },
   { title: 'Social Media', url: '/admin/social-media', icon: Share2 },
