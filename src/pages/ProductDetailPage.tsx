@@ -148,7 +148,7 @@ const ProductDetailPage = () => {
 
   const handleAddToCart = () => {
     if (hasVariations && !selectedVariation) {
-      toast.error('Please select a variation');
+      toast.error('সাইজ সিলেক্ট করুন');
       return;
     }
     
@@ -169,7 +169,7 @@ const ProductDetailPage = () => {
 
   const handleBuyNow = () => {
     if (hasVariations && !selectedVariation) {
-      toast.error('Please select a variation');
+      toast.error('সাইজ সিলেক্ট করুন');
       return;
     }
     

@@ -40,7 +40,7 @@ const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
     
     // If product has variations but none selected, show error
     if (hasVariations && !selectedVariation) {
-      toast.error('Please select a variation');
+      toast.error('সাইজ সিলেক্ট করুন');
       return;
     }
     
