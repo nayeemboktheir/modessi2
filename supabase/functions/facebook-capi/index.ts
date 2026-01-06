@@ -92,10 +92,11 @@ serve(async (req) => {
     const supabaseClient = createClient(supabaseUrl, serviceRoleKey);
 
     // Fetch CAPI settings from admin_settings
+    // Support both fb_capi_token and fb_capi_access_token key names for flexibility
     const { data: settings, error: settingsError } = await supabaseClient
       .from("admin_settings")
       .select("key, value")
-      .in("key", ["fb_pixel_id", "fb_capi_token", "fb_capi_enabled", "fb_test_event_code"]);
+      .in("key", ["fb_pixel_id", "fb_capi_token", "fb_capi_access_token", "fb_capi_enabled", "fb_test_event_code"]);
 
     if (settingsError) {
       console.error("Failed to fetch settings:", settingsError);
@@ -113,13 +114,18 @@ serve(async (req) => {
     let testEventCode = "";
 
     settings?.forEach((setting: { key: string; value: string }) => {
-      console.log(`Setting: ${setting.key} = ${setting.key === 'fb_capi_token' ? '[REDACTED]' : setting.value}`);
+      const isSecret = setting.key.includes('token') || setting.key.includes('access');
+      console.log(`Setting: ${setting.key} = ${isSecret ? '[REDACTED]' : setting.value}`);
       switch (setting.key) {
         case "fb_pixel_id":
           pixelId = setting.value;
           break;
         case "fb_capi_token":
-          capiToken = setting.value;
+        case "fb_capi_access_token":
+          // Support both key names - use whichever is available
+          if (!capiToken && setting.value) {
+            capiToken = setting.value;
+          }
           break;
         case "fb_capi_enabled":
           capiEnabled = setting.value === "true";
