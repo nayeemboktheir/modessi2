@@ -34,12 +34,15 @@ const cartSlice = createSlice({
   name: 'cart',
   initialState,
   reducers: {
-    addToCart: (state, action: PayloadAction<{ product: Product; quantity?: number; variation?: ProductVariation }>) => {
+    addToCart: (
+      state,
+      action: PayloadAction<{ product: Product; quantity?: number; variation?: ProductVariation }>
+    ) => {
       const { product, quantity = 1, variation } = action.payload;
       const itemKey = getCartItemKey(product.id, variation?.id);
-      
-      const existingItem = state.items.find((item) => 
-        getCartItemKey(item.product.id, item.variation?.id) === itemKey
+
+      const existingItem = state.items.find(
+        (item) => getCartItemKey(item.product.id, item.variation?.id) === itemKey
       );
 
       if (existingItem) {
@@ -52,22 +55,56 @@ const cartSlice = createSlice({
     removeFromCart: (state, action: PayloadAction<{ productId: string; variationId?: string }>) => {
       const { productId, variationId } = action.payload;
       const itemKey = getCartItemKey(productId, variationId);
-      
-      state.items = state.items.filter((item) => 
-        getCartItemKey(item.product.id, item.variation?.id) !== itemKey
+
+      state.items = state.items.filter(
+        (item) => getCartItemKey(item.product.id, item.variation?.id) !== itemKey
       );
       saveCartToStorage(state.items);
     },
-    updateQuantity: (state, action: PayloadAction<{ productId: string; variationId?: string; quantity: number }>) => {
+    updateQuantity: (
+      state,
+      action: PayloadAction<{ productId: string; variationId?: string; quantity: number }>
+    ) => {
       const { productId, variationId, quantity } = action.payload;
       const itemKey = getCartItemKey(productId, variationId);
-      
-      const item = state.items.find((item) => 
-        getCartItemKey(item.product.id, item.variation?.id) === itemKey
+
+      const item = state.items.find(
+        (item) => getCartItemKey(item.product.id, item.variation?.id) === itemKey
       );
       if (item) {
         item.quantity = Math.max(1, quantity);
       }
+      saveCartToStorage(state.items);
+    },
+    setCartItemVariation: (
+      state,
+      action: PayloadAction<{ productId: string; fromVariationId?: string; variation?: ProductVariation }>
+    ) => {
+      const { productId, fromVariationId, variation } = action.payload;
+
+      const fromKey = getCartItemKey(productId, fromVariationId);
+      const existing = state.items.find(
+        (item) => getCartItemKey(item.product.id, item.variation?.id) === fromKey
+      );
+      if (!existing) return;
+
+      // Remove the old item
+      state.items = state.items.filter(
+        (item) => getCartItemKey(item.product.id, item.variation?.id) !== fromKey
+      );
+
+      // Add/merge into the target item key
+      const toKey = getCartItemKey(productId, variation?.id);
+      const target = state.items.find(
+        (item) => getCartItemKey(item.product.id, item.variation?.id) === toKey
+      );
+
+      if (target) {
+        target.quantity += existing.quantity;
+      } else {
+        state.items.push({ ...existing, variation });
+      }
+
       saveCartToStorage(state.items);
     },
     clearCart: (state) => {
@@ -90,6 +127,7 @@ export const {
   addToCart,
   removeFromCart,
   updateQuantity,
+  setCartItemVariation,
   clearCart,
   toggleCart,
   openCart,

@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
-import { selectCartItems, selectCartTotal, clearCart } from '@/store/slices/cartSlice';
+import { selectCartItems, selectCartTotal, clearCart, setCartItemVariation } from '@/store/slices/cartSlice';
 import { useAuth } from '@/hooks/useAuth';
 import { createOrder } from '@/services/orderService';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,6 +14,8 @@ import { ShoppingBag, Truck, ArrowLeft, Loader2, CheckCircle, Banknote } from 'l
 import { ShippingMethodSelector, ShippingZone, SHIPPING_RATES } from '@/components/checkout/ShippingMethodSelector';
 import { useFacebookPixel } from '@/hooks/useFacebookPixel';
 import { useServerTracking } from '@/hooks/useServerTracking';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import type { ProductVariation } from '@/types';
 
 interface ShippingForm {
   name: string;
@@ -42,18 +44,71 @@ const CheckoutPage = () => {
   const cartItems = useAppSelector(selectCartItems);
   const cartTotal = useAppSelector(selectCartTotal);
   const hasTrackedCheckout = useRef(false);
-  
+
+  const [variationsByProductId, setVariationsByProductId] = useState<Record<string, ProductVariation[]>>({});
+  const productIdsInCart = useMemo(
+    () => Array.from(new Set(cartItems.map((i) => i.product.id))),
+    [cartItems]
+  );
+
+  useEffect(() => {
+    const loadVariations = async () => {
+      if (productIdsInCart.length === 0) return;
+
+      // Use already-available variations from cart items (if any)
+      const preloaded: Record<string, ProductVariation[]> = {};
+      for (const item of cartItems) {
+        if (item.product.variations && item.product.variations.length > 0) {
+          preloaded[item.product.id] = item.product.variations;
+        }
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('product_variations')
+          .select('id, product_id, name, price, original_price, stock, sort_order, is_active')
+          .in('product_id', productIdsInCart)
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true });
+
+        if (error) throw error;
+
+        const fetched: Record<string, ProductVariation[]> = {};
+        (data || []).forEach((v: any) => {
+          const pv: ProductVariation = {
+            id: v.id,
+            product_id: v.product_id,
+            name: v.name,
+            price: Number(v.price),
+            original_price: v.original_price == null ? undefined : Number(v.original_price),
+            stock: Number(v.stock),
+            sort_order: Number(v.sort_order ?? 0),
+            is_active: Boolean(v.is_active),
+          };
+          fetched[pv.product_id] = [...(fetched[pv.product_id] || []), pv];
+        });
+
+        setVariationsByProductId({ ...fetched, ...preloaded });
+      } catch (e) {
+        console.error('Failed to load variations for checkout:', e);
+        setVariationsByProductId((prev) => ({ ...preloaded, ...prev }));
+      }
+    };
+
+    loadVariations();
+  }, [productIdsInCart, cartItems]);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const draftOrderId = useRef<string | null>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [shippingZone, setShippingZone] = useState<ShippingZone>('outside_dhaka');
-  
+
   const [shippingForm, setShippingForm] = useState<ShippingForm>({
     name: '',
     phone: '',
     address: '',
   });
-  
+
   const shippingCost = SHIPPING_RATES[shippingZone];
   const total = cartTotal + shippingCost;
 
@@ -243,6 +298,22 @@ const CheckoutPage = () => {
       toast({ title: "Address is required", variant: "destructive" });
       return false;
     }
+
+    // Require size selection for products that have variations
+    const missingSize = cartItems.find((item) => {
+      const variations = variationsByProductId[item.product.id] || item.product.variations || [];
+      return variations.length > 0 && !item.variation;
+    });
+
+    if (missingSize) {
+      toast({
+        title: "সাইজ নির্বাচন করুন",
+        description: `${missingSize.product.name} - এর সাইজ সিলেক্ট করুন`,
+        variant: "destructive",
+      });
+      return false;
+    }
+
     return true;
   };
 
@@ -455,24 +526,63 @@ const CheckoutPage = () => {
 
                 {/* Cart Items */}
                 <div className="space-y-4 mb-6 max-h-64 overflow-y-auto">
-                  {cartItems.map((item) => (
-                    <div key={item.product.id} className="flex gap-3">
-                      <div className="w-16 h-16 bg-muted rounded-lg overflow-hidden flex-shrink-0">
-                        <img
-                          src={item.product.images[0] || '/placeholder.svg'}
-                          alt={item.product.name}
-                          className="w-full h-full object-cover"
-                        />
+                  {cartItems.map((item) => {
+                    const itemKey = item.variation?.id
+                      ? `${item.product.id}-${item.variation.id}`
+                      : item.product.id;
+                    const displayPrice = item.variation?.price ?? item.product.price;
+                    const variations = variationsByProductId[item.product.id] || item.product.variations || [];
+
+                    return (
+                      <div key={itemKey} className="flex gap-3">
+                        <div className="w-16 h-16 bg-muted rounded-lg overflow-hidden flex-shrink-0">
+                          <img
+                            src={item.product.images[0] || '/placeholder.svg'}
+                            alt={item.product.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-foreground text-sm line-clamp-2">{item.product.name}</p>
+
+                          {variations.length > 0 && (
+                            <div className="mt-2">
+                              <Select
+                                value={item.variation?.id}
+                                onValueChange={(variationId) => {
+                                  const v = variations.find((x) => x.id === variationId);
+                                  if (!v) return;
+                                  dispatch(
+                                    setCartItemVariation({
+                                      productId: item.product.id,
+                                      fromVariationId: item.variation?.id,
+                                      variation: v,
+                                    })
+                                  );
+                                }}
+                              >
+                                <SelectTrigger className="h-8 text-xs">
+                                  <SelectValue placeholder="সাইজ নির্বাচন করুন" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {variations.map((v) => (
+                                    <SelectItem key={v.id} value={v.id}>
+                                      {v.name} — ৳{Number(v.price).toLocaleString('en-BD')}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
+
+                          <p className="text-sm text-muted-foreground mt-2">Qty: {item.quantity}</p>
+                        </div>
+                        <p className="font-semibold text-foreground text-sm">
+                          {formatPrice(displayPrice * item.quantity)}
+                        </p>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-foreground text-sm line-clamp-2">{item.product.name}</p>
-                        <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
-                      </div>
-                      <p className="font-semibold text-foreground text-sm">
-                        {formatPrice(item.product.price * item.quantity)}
-                      </p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 <Separator className="my-4" />
