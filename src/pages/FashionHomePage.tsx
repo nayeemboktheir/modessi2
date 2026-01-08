@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  ShoppingBag, Heart, User, LayoutDashboard, ChevronRight, ChevronLeft, 
+import {
+  ShoppingBag, Heart, User, LayoutDashboard, ChevronRight, ChevronLeft,
   Sparkles, Truck, Shield, RotateCcw, Star, ArrowRight, Headphones,
-  Search, Menu, X, Eye
+  Search, Menu, X, Eye, Zap
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -209,6 +209,27 @@ export default function FashionHomePage() {
     dispatch(addToCart({ product: productForCart, quantity: 1 }));
     dispatch(openCart());
     toast.success('কার্টে যোগ করা হয়েছে');
+  };
+
+  const handleBuyNow = (product: Product, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    const productForCart: ProductType = {
+      id: product.id,
+      name: product.name,
+      slug: product.slug,
+      description: '',
+      price: product.price,
+      originalPrice: product.original_price || undefined,
+      images: product.images || [],
+      category: '',
+      rating: product.rating || 0,
+      reviewCount: product.review_count || 0,
+      stock: 100,
+    };
+
+    dispatch(addToCart({ product: productForCart, quantity: 1 }));
+    navigate('/checkout');
   };
 
   const handleToggleWishlist = (product: Product, e: React.MouseEvent) => {
@@ -708,15 +729,24 @@ export default function FashionHomePage() {
                       </Button>
                     </div>
 
-                    {/* Quick Add Button */}
+                    {/* Quick Add / Buy Now Buttons */}
                     <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform">
-                      <Button 
-                        className="w-full rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
-                        onClick={(e) => handleAddToCart(product, e)}
-                      >
-                        <ShoppingBag className="w-4 h-4 mr-2" />
-                        কার্টে যোগ করুন
-                      </Button>
+                      <div className="flex flex-col gap-2">
+                        <Button
+                          className="w-full rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
+                          onClick={(e) => handleAddToCart(product, e)}
+                        >
+                          <ShoppingBag className="w-4 h-4 mr-2" />
+                          কার্টে যোগ করুন
+                        </Button>
+                        <Button
+                          className="w-full rounded-full bg-accent text-accent-foreground hover:bg-accent/90"
+                          onClick={(e) => handleBuyNow(product, e)}
+                        >
+                          <Zap className="w-4 h-4 mr-2" />
+                          এখনই কিনুন
+                        </Button>
+                      </div>
                     </div>
                   </div>
 
@@ -854,12 +884,20 @@ export default function FashionHomePage() {
                   </Button>
 
                   <div className="absolute bottom-3 left-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button 
-                      className="w-full rounded-full bg-primary/90 backdrop-blur-md text-primary-foreground hover:bg-primary"
-                      onClick={(e) => handleAddToCart(product, e)}
-                    >
-                      কার্টে যোগ করুন
-                    </Button>
+                    <div className="flex flex-col gap-2">
+                      <Button
+                        className="w-full rounded-full bg-primary/90 backdrop-blur-md text-primary-foreground hover:bg-primary"
+                        onClick={(e) => handleAddToCart(product, e)}
+                      >
+                        কার্টে যোগ করুন
+                      </Button>
+                      <Button
+                        className="w-full rounded-full bg-accent/90 backdrop-blur-md text-accent-foreground hover:bg-accent"
+                        onClick={(e) => handleBuyNow(product, e)}
+                      >
+                        এখনই কিনুন
+                      </Button>
+                    </div>
                   </div>
                 </div>
 
