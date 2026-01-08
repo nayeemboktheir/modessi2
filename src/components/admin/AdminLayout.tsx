@@ -23,6 +23,7 @@ import {
   BarChart3,
   Home,
   Video,
+  Shield,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import {
@@ -49,6 +50,7 @@ const adminNavItems = [
   { title: 'Categories', url: '/admin/categories', icon: FolderTree },
   { title: 'Orders', url: '/admin/orders', icon: ShoppingCart },
   { title: 'Incomplete Orders', url: '/admin/incomplete-orders', icon: ShoppingCart },
+  { title: 'Order Protection', url: '/admin/order-protection', icon: Shield },
   { title: 'Contact Messages', url: '/admin/contact-submissions', icon: MessageSquare },
   { title: 'Landing Pages', url: '/admin/landing-pages', icon: Megaphone },
   { title: 'Courier History', url: '/admin/courier-history', icon: History },
