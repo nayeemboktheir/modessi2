@@ -219,25 +219,86 @@ Deno.serve(async (req) => {
       });
     }
 
-    // === ORDER PROTECTION: Time-Based Blocking ===
-    // Check if time-based blocking is enabled and enforce cooldown
+    // === ORDER PROTECTION: Fetch All Protection Settings ===
     const { data: protectionSettings } = await supabase
       .from('admin_settings')
       .select('key, value')
-      .in('key', ['order_protection_time_blocking_enabled', 'order_protection_order_cooldown_hours']);
+      .like('key', 'order_protection_%');
     
     const protectionMap: Record<string, string> = {};
     protectionSettings?.forEach((s: { key: string; value: string }) => {
       protectionMap[s.key] = s.value;
     });
     
+    // Normalize phone number for comparison
+    const normalizedPhone = phone.replace(/\s/g, '').replace(/^\+?880/, '0');
+    const phoneVariants = [
+      phone,
+      normalizedPhone,
+      `+880${normalizedPhone.substring(1)}`,
+      `880${normalizedPhone.substring(1)}`,
+    ];
+    
+    // === STATUS-BASED BLOCKING ===
+    const statusBlockingEnabled = protectionMap['order_protection_status_blocking_enabled'] === 'true';
+    const blockPendingOrders = protectionMap['order_protection_block_pending_orders'] !== 'false';
+    const blockShippedOrders = protectionMap['order_protection_block_shipped_orders'] === 'true';
+    const maxPendingOrders = parseInt(protectionMap['order_protection_max_pending_orders']) || 2;
+    
+    if (statusBlockingEnabled) {
+      // Check for existing orders with blocking statuses
+      const { data: existingOrders, error: existingError } = await supabase
+        .from('orders')
+        .select('id, status, order_number, created_at')
+        .or(phoneVariants.map(p => `shipping_phone.eq.${p}`).join(','))
+        .in('status', ['pending', 'processing', 'shipped'])
+        .order('created_at', { ascending: false });
+      
+      if (!existingError && existingOrders && existingOrders.length > 0) {
+        const pendingOrders = existingOrders.filter(o => o.status === 'pending' || o.status === 'processing');
+        const shippedOrders = existingOrders.filter(o => o.status === 'shipped');
+        
+        // Block if has pending orders beyond limit
+        if (blockPendingOrders && pendingOrders.length >= maxPendingOrders) {
+          console.log(`Status-based blocking: Phone ${phone} has ${pendingOrders.length} pending orders`);
+          return new Response(
+            JSON.stringify({ 
+              error: `আপনার ${pendingOrders.length}টি অর্ডার পেন্ডিং আছে। নতুন অর্ডার করতে আগের অর্ডার ডেলিভারি হওয়া পর্যন্ত অপেক্ষা করুন।`,
+              errorCode: 'STATUS_BLOCKED_PENDING',
+              pendingCount: pendingOrders.length,
+              orderNumbers: pendingOrders.map(o => o.order_number),
+            }),
+            {
+              status: 429,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            }
+          );
+        }
+        
+        // Block if has shipped orders (in transit)
+        if (blockShippedOrders && shippedOrders.length > 0) {
+          console.log(`Status-based blocking: Phone ${phone} has ${shippedOrders.length} shipped orders`);
+          return new Response(
+            JSON.stringify({ 
+              error: `আপনার একটি অর্ডার ডেলিভারির জন্য পাঠানো হয়েছে। ডেলিভারি সম্পন্ন হলে নতুন অর্ডার করতে পারবেন।`,
+              errorCode: 'STATUS_BLOCKED_SHIPPED',
+              shippedCount: shippedOrders.length,
+              orderNumbers: shippedOrders.map(o => o.order_number),
+            }),
+            {
+              status: 429,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            }
+          );
+        }
+      }
+    }
+    
+    // === TIME-BASED BLOCKING ===
     const timeBlockingEnabled = protectionMap['order_protection_time_blocking_enabled'] === 'true';
     const cooldownHours = parseInt(protectionMap['order_protection_order_cooldown_hours']) || 12;
     
     if (timeBlockingEnabled) {
-      // Normalize phone number for comparison
-      const normalizedPhone = phone.replace(/\s/g, '').replace(/^\+?880/, '0');
-      
       // Calculate the cutoff time
       const cutoffTime = new Date();
       cutoffTime.setHours(cutoffTime.getHours() - cooldownHours);
@@ -245,8 +306,8 @@ Deno.serve(async (req) => {
       // Check for recent orders from this phone number
       const { data: recentOrders, error: recentError } = await supabase
         .from('orders')
-        .select('id, created_at, order_number')
-        .or(`shipping_phone.eq.${phone},shipping_phone.eq.${normalizedPhone},shipping_phone.eq.+880${normalizedPhone.substring(1)}`)
+        .select('id, created_at, order_number, status')
+        .or(phoneVariants.map(p => `shipping_phone.eq.${p}`).join(','))
         .gte('created_at', cutoffTime.toISOString())
         .order('created_at', { ascending: false })
         .limit(1);
@@ -255,15 +316,31 @@ Deno.serve(async (req) => {
         const lastOrder = recentOrders[0];
         const lastOrderTime = new Date(lastOrder.created_at);
         const hoursAgo = Math.round((Date.now() - lastOrderTime.getTime()) / (1000 * 60 * 60));
-        const waitHours = cooldownHours - hoursAgo;
+        const minutesAgo = Math.round((Date.now() - lastOrderTime.getTime()) / (1000 * 60));
+        const waitHours = Math.max(1, cooldownHours - hoursAgo);
         
-        console.log(`Time-based blocking: Phone ${phone} has recent order ${lastOrder.order_number} from ${hoursAgo}h ago`);
+        // Format Bengali status
+        const statusBn: Record<string, string> = {
+          pending: 'পেন্ডিং',
+          processing: 'প্রসেসিং',
+          shipped: 'শিপড',
+          delivered: 'ডেলিভার্ড',
+          cancelled: 'বাতিল',
+          returned: 'রিটার্ন',
+        };
+        
+        console.log(`Time-based blocking: Phone ${phone} has recent order ${lastOrder.order_number} from ${minutesAgo} minutes ago`);
+        
+        const timeAgoText = hoursAgo < 1 
+          ? `${minutesAgo} মিনিট আগে` 
+          : `${hoursAgo} ঘন্টা আগে`;
         
         return new Response(
           JSON.stringify({ 
-            error: `আপনি সম্প্রতি একটি অর্ডার করেছেন। অনুগ্রহ করে আরও ${waitHours} ঘন্টা পরে আবার চেষ্টা করুন।`,
+            error: `আপনি ${timeAgoText} একটি অর্ডার করেছেন (${statusBn[lastOrder.status] || lastOrder.status})। অনুগ্রহ করে আরও ${waitHours} ঘন্টা পরে অর্ডার করুন।`,
             errorCode: 'TIME_BLOCKED',
             lastOrderNumber: lastOrder.order_number,
+            lastOrderStatus: lastOrder.status,
             waitHours: waitHours,
           }),
           {
