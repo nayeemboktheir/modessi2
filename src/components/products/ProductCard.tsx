@@ -154,24 +154,23 @@ const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
 
             {/* Add to Cart / Buy Now Buttons - Only show on hover if no variations */}
             {!hasVariations && (
-              <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-                <div className="flex gap-2">
+              <div className="absolute bottom-0 left-0 right-0 p-2 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+                <div className="flex flex-col gap-1.5">
                   <Button 
                     variant="cta" 
                     size="sm" 
-                    className="flex-1"
+                    className="w-full text-xs py-2"
                     onClick={handleAddToCart}
                   >
-                    <ShoppingCart className="h-4 w-4 mr-1" />
+                    <ShoppingCart className="h-3.5 w-3.5 mr-1" />
                     কার্টে যোগ করুন
                   </Button>
                   <Button 
-                    variant="secondary" 
                     size="sm" 
-                    className="flex-1 bg-accent text-accent-foreground hover:bg-accent/90"
+                    className="w-full text-xs py-2 bg-accent text-accent-foreground hover:bg-accent/90"
                     onClick={handleBuyNow}
                   >
-                    <Zap className="h-4 w-4 mr-1" />
+                    <Zap className="h-3.5 w-3.5 mr-1" />
                     এখনই কিনুন
                   </Button>
                 </div>
