@@ -31,6 +31,7 @@ import AdminProducts from '@/pages/admin/AdminProducts';
 import AdminCategories from '@/pages/admin/AdminCategories';
 import AdminOrders from '@/pages/admin/AdminOrders';
 import AdminIncompleteOrders from '@/pages/admin/AdminIncompleteOrders';
+import AdminOrderProtection from '@/pages/admin/AdminOrderProtection';
 import AdminCourierHistory from '@/pages/admin/AdminCourierHistory';
 import AdminCourierSettings from '@/pages/admin/AdminCourierSettings';
 import AdminUsers from '@/pages/admin/AdminUsers';
@@ -87,6 +88,7 @@ const App = () => (
               <Route path="/admin/categories" element={<AdminLayout><AdminCategories /></AdminLayout>} />
               <Route path="/admin/orders" element={<AdminLayout><AdminOrders /></AdminLayout>} />
               <Route path="/admin/incomplete-orders" element={<AdminLayout><AdminIncompleteOrders /></AdminLayout>} />
+              <Route path="/admin/order-protection" element={<AdminOrderProtection />} />
               <Route path="/admin/contact-submissions" element={<AdminLayout><AdminContactSubmissions /></AdminLayout>} />
               <Route path="/admin/landing-pages" element={<AdminLayout><AdminLandingPages /></AdminLayout>} />
               <Route path="/admin/landing-pages/:id" element={<AdminLayout><AdminLandingPageEditor /></AdminLayout>} />
