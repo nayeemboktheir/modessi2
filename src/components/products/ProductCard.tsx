@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Heart, ShoppingCart, Star, Eye } from 'lucide-react';
+import { Heart, ShoppingCart, Star, Eye, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Product, ProductVariation } from '@/types';
@@ -18,6 +18,7 @@ interface ProductCardProps {
 
 const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const wishlistItems = useAppSelector(selectWishlistItems);
   const { trackAddToCart } = useFacebookPixel();
   const isInWishlist = wishlistItems.some((item) => item.id === product.id);
@@ -58,6 +59,32 @@ const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
     });
     
     toast.success('Added to cart!');
+  };
+
+  const handleBuyNow = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // If product has variations but none selected, show error
+    if (hasVariations && !selectedVariation) {
+      toast.error('সাইজ সিলেক্ট করুন');
+      return;
+    }
+    
+    // Add to cart and navigate to checkout
+    dispatch(addToCart({ product, variation: selectedVariation }));
+    
+    // Track AddToCart event
+    console.log('Firing AddToCart (Buy Now) from ProductCard:', product.name);
+    trackAddToCart({
+      content_ids: [product.id],
+      content_name: product.name,
+      content_type: 'product',
+      value: displayPrice,
+      currency: 'BDT',
+    });
+    
+    navigate('/checkout');
   };
 
   const handleToggleWishlist = (e: React.MouseEvent) => {
@@ -125,18 +152,29 @@ const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
               </Button>
             </div>
 
-            {/* Add to Cart Button - Only show if no variations or variation selected */}
+            {/* Add to Cart / Buy Now Buttons - Only show on hover if no variations */}
             {!hasVariations && (
               <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-                <Button 
-                  variant="cta" 
-                  size="sm" 
-                  className="w-full"
-                  onClick={handleAddToCart}
-                >
-                  <ShoppingCart className="h-4 w-4 mr-2" />
-                  Add to Cart
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="cta" 
+                    size="sm" 
+                    className="flex-1"
+                    onClick={handleAddToCart}
+                  >
+                    <ShoppingCart className="h-4 w-4 mr-1" />
+                    কার্টে যোগ করুন
+                  </Button>
+                  <Button 
+                    variant="secondary" 
+                    size="sm" 
+                    className="flex-1 bg-accent text-accent-foreground hover:bg-accent/90"
+                    onClick={handleBuyNow}
+                  >
+                    <Zap className="h-4 w-4 mr-1" />
+                    এখনই কিনুন
+                  </Button>
+                </div>
               </div>
             )}
           </div>
@@ -217,17 +255,28 @@ const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
               )}
             </div>
 
-            {/* Add to Cart Button for products with variations */}
+            {/* Add to Cart / Buy Now Buttons for products with variations */}
             {hasVariations && (
-              <Button 
-                variant="cta" 
-                size="sm" 
-                className="w-full mt-3"
-                onClick={handleAddToCart}
-              >
-                <ShoppingCart className="h-4 w-4 mr-2" />
-                Add to Cart
-              </Button>
+              <div className="flex gap-2 mt-3">
+                <Button 
+                  variant="cta" 
+                  size="sm" 
+                  className="flex-1"
+                  onClick={handleAddToCart}
+                >
+                  <ShoppingCart className="h-4 w-4 mr-1" />
+                  কার্টে যোগ করুন
+                </Button>
+                <Button 
+                  variant="secondary" 
+                  size="sm" 
+                  className="flex-1 bg-accent text-accent-foreground hover:bg-accent/90"
+                  onClick={handleBuyNow}
+                >
+                  <Zap className="h-4 w-4 mr-1" />
+                  এখনই কিনুন
+                </Button>
+              </div>
             )}
           </div>
         </div>
