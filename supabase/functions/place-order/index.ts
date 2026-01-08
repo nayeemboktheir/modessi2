@@ -269,7 +269,7 @@ Deno.serve(async (req) => {
               orderNumbers: pendingOrders.map(o => o.order_number),
             }),
             {
-              status: 429,
+              status: 200,
               headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             }
           );
@@ -286,7 +286,7 @@ Deno.serve(async (req) => {
               orderNumbers: shippedOrders.map(o => o.order_number),
             }),
             {
-              status: 429,
+              status: 200,
               headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             }
           );
@@ -344,7 +344,7 @@ Deno.serve(async (req) => {
             waitHours: waitHours,
           }),
           {
-            status: 429,
+            status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           }
         );
