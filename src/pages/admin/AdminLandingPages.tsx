@@ -69,6 +69,8 @@ const AdminLandingPages = () => {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editSlugPage, setEditSlugPage] = useState<LandingPage | null>(null);
   const [newSlug, setNewSlug] = useState("");
+  const [editProductSlug, setEditProductSlug] = useState<Product | null>(null);
+  const [newProductSlug, setNewProductSlug] = useState("");
 
   const { data: landingPages, isLoading } = useQuery({
     queryKey: ["admin-landing-pages"],
@@ -220,6 +222,30 @@ const AdminLandingPages = () => {
     },
     onError: (error) => {
       toast.error("Failed to copy landing page");
+      console.error(error);
+    },
+  });
+
+  const updateProductSlugMutation = useMutation({
+    mutationFn: async ({ id, slug }: { id: string; slug: string }) => {
+      const { error } = await supabase
+        .from("products")
+        .update({ slug })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-products-for-landing"] });
+      toast.success("Product slug updated successfully");
+      setEditProductSlug(null);
+      setNewProductSlug("");
+    },
+    onError: (error: any) => {
+      if (error?.message?.includes("duplicate") || error?.code === "23505") {
+        toast.error("This slug is already in use by another product");
+      } else {
+        toast.error("Failed to update product slug");
+      }
       console.error(error);
     },
   });
@@ -477,9 +503,23 @@ const AdminLandingPages = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <code className="text-sm bg-muted px-2 py-1 rounded">
-                          /step/{product.slug}
-                        </code>
+                        <div className="flex items-center gap-2">
+                          <code className="text-sm bg-muted px-2 py-1 rounded">
+                            /step/{product.slug}
+                          </code>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => {
+                              setEditProductSlug(product);
+                              setNewProductSlug(product.slug);
+                            }}
+                            title="Edit slug"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="font-mono">
@@ -550,7 +590,7 @@ const AdminLandingPages = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Edit Slug Dialog */}
+      {/* Edit Slug Dialog for Custom Landing Pages */}
       <Dialog open={!!editSlugPage} onOpenChange={() => setEditSlugPage(null)}>
         <DialogContent>
           <DialogHeader>
@@ -590,6 +630,54 @@ const AdminLandingPages = () => {
               disabled={!newSlug || updateSlugMutation.isPending}
             >
               {updateSlugMutation.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Slug Dialog for Product Landing Pages */}
+      <Dialog open={!!editProductSlug} onOpenChange={() => setEditProductSlug(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Product Landing Page URL</DialogTitle>
+            <DialogDescription>
+              Change the slug for "{editProductSlug?.name}". This will also update the product's URL.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="product-slug">URL Slug</Label>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">{window.location.origin}/step/</span>
+                <Input
+                  id="product-slug"
+                  value={newProductSlug}
+                  onChange={(e) => setNewProductSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+                  placeholder="product-slug"
+                  className="flex-1"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Only lowercase letters, numbers, and hyphens are allowed.
+              </p>
+              <p className="text-xs text-amber-600 font-medium">
+                ⚠️ This will change the product's URL everywhere (including /products/{editProductSlug?.slug})
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditProductSlug(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (editProductSlug && newProductSlug) {
+                  updateProductSlugMutation.mutate({ id: editProductSlug.id, slug: newProductSlug });
+                }
+              }}
+              disabled={!newProductSlug || updateProductSlugMutation.isPending}
+            >
+              {updateProductSlugMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </DialogFooter>
         </DialogContent>
