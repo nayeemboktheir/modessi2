@@ -219,6 +219,61 @@ Deno.serve(async (req) => {
       });
     }
 
+    // === ORDER PROTECTION: Time-Based Blocking ===
+    // Check if time-based blocking is enabled and enforce cooldown
+    const { data: protectionSettings } = await supabase
+      .from('admin_settings')
+      .select('key, value')
+      .in('key', ['order_protection_time_blocking_enabled', 'order_protection_order_cooldown_hours']);
+    
+    const protectionMap: Record<string, string> = {};
+    protectionSettings?.forEach((s: { key: string; value: string }) => {
+      protectionMap[s.key] = s.value;
+    });
+    
+    const timeBlockingEnabled = protectionMap['order_protection_time_blocking_enabled'] === 'true';
+    const cooldownHours = parseInt(protectionMap['order_protection_order_cooldown_hours']) || 12;
+    
+    if (timeBlockingEnabled) {
+      // Normalize phone number for comparison
+      const normalizedPhone = phone.replace(/\s/g, '').replace(/^\+?880/, '0');
+      
+      // Calculate the cutoff time
+      const cutoffTime = new Date();
+      cutoffTime.setHours(cutoffTime.getHours() - cooldownHours);
+      
+      // Check for recent orders from this phone number
+      const { data: recentOrders, error: recentError } = await supabase
+        .from('orders')
+        .select('id, created_at, order_number')
+        .or(`shipping_phone.eq.${phone},shipping_phone.eq.${normalizedPhone},shipping_phone.eq.+880${normalizedPhone.substring(1)}`)
+        .gte('created_at', cutoffTime.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      if (!recentError && recentOrders && recentOrders.length > 0) {
+        const lastOrder = recentOrders[0];
+        const lastOrderTime = new Date(lastOrder.created_at);
+        const hoursAgo = Math.round((Date.now() - lastOrderTime.getTime()) / (1000 * 60 * 60));
+        const waitHours = cooldownHours - hoursAgo;
+        
+        console.log(`Time-based blocking: Phone ${phone} has recent order ${lastOrder.order_number} from ${hoursAgo}h ago`);
+        
+        return new Response(
+          JSON.stringify({ 
+            error: `আপনি সম্প্রতি একটি অর্ডার করেছেন। অনুগ্রহ করে আরও ${waitHours} ঘন্টা পরে আবার চেষ্টা করুন।`,
+            errorCode: 'TIME_BLOCKED',
+            lastOrderNumber: lastOrder.order_number,
+            waitHours: waitHours,
+          }),
+          {
+            status: 429,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+    }
+
     if (!Array.isArray(body?.items) || body.items.length === 0 || body.items.length > 50) {
       return new Response(JSON.stringify({ error: 'Cart is empty' }), {
         status: 400,
