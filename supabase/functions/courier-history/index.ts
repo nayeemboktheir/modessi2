@@ -59,19 +59,13 @@ serve(async (req) => {
       );
     }
 
-    // Fetch API key from admin_settings
-    const { data: settings } = await supabase
-      .from('admin_settings')
-      .select('value')
-      .eq('key', 'bdcourier_api_key')
-      .single();
-
-    const BDCOURIER_API_KEY = settings?.value;
+    // Get API key from Supabase secrets
+    const BDCOURIER_API_KEY = Deno.env.get('BDCOURIER_API_KEY');
     
     if (!BDCOURIER_API_KEY) {
-      console.error('BD Courier API key is not configured in admin settings');
+      console.error('BDCOURIER_API_KEY secret is not configured');
       return new Response(
-        JSON.stringify({ error: 'BD Courier API key not configured. Please add it in Shop Settings.' }),
+        JSON.stringify({ error: 'BD Courier API key not configured. Please add the BDCOURIER_API_KEY secret.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
