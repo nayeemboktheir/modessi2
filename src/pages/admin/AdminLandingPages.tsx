@@ -645,18 +645,17 @@ const AdminLandingPages = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label htmlFor="product-slug">URL Slug</Label>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">{window.location.origin}/step/</span>
-                <Input
-                  id="product-slug"
-                  value={newProductSlug}
-                  onChange={(e) => setNewProductSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
-                  placeholder="product-slug"
-                  className="flex-1"
-                />
+              <div className="text-sm text-muted-foreground break-all">
+                {window.location.origin}/step/
               </div>
+              <Input
+                id="product-slug"
+                value={newProductSlug}
+                onChange={(e) => setNewProductSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+                placeholder="product-slug"
+              />
               <p className="text-xs text-muted-foreground">
                 Only lowercase letters, numbers, and hyphens are allowed.
               </p>
