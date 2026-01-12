@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Plus, Edit, Trash2, Eye, EyeOff, ExternalLink, Copy, Package, TrendingUp, ShoppingCart, Pencil } from "lucide-react";
+import { Plus, Edit, Trash2, Eye, EyeOff, ExternalLink, Copy, Package, TrendingUp, ShoppingCart, Pencil, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -71,6 +71,7 @@ const AdminLandingPages = () => {
   const [newSlug, setNewSlug] = useState("");
   const [editProductSlug, setEditProductSlug] = useState<Product | null>(null);
   const [newProductSlug, setNewProductSlug] = useState("");
+  const [productSearch, setProductSearch] = useState("");
 
   const { data: landingPages, isLoading } = useQuery({
     queryKey: ["admin-landing-pages"],
@@ -466,6 +467,17 @@ const AdminLandingPages = () => {
           </p>
         </CardHeader>
         <CardContent>
+          {/* Search Bar */}
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search products..."
+              value={productSearch}
+              onChange={(e) => setProductSearch(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          
           {productsLoading ? (
             <div className="text-center py-8 text-muted-foreground">
               Loading products...
@@ -486,7 +498,12 @@ const AdminLandingPages = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {products.map((product) => {
+                {products
+                  .filter((product) => 
+                    product.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+                    product.slug.toLowerCase().includes(productSearch.toLowerCase())
+                  )
+                  .map((product) => {
                   const stats = salesBySlug[product.slug] || { orders: 0, revenue: 0 };
                   return (
                     <TableRow key={product.id}>
