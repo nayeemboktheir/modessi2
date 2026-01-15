@@ -401,8 +401,10 @@ const ProductDescriptionSection = memo(({ description }: { description?: string 
             <div className="p-6">
               <ul className="space-y-3">
                 {lines.map((line, idx) => {
-                  // Remove leading emoji/bullet/special chars if exists
-                  const cleanLine = line.replace(/^[👍✅✔️•\-\*◊◆●○▪▫]+\s*/g, '').trim();
+                  // Remove ALL leading emoji/bullet/special chars including diamond ◊
+                  const cleanLine = line
+                    .replace(/^[\s◊◆●○▪▫•✓✔✅👉👍🔘🌴\-\*\u25CA\u25C6\u25CF\u25CB\u25AA\u25AB]+/g, '')
+                    .trim();
                   if (!cleanLine) return null;
                   
                   return (
