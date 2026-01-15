@@ -85,16 +85,20 @@ const UrgencyBanner = memo(() => {
   const [stock] = useState(() => Math.floor(Math.random() * 10) + 3);
   
   return (
-    <div className="bg-gradient-to-r from-red-600 to-red-500 text-white py-2 px-4">
-      <div className="container mx-auto flex items-center justify-center gap-4 text-sm font-medium flex-wrap">
-        <span className="flex items-center gap-1.5">
+    <div className="bg-gradient-to-r from-primary via-primary to-accent text-primary-foreground py-2.5 px-4">
+      <div className="container mx-auto flex items-center justify-center gap-6 text-sm font-medium flex-wrap">
+        <span className="flex items-center gap-2">
+          <span className="flex h-2 w-2 relative">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+          </span>
           <Users className="h-4 w-4" />
-          <span className="animate-pulse">{viewers} জন</span> এখন দেখছেন
+          <span className="font-bold">{viewers} জন</span> এখন দেখছেন
         </span>
-        <span className="hidden sm:block">•</span>
-        <span className="flex items-center gap-1.5">
-          <Flame className="h-4 w-4" />
-          মাত্র <span className="font-bold">{stock}টি</span> স্টকে আছে!
+        <span className="hidden sm:block text-white/50">|</span>
+        <span className="flex items-center gap-2">
+          <Flame className="h-4 w-4 animate-pulse" />
+          মাত্র <span className="font-bold text-white">{stock}টি</span> স্টকে আছে!
         </span>
       </div>
     </div>
@@ -118,18 +122,18 @@ const HeroSection = memo(({ product, currentImage, setCurrentImage, onBuyNow }: 
   }, [currentImage, images.length, setCurrentImage]);
 
   return (
-    <section className="bg-gradient-to-br from-gray-900 via-gray-800 to-black py-6 md:py-10">
+    <section className="gradient-dark py-8 md:py-14">
       <div className="container mx-auto px-4">
-        <div className="grid md:grid-cols-2 gap-6 md:gap-10 items-center">
+        <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
           {/* Image */}
-          <div className="relative max-w-md mx-auto w-full">
+          <div className="relative max-w-lg mx-auto w-full">
             {discount > 0 && (
-              <Badge className="absolute top-3 left-3 z-20 bg-red-500 text-white text-base px-3 py-1.5 font-bold animate-pulse">
+              <Badge className="absolute top-4 left-4 z-20 bg-destructive text-destructive-foreground text-base px-4 py-2 font-bold shadow-lg">
                 -{discount}% ছাড়
               </Badge>
             )}
             
-            <div className="relative aspect-square rounded-2xl overflow-hidden shadow-2xl bg-gray-800">
+            <div className="relative aspect-square rounded-3xl overflow-hidden shadow-2xl bg-card ring-4 ring-white/10">
               {images[currentImage] && (
                 <OptimizedImage src={images[currentImage]} alt={product.name} className="w-full h-full" priority />
               )}
@@ -138,24 +142,24 @@ const HeroSection = memo(({ product, currentImage, setCurrentImage, onBuyNow }: 
                 <>
                   <button
                     onClick={() => setCurrentImage((currentImage - 1 + images.length) % images.length)}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 rounded-full p-2 shadow-lg hover:scale-110 transition-transform"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 bg-background/95 backdrop-blur-sm rounded-full p-2.5 shadow-xl hover:scale-110 transition-all border border-border"
                     aria-label="Previous"
                   >
-                    <ChevronLeft className="h-5 w-5" />
+                    <ChevronLeft className="h-5 w-5 text-foreground" />
                   </button>
                   <button
                     onClick={() => setCurrentImage((currentImage + 1) % images.length)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 rounded-full p-2 shadow-lg hover:scale-110 transition-transform"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 bg-background/95 backdrop-blur-sm rounded-full p-2.5 shadow-xl hover:scale-110 transition-all border border-border"
                     aria-label="Next"
                   >
-                    <ChevronRight className="h-5 w-5" />
+                    <ChevronRight className="h-5 w-5 text-foreground" />
                   </button>
-                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 bg-black/30 backdrop-blur-sm px-3 py-2 rounded-full">
                     {images.map((_, idx) => (
                       <button
                         key={idx}
                         onClick={() => setCurrentImage(idx)}
-                        className={`w-2 h-2 rounded-full transition-all ${idx === currentImage ? "bg-white w-6" : "bg-white/50"}`}
+                        className={`h-2 rounded-full transition-all duration-300 ${idx === currentImage ? "bg-accent w-8" : "bg-white/60 w-2 hover:bg-white"}`}
                       />
                     ))}
                   </div>
@@ -165,13 +169,15 @@ const HeroSection = memo(({ product, currentImage, setCurrentImage, onBuyNow }: 
 
             {/* Thumbnails */}
             {images.length > 1 && (
-              <div className="flex gap-2 mt-3 justify-center">
+              <div className="flex gap-3 mt-4 justify-center">
                 {images.slice(0, 5).map((img, idx) => (
                   <button
                     key={idx}
                     onClick={() => setCurrentImage(idx)}
-                    className={`w-14 h-14 rounded-lg overflow-hidden border-2 transition-all ${
-                      idx === currentImage ? "border-amber-400 scale-105" : "border-transparent opacity-70 hover:opacity-100"
+                    className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-all duration-300 ${
+                      idx === currentImage 
+                        ? "border-accent scale-110 shadow-lg ring-2 ring-accent/30" 
+                        : "border-transparent opacity-60 hover:opacity-100 hover:scale-105"
                     }`}
                   >
                     <OptimizedImage src={img} alt="" className="w-full h-full" />
@@ -182,21 +188,28 @@ const HeroSection = memo(({ product, currentImage, setCurrentImage, onBuyNow }: 
           </div>
 
           {/* Product Info */}
-          <div className="text-white space-y-4">
-            <h1 className="text-2xl md:text-4xl font-bold leading-tight">{product.name}</h1>
+          <div className="text-primary-foreground space-y-5">
+            <div>
+              <span className="inline-block bg-accent/20 text-accent px-3 py-1 rounded-full text-sm font-medium mb-3">
+                🔥 হট সেলিং প্রোডাক্ট
+              </span>
+              <h1 className="text-3xl md:text-5xl font-bold leading-tight">{product.name}</h1>
+            </div>
             
             {product.short_description && (
-              <p className="text-base md:text-lg text-gray-300">{product.short_description}</p>
+              <p className="text-base md:text-lg text-primary-foreground/80 leading-relaxed">{product.short_description}</p>
             )}
 
             {/* Price */}
-            <div className="flex items-baseline gap-3 flex-wrap py-2">
-              <span className="text-4xl md:text-5xl font-bold text-amber-400">৳{product.price.toLocaleString()}</span>
+            <div className="flex items-baseline gap-4 flex-wrap py-3 px-5 bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10">
+              <span className="text-4xl md:text-5xl font-bold text-accent">৳{product.price.toLocaleString()}</span>
               {product.original_price && product.original_price > product.price && (
-                <span className="text-xl text-gray-500 line-through">৳{product.original_price.toLocaleString()}</span>
+                <span className="text-xl text-primary-foreground/50 line-through">৳{product.original_price.toLocaleString()}</span>
               )}
               {discount > 0 && (
-                <Badge className="bg-green-500 text-white">সেভ ৳{(product.original_price! - product.price).toLocaleString()}</Badge>
+                <Badge className="bg-green-500 text-white font-bold px-3 py-1">
+                  ৳{(product.original_price! - product.price).toLocaleString()} সেভ!
+                </Badge>
               )}
             </div>
 
@@ -204,22 +217,22 @@ const HeroSection = memo(({ product, currentImage, setCurrentImage, onBuyNow }: 
             <Button
               onClick={onBuyNow}
               size="lg"
-              className="w-full md:w-auto px-10 py-6 text-lg font-bold bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-gray-900 rounded-xl shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02] active:scale-[0.98]"
+              className="w-full md:w-auto px-12 py-7 text-xl font-bold bg-gradient-to-r from-accent to-yellow-500 hover:from-yellow-500 hover:to-accent text-foreground rounded-2xl shadow-cta hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
             >
-              <ShoppingBag className="mr-2 h-5 w-5" />
+              <ShoppingBag className="mr-2 h-6 w-6" />
               এখনই অর্ডার করুন
             </Button>
 
             {/* Trust Badges */}
-            <div className="grid grid-cols-3 gap-3 pt-2">
+            <div className="grid grid-cols-3 gap-3 pt-3">
               {[
-                { icon: Shield, text: "১০০% গ্যারান্টি" },
-                { icon: Truck, text: "সারাদেশে ডেলিভারি" },
-                { icon: Gift, text: "ক্যাশ অন ডেলিভারি" },
+                { icon: Shield, text: "১০০% গ্যারান্টি", color: "text-green-400" },
+                { icon: Truck, text: "সারাদেশে ডেলিভারি", color: "text-blue-400" },
+                { icon: Gift, text: "ক্যাশ অন ডেলিভারি", color: "text-purple-400" },
               ].map((item, idx) => (
-                <div key={idx} className="text-center p-2 rounded-lg bg-white/10 backdrop-blur-sm">
-                  <item.icon className="h-5 w-5 mx-auto mb-1 text-amber-400" />
-                  <span className="text-xs font-medium">{item.text}</span>
+                <div key={idx} className="text-center p-3 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 transition-colors">
+                  <item.icon className={`h-6 w-6 mx-auto mb-1.5 ${item.color}`} />
+                  <span className="text-xs font-medium text-primary-foreground/90">{item.text}</span>
                 </div>
               ))}
             </div>
@@ -233,13 +246,19 @@ HeroSection.displayName = 'HeroSection';
 
 // ====== Features ======
 const FeaturesBanner = memo(() => (
-  <section className="bg-amber-400 py-4 overflow-hidden">
-    <div className="container mx-auto px-4">
-      <div className="flex flex-wrap justify-center gap-3 md:gap-6">
-        {["প্রিমিয়াম কোয়ালিটি", "কালার গ্যারান্টি", "কমফোর্টেবল ফিট", "ফ্রি এক্সচেঞ্জ"].map((text, idx) => (
-          <div key={idx} className="flex items-center gap-1.5 bg-white/40 px-3 py-1.5 rounded-full text-gray-900 font-medium text-sm">
-            <CheckCircle2 className="h-4 w-4" />
-            <span>{text}</span>
+  <section className="bg-gradient-to-r from-accent via-yellow-400 to-accent py-5 overflow-hidden relative">
+    <div className="container mx-auto px-4 relative">
+      <div className="flex flex-wrap justify-center gap-4 md:gap-8">
+        {[
+          { text: "প্রিমিয়াম কোয়ালিটি", icon: "✨" },
+          { text: "কালার গ্যারান্টি", icon: "🎨" },
+          { text: "কমফোর্টেবল ফিট", icon: "👕" },
+          { text: "ফ্রি এক্সচেঞ্জ", icon: "🔄" }
+        ].map((item, idx) => (
+          <div key={idx} className="flex items-center gap-2 bg-white/50 backdrop-blur-sm px-4 py-2 rounded-full text-foreground font-semibold text-sm shadow-sm hover:bg-white/70 transition-colors">
+            <span>{item.icon}</span>
+            <CheckCircle2 className="h-4 w-4 text-green-600" />
+            <span>{item.text}</span>
           </div>
         ))}
       </div>
@@ -252,13 +271,18 @@ FeaturesBanner.displayName = 'FeaturesBanner';
 const GallerySection = memo(({ images }: { images: string[] }) => {
   if (!images || images.length < 2) return null;
   return (
-    <section className="py-8 md:py-12 bg-gray-50">
+    <section className="py-12 md:py-16 gradient-elegant">
       <div className="container mx-auto px-4">
-        <h2 className="text-xl md:text-2xl font-bold text-center text-gray-900 mb-6">প্রোডাক্ট গ্যালারি</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="text-center mb-8">
+          <span className="inline-block bg-primary/10 text-primary px-4 py-1.5 rounded-full text-sm font-medium mb-3">
+            📸 গ্যালারি
+          </span>
+          <h2 className="text-2xl md:text-3xl font-bold text-foreground">প্রোডাক্ট গ্যালারি</h2>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {images.slice(0, 6).map((img, idx) => (
-            <div key={idx} className="aspect-square rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
-              <OptimizedImage src={img} alt="" className="w-full h-full hover:scale-105 transition-transform duration-300" />
+            <div key={idx} className="group aspect-square rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 ring-1 ring-border">
+              <OptimizedImage src={img} alt="" className="w-full h-full group-hover:scale-110 transition-transform duration-500" />
             </div>
           ))}
         </div>
@@ -274,6 +298,15 @@ const VideoSection = memo(({ videoUrl }: { videoUrl?: string }) => {
 
   const isIframe = videoUrl.trim().startsWith('<iframe');
   
+  // Extract aspect ratio from iframe if available
+  const extractIframeInfo = (html: string) => {
+    const widthMatch = html.match(/width=["']?(\d+)/);
+    const heightMatch = html.match(/height=["']?(\d+)/);
+    const width = widthMatch ? parseInt(widthMatch[1]) : 16;
+    const height = heightMatch ? parseInt(heightMatch[1]) : 9;
+    return { aspectRatio: width / height };
+  };
+  
   const getEmbedUrl = (url: string) => {
     const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
     if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}?rel=0`;
@@ -283,20 +316,53 @@ const VideoSection = memo(({ videoUrl }: { videoUrl?: string }) => {
     return url;
   };
 
+  const iframeInfo = isIframe ? extractIframeInfo(videoUrl) : null;
+  // For portrait videos (9:16), use taller container. For landscape (16:9), use standard aspect-video
+  const isPortrait = iframeInfo && iframeInfo.aspectRatio < 1;
+
   return (
-    <section className="py-8 md:py-12 bg-gray-900">
+    <section className="py-10 md:py-16 gradient-dark">
       <div className="container mx-auto px-4">
-        <h2 className="text-xl md:text-2xl font-bold text-center text-white mb-6">
-          <Play className="inline h-5 w-5 mr-2" />প্রোডাক্ট ভিডিও
-        </h2>
-        <div className="max-w-2xl mx-auto aspect-video rounded-xl overflow-hidden shadow-2xl bg-black">
-          {isIframe ? (
-            <div className="w-full h-full [&>iframe]:w-full [&>iframe]:h-full" dangerouslySetInnerHTML={{ __html: videoUrl }} />
-          ) : videoUrl.match(/\.(mp4|webm|ogg)$/i) ? (
-            <video src={videoUrl} controls className="w-full h-full" preload="metadata" />
-          ) : (
-            <iframe src={getEmbedUrl(videoUrl)} title="Video" allowFullScreen className="w-full h-full" />
-          )}
+        <div className="text-center mb-8">
+          <span className="inline-flex items-center gap-2 bg-primary/20 text-primary-foreground px-4 py-1.5 rounded-full text-sm font-medium mb-3">
+            <Play className="h-4 w-4" />
+            ভিডিও দেখুন
+          </span>
+          <h2 className="text-2xl md:text-3xl font-bold text-white">প্রোডাক্ট ভিডিও</h2>
+        </div>
+        
+        <div className={`max-w-3xl mx-auto ${isPortrait ? 'max-w-sm' : ''}`}>
+          <div 
+            className="relative rounded-2xl overflow-hidden shadow-2xl bg-black ring-1 ring-white/10"
+            style={{ 
+              aspectRatio: isPortrait ? '9/16' : '16/9'
+            }}
+          >
+            {isIframe ? (
+              <div 
+                className="absolute inset-0 [&>iframe]:!w-full [&>iframe]:!h-full [&>iframe]:!border-0" 
+                dangerouslySetInnerHTML={{ 
+                  __html: videoUrl.replace(/width=["']?\d+["']?/gi, 'width="100%"').replace(/height=["']?\d+["']?/gi, 'height="100%"')
+                }} 
+              />
+            ) : videoUrl.match(/\.(mp4|webm|ogg)$/i) ? (
+              <video 
+                src={videoUrl} 
+                controls 
+                className="absolute inset-0 w-full h-full object-contain" 
+                preload="metadata"
+                playsInline
+              />
+            ) : (
+              <iframe 
+                src={getEmbedUrl(videoUrl)} 
+                title="Video" 
+                allowFullScreen 
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                className="absolute inset-0 w-full h-full border-0" 
+              />
+            )}
+          </div>
         </div>
       </div>
     </section>
