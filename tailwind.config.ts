@@ -14,8 +14,9 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["Hind Siliguri", "system-ui", "sans-serif"],
-        display: ["Playfair Display", "Hind Siliguri", "serif"],
+        sans: ["Noto Sans Bengali", "Hind Siliguri", "system-ui", "sans-serif"],
+        bengali: ["Noto Sans Bengali", "Hind Siliguri", "sans-serif"],
+        display: ["Playfair Display", "Noto Sans Bengali", "serif"],
       },
       colors: {
         border: "hsl(var(--border))",

@@ -387,34 +387,30 @@ const ProductDescriptionSection = memo(({ description }: { description?: string 
             <span className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-1.5 rounded-full text-sm font-medium mb-3">
               📋 বিস্তারিত
             </span>
-            <h2 className="text-2xl md:text-3xl font-bold text-foreground">প্রোডাক্ট বিবরণ</h2>
+            <h2 className="text-2xl md:text-3xl font-bold text-foreground font-bengali">প্রোডাক্ট বিবরণ</h2>
           </div>
           
           {/* Description Cards */}
           <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
             <div className="bg-gradient-to-r from-primary to-accent p-4">
-              <h3 className="text-lg font-bold text-primary-foreground flex items-center gap-2">
-                <CheckCircle2 className="h-5 w-5" />
+              <h3 className="text-lg font-bold text-primary-foreground font-bengali">
                 এই প্রোডাক্টের বৈশিষ্ট্য
               </h3>
             </div>
             
             <div className="p-6">
-              <ul className="space-y-4">
+              <ul className="space-y-3">
                 {lines.map((line, idx) => {
-                  // Remove leading emoji/bullet if exists
-                  const cleanLine = line.replace(/^[👍✅✔️•\-\*]\s*/, '').trim();
+                  // Remove leading emoji/bullet/special chars if exists
+                  const cleanLine = line.replace(/^[👍✅✔️•\-\*◊◆●○▪▫]+\s*/g, '').trim();
                   if (!cleanLine) return null;
                   
                   return (
                     <li 
                       key={idx}
-                      className="flex items-start gap-3 p-3 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-100 hover:shadow-md transition-all duration-300"
+                      className="p-4 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-100 hover:shadow-md transition-all duration-300"
                     >
-                      <span className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-lg">
-                        <CheckCircle2 className="h-5 w-5 text-white" />
-                      </span>
-                      <span className="text-gray-800 font-medium text-base md:text-lg leading-relaxed pt-1">
+                      <span className="text-gray-800 font-medium text-base md:text-lg leading-relaxed font-bengali">
                         {cleanLine}
                       </span>
                     </li>
@@ -425,10 +421,9 @@ const ProductDescriptionSection = memo(({ description }: { description?: string 
             
             {/* Trust Footer */}
             <div className="bg-gradient-to-r from-amber-50 to-yellow-50 p-4 border-t border-amber-100">
-              <div className="flex items-center justify-center gap-2 text-amber-700 font-medium">
-                <Shield className="h-5 w-5" />
-                <span>১০০% কোয়ালিটি গ্যারান্টি সহ</span>
-              </div>
+              <p className="text-center text-amber-700 font-medium font-bengali">
+                ১০০% কোয়ালিটি গ্যারান্টি সহ
+              </p>
             </div>
           </div>
         </div>
