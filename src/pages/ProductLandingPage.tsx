@@ -678,7 +678,7 @@ const CheckoutSection = memo(({
     phone: "",
     address: "",
     quantity: 1,
-    selectedVariationId: product.variations[0]?.id || "",
+    selectedVariationId: "",
   });
   const [shippingZone, setShippingZone] = useState<ShippingZone>('outside_dhaka');
 
@@ -693,6 +693,10 @@ const CheckoutSection = memo(({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (product.variations.length > 0 && !form.selectedVariationId) {
+      toast.error("সাইজ সিলেক্ট করুন");
+      return;
+    }
     if (!form.name || !form.phone || !form.address) {
       toast.error("সব তথ্য পূরণ করুন");
       return;
@@ -727,41 +731,51 @@ const CheckoutSection = memo(({
               </div>
               
               {product.variations.length > 0 ? (
-                <div className="p-4 space-y-3">
-                  {product.variations.map((variation) => (
-                    <label
-                      key={variation.id}
-                      className={`flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all border-2 ${
-                        form.selectedVariationId === variation.id
-                          ? 'border-amber-500 bg-amber-50'
-                          : 'border-gray-200 hover:border-gray-300 bg-white'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="variation"
-                        value={variation.id}
-                        checked={form.selectedVariationId === variation.id}
-                        onChange={() => setForm(prev => ({ ...prev, selectedVariationId: variation.id }))}
-                        className="w-5 h-5 text-amber-500"
-                      />
-                      <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100">
-                        {product.images?.[0] && (
-                          <OptimizedImage src={product.images[0]} alt="" className="w-full h-full" />
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-bold text-gray-900">{product.name}</p>
-                        <p className="text-sm text-gray-500">{variation.name}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-xl text-amber-600">৳{variation.price.toLocaleString()}</p>
-                        {variation.original_price && variation.original_price > variation.price && (
-                          <p className="text-sm text-gray-400 line-through">৳{variation.original_price.toLocaleString()}</p>
-                        )}
-                      </div>
-                    </label>
-                  ))}
+                <div className="p-4 space-y-4">
+                  {/* Product Info */}
+                  <div className="flex items-center gap-4 p-4 rounded-xl bg-white border-2 border-gray-200">
+                    <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                      {product.images?.[0] && (
+                        <OptimizedImage src={product.images[0]} alt="" className="w-full h-full" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-bold text-gray-900">{product.name}</p>
+                      <p className="text-sm text-gray-500">সাইজ সিলেক্ট করুন</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-xl text-amber-600">
+                        ৳{(selectedVariation?.price || product.price).toLocaleString()}
+                      </p>
+                      {selectedVariation?.original_price && selectedVariation.original_price > selectedVariation.price && (
+                        <p className="text-sm text-gray-400 line-through">৳{selectedVariation.original_price.toLocaleString()}</p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Size Selection - Horizontal Layout */}
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-2">সাইজ নির্বাচন করুন:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {product.variations.map((variation) => (
+                        <button
+                          key={variation.id}
+                          type="button"
+                          onClick={() => setForm(prev => ({ ...prev, selectedVariationId: variation.id }))}
+                          className={`px-4 py-2 rounded-lg font-medium transition-all border-2 ${
+                            form.selectedVariationId === variation.id
+                              ? 'border-amber-500 bg-amber-500 text-white'
+                              : 'border-gray-300 bg-white text-gray-700 hover:border-amber-400'
+                          }`}
+                        >
+                          {variation.name}
+                        </button>
+                      ))}
+                    </div>
+                    {!form.selectedVariationId && (
+                      <p className="text-xs text-red-500 mt-2">* সাইজ সিলেক্ট করুন</p>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="p-4">
