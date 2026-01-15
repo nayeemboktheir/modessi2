@@ -463,6 +463,12 @@ const SectionRenderer = ({ section, theme, slug }: SectionRendererProps) => {
 
       const columns = settings.columns || 3;
       
+      // Helper to clean text - remove special characters/emojis that don't render
+      const cleanText = (text: string) => {
+        if (!text) return text;
+        return text.replace(/^[👍✅✔️•\-\*◊◆●○▪▫🔘🌴👉]+\s*/g, '').trim();
+      };
+      
       return (
         <section
           className="py-12 px-4"
@@ -483,10 +489,10 @@ const SectionRenderer = ({ section, theme, slug }: SectionRendererProps) => {
               {(settings.badges || []).map((badge, idx) => (
                 <div
                   key={idx}
-                  className="text-center p-4 rounded-xl bg-card/80 text-card-foreground shadow-sm border border-border"
+                  className="text-center p-4 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-100 shadow-sm"
                 >
-                  <div className="text-lg md:text-xl font-bold mb-1">👉{badge.title}</div>
-                  <div className="text-sm opacity-80">{badge.description}</div>
+                  <div className="text-lg md:text-xl font-bold mb-1 text-gray-800">{cleanText(badge.title)}</div>
+                  {badge.description && <div className="text-sm opacity-80">{cleanText(badge.description)}</div>}
                 </div>
               ))}
             </div>
@@ -1280,6 +1286,12 @@ const SectionRenderer = ({ section, theme, slug }: SectionRendererProps) => {
         textColor: string;
       };
 
+      // Helper to clean text - remove special characters/emojis that don't render
+      const cleanText = (text: string) => {
+        if (!text) return text;
+        return text.replace(/^[👍✅✔️•\-\*◊◆●○▪▫🔘🌴]+\s*/g, '').trim();
+      };
+
       return (
         <section
           className="py-16 px-4"
@@ -1294,13 +1306,10 @@ const SectionRenderer = ({ section, theme, slug }: SectionRendererProps) => {
               {(settings.badges || []).map((b, i) => (
                 <div
                   key={i}
-                  className="flex items-start gap-4 p-4 rounded-xl bg-card/80 text-card-foreground shadow-sm border border-border"
+                  className="p-4 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-100 shadow-sm"
                 >
-                  <span className="text-2xl text-primary">✓</span>
-                  <div>
-                    <h3 className="font-bold">{b.title}</h3>
-                    <p className="text-sm opacity-80">{b.description}</p>
-                  </div>
+                  <h3 className="font-bold text-gray-800">{cleanText(b.title)}</h3>
+                  {b.description && <p className="text-sm opacity-80 mt-1">{cleanText(b.description)}</p>}
                 </div>
               ))}
             </div>
