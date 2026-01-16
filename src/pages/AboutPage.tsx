@@ -1,311 +1,268 @@
 import { motion } from 'framer-motion';
-import { CheckCircle, Award, Truck, Gift, Globe, Heart, Leaf } from 'lucide-react';
+import { Heart, ShieldCheck, Truck, RefreshCw, MessageCircle, Users, Sparkles, Package } from 'lucide-react';
 import Header from '@/components/layout/Header';
-import datesBasket from '@/assets/dates-basket.png';
-import datesBulk from '@/assets/dates-bulk.png';
 
 const AboutPage = () => {
   const features = [
     {
-      icon: CheckCircle,
-      title: '১০০% বিশুদ্ধ ও আসল খেজুর',
-      description: 'আমরা শুধুমাত্র ১০০% খাঁটি ও আসল খেজুরের নিশ্চয়তা দিই।'
+      icon: ShieldCheck,
+      title: 'প্রিমিয়াম কোয়ালিটি',
+      description: 'সর্বোচ্চ মানের কাপড় ও সেলাই নিশ্চিত করি প্রতিটি পণ্যে।'
     },
     {
-      icon: Award,
-      title: 'হাতে বাছাই করা',
-      description: 'প্রতিটি খেজুর যত্ন সহকারে হাতে বাছাই করা হয়।'
+      icon: Sparkles,
+      title: 'ট্রেন্ডি ডিজাইন',
+      description: 'সর্বশেষ ফ্যাশন ট্রেন্ড অনুসরণ করে ডিজাইন করা হয়।'
     },
     {
-      icon: Truck,
-      title: 'দ্রুত ডেলিভারি',
-      description: 'প্রিমিয়াম কোয়ালিটি সহ দ্রুত ডেলিভারি সার্ভিস।'
+      icon: Package,
+      title: '৬ পিসে পাইকারি',
+      description: 'মাত্র ৬ পিসে পাইকারি সুবিধা সহ ডিজাইন চয়েসের স্বাধীনতা।'
     },
     {
-      icon: Gift,
-      title: 'বিশেষ অফার',
-      description: 'রমজানসহ সারাবছর জুড়ে বিশেষ অফার ও উপহার প্যাক।'
+      icon: RefreshCw,
+      title: 'এক্সচেঞ্জ সাপোর্ট',
+      description: 'সহজ এক্সচেঞ্জ পলিসি সহ হ্যাসেল-ফ্রি শপিং।'
     }
   ];
 
-  const countries = [
-    'সৌদি আরব',
-    'ইরান',
-    'তিউনিসিয়া',
-    'আলজেরিয়া',
-    'দুবাই',
-    'মিশর',
-    'জর্ডান',
-    'ক্যালিফোর্নিয়া',
-    'ফিলিস্তিন'
-  ];
-
-  const dateTypes = [
-    'আজওয়া',
-    'মেডজুল',
-    'সুক্কারি',
-    'কালমি মরিয়ম',
-    'মরিয়ম',
-    'মাবরুম'
+  const goals = [
+    {
+      icon: Heart,
+      title: 'কাস্টমারের বিশ্বাস অর্জন',
+      description: 'প্রতিটি অর্ডারে সন্তুষ্টি নিশ্চিত করা আমাদের প্রধান লক্ষ্য।'
+    },
+    {
+      icon: Users,
+      title: 'রিসেলারদের ব্যবসা সহজ করা',
+      description: 'অল্প পুঁজিতে ব্যবসা শুরু করার সুযোগ তৈরি করা।'
+    },
+    {
+      icon: Truck,
+      title: 'দ্রুত ও নিরাপদ ডেলিভারি',
+      description: 'সারা বাংলাদেশে দ্রুত ও যত্ন সহকারে পণ্য পৌঁছে দেওয়া।'
+    }
   ];
 
   return (
     <>
       <Header />
       <div className="pt-32 pb-16">
-      {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-primary/10 via-background to-secondary/10 py-20 overflow-hidden">
-        <div className="absolute inset-0 opacity-5">
-          <div className="absolute top-10 left-10 w-72 h-72 bg-primary rounded-full blur-3xl" />
-          <div className="absolute bottom-10 right-10 w-96 h-96 bg-secondary rounded-full blur-3xl" />
-        </div>
-        <div className="container-custom relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-center max-w-4xl mx-auto"
-          >
-            <span className="inline-block px-4 py-2 bg-primary/10 text-primary rounded-full text-sm font-medium mb-6">
-              আমাদের সম্পর্কে
-            </span>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold text-foreground mb-6 leading-tight">
-              খেজুরের বাজার
-              <span className="block text-primary">বিশুদ্ধতার প্রতিশ্রুতি</span>
-            </h1>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              "খাঁটি খেজুর পৌঁছে দিই প্রতিটি ঘরে, সুস্থতা ও সুস্বাদের সঙ্গে।"
-            </p>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Founder Section */}
-      <section className="py-20">
-        <div className="container-custom">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+        {/* Hero Section */}
+        <section className="relative bg-gradient-to-br from-primary/10 via-background to-accent/10 py-24 overflow-hidden">
+          <div className="absolute inset-0">
+            <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
+            <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-accent/10 rounded-full blur-3xl" />
+          </div>
+          
+          <div className="container-custom relative z-10">
             <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
-              className="relative"
+              className="text-center max-w-4xl mx-auto"
             >
-              <div className="relative rounded-3xl overflow-hidden shadow-2xl">
-                <img
-                  src={datesBasket}
-                  alt="প্রিমিয়াম খেজুর সংগ্রহ"
-                  className="w-full h-[400px] object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-                <div className="absolute bottom-6 left-6 right-6">
-                  <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center">
-                        <Award className="w-6 h-6 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-bold text-foreground">৮ বছরের অভিজ্ঞতা</p>
-                        <p className="text-sm text-muted-foreground">বংশ পরম্পরায় খেজুর ব্যবসা</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              {/* Decorative Element */}
-              <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-secondary/20 rounded-full blur-2xl" />
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-            >
-              <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground mb-6">
-                আমাদের গল্প
-              </h2>
-              <div className="space-y-4 text-muted-foreground">
-                <p className="text-lg">
-                  আমি <span className="text-primary font-semibold">আশিক বেপারী</span>, খেজুরের ব্যবসায় ৮ বছরের অভিজ্ঞতা। এটা আমার বংশ পরম্পরায় আমি পেয়েছি।
-                </p>
-                <p>
-                  বাংলাদেশের সব চেয়ে বড় ফল ও খেজুরের মার্কেটে আমার ২টা প্রতিষ্ঠান রয়েছে। অনলাইনে আপনাদের কে সেবা দেয়ার জন্য মূলত আমার আশা।
-                </p>
-                <p>
-                  আমরা বিশ্বাস করি, খেজুর শুধু একটি ফল নয়; এটি আমাদের ধর্মীয় ও সাংস্কৃতিক ঐতিহ্যের অংশ, এক পরিপূর্ণ প্রাকৃতিক পুষ্টির উৎস।
-                </p>
-              </div>
-
-              {/* Stats */}
-              <div className="grid grid-cols-3 gap-4 mt-8">
-                <div className="text-center p-4 bg-muted rounded-xl">
-                  <p className="text-2xl font-bold text-primary">৮+</p>
-                  <p className="text-sm text-muted-foreground">বছর অভিজ্ঞতা</p>
-                </div>
-                <div className="text-center p-4 bg-muted rounded-xl">
-                  <p className="text-2xl font-bold text-primary">২টি</p>
-                  <p className="text-sm text-muted-foreground">প্রতিষ্ঠান</p>
-                </div>
-                <div className="text-center p-4 bg-muted rounded-xl">
-                  <p className="text-2xl font-bold text-primary">৯+</p>
-                  <p className="text-sm text-muted-foreground">দেশ থেকে আমদানি</p>
-                </div>
-              </div>
+              <motion.span 
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2 }}
+                className="inline-block px-6 py-3 bg-primary/10 text-primary rounded-full text-sm font-semibold mb-8 border border-primary/20"
+              >
+                ✨ আমাদের সম্পর্কে
+              </motion.span>
+              
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold text-foreground mb-8 leading-tight">
+                সুন্দর পোশাক শুধু ফ্যাশন নয়—
+                <span className="block text-primary mt-2">এটা আত্মবিশ্বাসের প্রকাশ</span>
+              </h1>
+              
+              <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+                এই বিশ্বাস থেকেই আমাদের যাত্রা।
+              </p>
             </motion.div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Why Choose Us */}
-      <section className="py-20 bg-muted/50">
-        <div className="container-custom">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-12"
-          >
-            <span className="inline-block px-4 py-2 bg-primary/10 text-primary rounded-full text-sm font-medium mb-4">
-              🌟 কেন আমরা?
-            </span>
-            <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground">
-              কেন "খেজুরের বাজার"?
-            </h2>
-          </motion.div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {features.map((feature, index) => (
+        {/* Main Story Section */}
+        <section className="py-20">
+          <div className="container-custom">
+            <div className="max-w-4xl mx-auto">
               <motion.div
-                key={index}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                className="bg-card p-6 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 border border-border group hover:border-primary/30"
+                transition={{ duration: 0.6 }}
+                className="text-center mb-16"
               >
-                <div className="w-14 h-14 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  <feature.icon className="w-7 h-7 text-primary" />
+                <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground mb-8">
+                  আমাদের গল্প
+                </h2>
+                
+                <div className="space-y-6 text-lg text-muted-foreground leading-relaxed">
+                  <p>
+                    আমাদের প্রতিষ্ঠানটি মূলত <span className="text-primary font-semibold">প্রিমিয়াম থ্রি-পিস, শাড়ি ও ফ্যাশন ড্রেস</span> সরবরাহ করে থাকে, যেখানে <span className="text-foreground font-medium">কোয়ালিটি, কমফোর্ট ও ট্রেন্ড</span>—এই তিনটির ওপর আমরা সর্বোচ্চ গুরুত্ব দিই।
+                  </p>
+                  
+                  <p>
+                    আমাদের সব পণ্য নিজস্ব ফ্যাক্টরি ও বিশ্বস্ত সোর্স থেকে সংগ্রহ করা হয়, যেন কাস্টমার পান <span className="text-primary font-semibold">সেরা মানের কাপড় ন্যায্য দামে</span>।
+                  </p>
                 </div>
-                <h3 className="text-lg font-semibold text-foreground mb-2">
-                  {feature.title}
-                </h3>
-                <p className="text-muted-foreground text-sm">
-                  {feature.description}
-                </p>
               </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
 
-      {/* Global Sourcing */}
-      <section className="py-20">
-        <div className="container-custom">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-            >
-              <div className="flex items-center gap-2 mb-4">
-                <Globe className="w-6 h-6 text-primary" />
-                <span className="text-primary font-medium">বিশ্বব্যাপী সংগ্রহ</span>
-              </div>
-              <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground mb-6">
-                বিশ্বের সেরা খেজুর আপনার জন্য
-              </h2>
-              <p className="text-muted-foreground mb-8">
-                বিশ্বের নামকরা দেশগুলো থেকে আমরা বাছাইকৃত প্রিমিয়াম মানের খেজুর আমদানি করি।
-              </p>
-
-              <div className="flex flex-wrap gap-2 mb-8">
-                {countries.map((country, index) => (
-                  <motion.span
-                    key={index}
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    whileInView={{ opacity: 1, scale: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: index * 0.05 }}
-                    className="px-4 py-2 bg-primary/10 text-primary rounded-full text-sm font-medium"
-                  >
-                    {country}
-                  </motion.span>
-                ))}
-              </div>
-
-              <div className="p-6 bg-muted rounded-2xl">
-                <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
-                  <Leaf className="w-5 h-5 text-primary" />
-                  আমাদের সংগ্রহে রয়েছে
-                </h4>
-                <div className="flex flex-wrap gap-2">
-                  {dateTypes.map((type, index) => (
-                    <span
-                      key={index}
-                      className="px-3 py-1 bg-secondary/20 text-secondary-foreground rounded-lg text-sm"
-                    >
-                      {type}
+              {/* Highlight Box */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                className="bg-gradient-to-br from-primary/5 to-accent/5 rounded-3xl p-8 md:p-12 border border-primary/10 mb-16"
+              >
+                <div className="text-center">
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-2xl mb-6">
+                    <Package className="w-8 h-8 text-primary" />
+                  </div>
+                  <h3 className="text-2xl md:text-3xl font-display font-bold text-foreground mb-4">
+                    খুচরা ও পাইকারি—দুইভাবেই বিক্রি করি
+                  </h3>
+                  <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-6">
+                    বিশেষ করে যারা অল্প পুঁজি নিয়ে কাপড়ের ব্যবসা শুরু করতে চান, তাদের জন্য আমাদের রয়েছে—
+                  </p>
+                  <div className="flex flex-wrap justify-center gap-4">
+                    <span className="px-5 py-3 bg-primary text-primary-foreground rounded-full font-medium">
+                      মাত্র ৬ পিসে পাইকারি
                     </span>
-                  ))}
-                  <span className="px-3 py-1 bg-secondary/20 text-secondary-foreground rounded-lg text-sm">
-                    এবং আরও...
-                  </span>
+                    <span className="px-5 py-3 bg-accent text-accent-foreground rounded-full font-medium">
+                      ডিজাইন চয়েসের স্বাধীনতা
+                    </span>
+                    <span className="px-5 py-3 bg-secondary text-secondary-foreground rounded-full font-medium">
+                      এক্সচেঞ্জ সাপোর্ট
+                    </span>
+                  </div>
                 </div>
-              </div>
+              </motion.div>
+            </div>
+          </div>
+        </section>
+
+        {/* Features Section */}
+        <section className="py-20 bg-muted/30">
+          <div className="container-custom">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center mb-12"
+            >
+              <span className="inline-block px-4 py-2 bg-primary/10 text-primary rounded-full text-sm font-medium mb-4">
+                🌟 কেন আমরা বিশেষ?
+              </span>
+              <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground">
+                আমাদের বৈশিষ্ট্য
+              </h2>
             </motion.div>
 
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {features.map((feature, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1 }}
+                  className="bg-card p-6 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 border border-border group hover:border-primary/30 hover:-translate-y-1"
+                >
+                  <div className="w-14 h-14 bg-gradient-to-br from-primary/20 to-accent/20 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <feature.icon className="w-7 h-7 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-foreground mb-2">
+                    {feature.title}
+                  </h3>
+                  <p className="text-muted-foreground text-sm">
+                    {feature.description}
+                  </p>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Goals Section */}
+        <section className="py-20">
+          <div className="container-custom">
             <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              whileInView={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              className="relative"
+              className="text-center mb-12"
             >
-              <img
-                src={datesBulk}
-                alt="বিভিন্ন ধরনের খেজুর"
-                className="rounded-3xl shadow-xl w-full h-[450px] object-cover"
-              />
-              <div className="absolute -bottom-4 -left-4 bg-card p-4 rounded-xl shadow-lg border border-border">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                    <CheckCircle className="w-5 h-5 text-green-600" />
+              <span className="inline-block px-4 py-2 bg-accent/10 text-accent-foreground rounded-full text-sm font-medium mb-4">
+                🎯 আমাদের লক্ষ্য
+              </span>
+              <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground mb-4">
+                শুধু পণ্য বিক্রি করা নয়—
+              </h2>
+            </motion.div>
+
+            <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+              {goals.map((goal, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.15 }}
+                  className="text-center group"
+                >
+                  <div className="w-20 h-20 bg-gradient-to-br from-primary to-primary/70 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform shadow-lg shadow-primary/20">
+                    <goal.icon className="w-10 h-10 text-primary-foreground" />
                   </div>
-                  <div>
-                    <p className="font-semibold text-foreground">১০০% অর্গানিক</p>
-                    <p className="text-xs text-muted-foreground">প্রাকৃতিক গুণাগুণ</p>
-                  </div>
+                  <h3 className="text-xl font-semibold text-foreground mb-3">
+                    {goal.title}
+                  </h3>
+                  <p className="text-muted-foreground">
+                    {goal.description}
+                  </p>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* CTA Section */}
+        <section className="py-20 bg-gradient-to-br from-primary via-primary/90 to-primary/80 text-primary-foreground relative overflow-hidden">
+          <div className="absolute inset-0">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
+            <div className="absolute bottom-0 left-0 w-80 h-80 bg-white/5 rounded-full blur-3xl" />
+          </div>
+          
+          <div className="container-custom relative z-10">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="max-w-4xl mx-auto text-center"
+            >
+              <h2 className="text-3xl md:text-4xl font-display font-bold mb-6">
+                আপনার পাশে আছি আমরা
+              </h2>
+              <p className="text-xl opacity-90 mb-8 leading-relaxed max-w-2xl mx-auto">
+                আপনি যদি নিজের জন্য সুন্দর পোশাক খুঁজে থাকেন, অথবা ব্যবসার জন্য একটি নির্ভরযোগ্য সাপ্লায়ার চান—আমরা আছি আপনার পাশে।
+              </p>
+              
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10">
+                <div className="flex items-center gap-3 bg-white/20 backdrop-blur-sm rounded-xl px-6 py-4">
+                  <MessageCircle className="w-6 h-6" />
+                  <span className="font-medium">যেকোনো প্রশ্ন বা অর্ডারের জন্য ইনবক্স করুন</span>
                 </div>
+              </div>
+              
+              <div className="inline-block px-8 py-5 bg-white/20 backdrop-blur-sm rounded-2xl border border-white/20">
+                <p className="text-xl font-display">
+                  🤝 আমাদের সাথে থাকুন—<span className="font-bold">স্টাইল আর বিশ্বাসের পথে</span>
+                </p>
               </div>
             </motion.div>
           </div>
-        </div>
-      </section>
-
-      {/* Mission */}
-      <section className="py-20 bg-gradient-to-br from-primary to-primary/80 text-primary-foreground">
-        <div className="container-custom">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="max-w-4xl mx-auto text-center"
-          >
-            <Heart className="w-16 h-16 mx-auto mb-6 opacity-80" />
-            <h2 className="text-3xl md:text-4xl font-display font-bold mb-6">
-              আমাদের লক্ষ্য
-            </h2>
-            <p className="text-xl opacity-90 mb-8 leading-relaxed">
-              আমাদের লক্ষ্য শুধু খেজুর বিক্রি নয় — বরং একটি বিশ্বাসযোগ্য নাম হিসেবে "খেজুরের বাজার" কে গড়ে তোলা, যেখান থেকে মানুষ নিশ্চিন্তে স্বাস্থ্য, ঐতিহ্য ও স্বাদের মেলবন্ধন পাবে।
-            </p>
-            <div className="inline-block px-8 py-4 bg-white/20 backdrop-blur-sm rounded-2xl">
-              <p className="text-lg font-display italic">
-                "খেজুরের বাজার — যেখানে প্রতিটি খেজুরে থাকে বিশ্বাসের স্বাদ।"
-              </p>
-            </div>
-          </motion.div>
-        </div>
-      </section>
+        </section>
       </div>
     </>
   );
