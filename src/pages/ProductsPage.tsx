@@ -5,7 +5,7 @@ import { Filter, X, ChevronDown, Grid3X3, LayoutGrid, Loader2 } from 'lucide-rea
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import ProductCard from '@/components/products/ProductCard';
-import HeroBanner from '@/components/layout/HeroBanner';
+import Header from '@/components/layout/Header';
 import { fetchProducts, fetchCategories } from '@/services/productService';
 import { Product, Category } from '@/types';
 
@@ -147,18 +147,20 @@ const ProductsPage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <>
+        <Header />
+        <div className="min-h-screen bg-background pt-32 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Hero Banner */}
-      <HeroBanner compact />
-      
-      <div className="container-custom py-8">
+    <>
+      <Header />
+      <div className="min-h-screen bg-background pt-32 pb-16">
+        <div className="container-custom">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl md:text-4xl font-display font-bold text-foreground mb-2">
@@ -385,8 +387,9 @@ const ProductsPage = () => {
             )}
           </main>
         </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

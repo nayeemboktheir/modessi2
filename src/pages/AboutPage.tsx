@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { CheckCircle, Award, Truck, Gift, Globe, Heart, Leaf } from 'lucide-react';
-import HeroBanner from '@/components/layout/HeroBanner';
+import Header from '@/components/layout/Header';
 import datesBasket from '@/assets/dates-basket.png';
 import datesBulk from '@/assets/dates-bulk.png';
 
@@ -50,9 +50,9 @@ const AboutPage = () => {
   ];
 
   return (
-    <div className="pb-16">
-      {/* Hero Banner */}
-      <HeroBanner compact />
+    <>
+      <Header />
+      <div className="pt-32 pb-16">
       {/* Hero Section */}
       <section className="relative bg-gradient-to-br from-primary/10 via-background to-secondary/10 py-20 overflow-hidden">
         <div className="absolute inset-0 opacity-5">
@@ -306,7 +306,8 @@ const AboutPage = () => {
           </motion.div>
         </div>
       </section>
-    </div>
+      </div>
+    </>
   );
 };
 

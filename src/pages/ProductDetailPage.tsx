@@ -14,7 +14,6 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
-import HeroBanner from '@/components/layout/HeroBanner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -211,9 +210,8 @@ const ProductDetailPage = () => {
   return (
     <>
       <Header />
-      <HeroBanner compact />
-      <div className="min-h-screen pb-16 bg-background">
-        <div className="container-custom py-6">
+      <div className="min-h-screen pt-32 pb-16 bg-background">
+        <div className="container-custom">
         {/* Breadcrumb */}
         <nav className="mb-6 text-sm">
           <ol className="flex items-center gap-2 text-muted-foreground">
