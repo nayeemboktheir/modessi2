@@ -913,7 +913,7 @@ export default function AdminOrders() {
                 <TableHead>Print</TableHead>
                 <TableHead>Change Status</TableHead>
                 <TableHead>Tracking</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="text-right sticky right-0 bg-background shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1024,12 +1024,13 @@ export default function AdminOrders() {
                       <span className="text-muted-foreground text-sm">Not sent</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right sticky right-0 bg-background shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                     <div className="flex items-center justify-end gap-1">
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => openOrderDetail(order)}
+                        title="View order details"
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
@@ -1038,6 +1039,7 @@ export default function AdminOrders() {
                         size="icon"
                         onClick={() => openDeleteDialog(order)}
                         className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        title="Delete order"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
