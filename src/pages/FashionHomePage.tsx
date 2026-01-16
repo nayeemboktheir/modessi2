@@ -50,6 +50,10 @@ interface Banner {
   link_url: string | null;
 }
 
+interface HomePageContent {
+  [key: string]: any;
+}
+
 export default function FashionHomePage() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -59,6 +63,7 @@ export default function FashionHomePage() {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [newArrivals, setNewArrivals] = useState<Product[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
+  const [homeContent, setHomeContent] = useState<HomePageContent>({});
   const [isLoading, setIsLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -69,6 +74,19 @@ export default function FashionHomePage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // Fetch home page content
+        const { data: homePageData } = await supabase
+          .from('home_page_content')
+          .select('*');
+        
+        if (homePageData) {
+          const contentMap: HomePageContent = {};
+          homePageData.forEach((item: any) => {
+            contentMap[item.section_key] = item.content;
+          });
+          setHomeContent(contentMap);
+        }
+
         // Fetch banners
         const { data: bannersData } = await supabase
           .from('banners')
@@ -86,12 +104,10 @@ export default function FashionHomePage() {
           .order('sort_order', { ascending: true });
         
         if (categoriesData) {
-          // Fetch a product image for each category that doesn't have an image
           const categoriesWithImages = await Promise.all(
             categoriesData.map(async (cat) => {
               if (cat.image_url) return cat;
               
-              // Get the first product with an image from this category
               const { data: productData } = await supabase
                 .from('products')
                 .select('images')
@@ -163,14 +179,25 @@ export default function FashionHomePage() {
     return `৳${price.toLocaleString('bn-BD')}`;
   };
 
-  const features = [
-    { icon: Truck, title: 'দ্রুত ডেলিভারি', desc: 'সারাদেশে ফ্রি ডেলিভারি' },
-    { icon: RotateCcw, title: 'ইনস্ট্যান্ট চেক', desc: 'রিটার্ন পলিসি' },
-    { icon: Shield, title: 'ক্যাশ অন ডেলিভারি', desc: 'পণ্য হাতে পেয়ে পেমেন্ট' },
-    { icon: Headphones, title: '২৪/৭ সাপোর্ট', desc: 'যেকোনো সময় যোগাযোগ' },
+  // Get icon component from string name
+  const getIconComponent = (iconName: string) => {
+    const icons: { [key: string]: any } = { Truck, RotateCcw, Shield, Headphones };
+    return icons[iconName] || Truck;
+  };
+
+  // Features from home content or defaults
+  const featuresBarItems = homeContent.features_bar?.items || [
+    { icon: 'Truck', title: 'দ্রুত ডেলিভারি', desc: 'সারাদেশে ফ্রি ডেলিভারি' },
+    { icon: 'RotateCcw', title: 'ইনস্ট্যান্ট চেক', desc: 'রিটার্ন পলিসি' },
+    { icon: 'Shield', title: 'ক্যাশ অন ডেলিভারি', desc: 'পণ্য হাতে পেয়ে পেমেন্ট' },
+    { icon: 'Headphones', title: '২৪/৭ সাপোর্ট', desc: 'যেকোনো সময় যোগাযোগ' },
   ];
 
-  // Hero slides from banners or defaults (using local product images)
+  // Header promo text from home content
+  const headerPromoText = homeContent.header_promo?.text || '৳২০০০+ অর্ডারে সারাদেশে ফ্রি ডেলিভারি | ৭ দিনের ইজি রিটার্ন';
+  const headerPromoEnabled = homeContent.header_promo?.enabled !== false;
+
+  // Hero slides from home content, banners, or defaults
   const defaultSlides = [
     {
       id: '1',
@@ -198,16 +225,33 @@ export default function FashionHomePage() {
     }
   ];
 
-  const heroSlides = banners.length > 0 
-    ? banners.map(b => ({
+  // Priority: home_page_content hero_slides > banners > defaultSlides
+  const getHeroSlides = () => {
+    const contentSlides = homeContent.hero_slides?.slides;
+    if (contentSlides && contentSlides.length > 0 && contentSlides.some((s: any) => s.image)) {
+      return contentSlides.map((s: any, index: number) => ({
+        id: s.id || String(index),
+        title: s.title || '',
+        subtitle: s.subtitle || '',
+        image: s.image || defaultSlides[index]?.image || heroSlide1,
+        link: s.link || '/products',
+        badge: s.badge || ''
+      }));
+    }
+    if (banners.length > 0) {
+      return banners.map(b => ({
         id: b.id,
         title: b.title,
         subtitle: b.subtitle || '',
         image: b.image_url,
         link: b.link_url || '/products',
         badge: 'নতুন'
-      }))
-    : defaultSlides;
+      }));
+    }
+    return defaultSlides;
+  };
+
+  const heroSlides = getHeroSlides();
 
   const nextSlide = useCallback(() => {
     setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
@@ -305,12 +349,14 @@ export default function FashionHomePage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Top Bar */}
-      <div className="bg-primary text-primary-foreground py-2 text-center text-sm">
-        <div className="container-custom flex items-center justify-center gap-2">
-          <Truck className="w-4 h-4" />
-          <span>৳২০০০+ অর্ডারে সারাদেশে ফ্রি ডেলিভারি | ৭ দিনের ইজি রিটার্ন</span>
+      {headerPromoEnabled && (
+        <div className="bg-primary text-primary-foreground py-2 text-center text-sm">
+          <div className="container-custom flex items-center justify-center gap-2">
+            <Truck className="w-4 h-4" />
+            <span>{headerPromoText}</span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Header */}
       <header className="sticky top-0 z-50 bg-background border-b border-border shadow-sm">
@@ -571,17 +617,20 @@ export default function FashionHomePage() {
       <section className="py-6 bg-secondary/50 border-y border-border">
         <div className="container-custom">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {features.map((feature, index) => (
-              <div key={index} className="flex items-center gap-3 justify-center">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <feature.icon className="w-5 h-5 text-primary" />
+            {featuresBarItems.map((feature: any, index: number) => {
+              const IconComponent = getIconComponent(feature.icon);
+              return (
+                <div key={index} className="flex items-center gap-3 justify-center">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <IconComponent className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground text-sm">{feature.title}</p>
+                    <p className="text-xs text-muted-foreground hidden md:block">{feature.desc}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-semibold text-foreground text-sm">{feature.title}</p>
-                  <p className="text-xs text-muted-foreground hidden md:block">{feature.desc}</p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
