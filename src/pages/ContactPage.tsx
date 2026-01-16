@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import HeroBanner from '@/components/layout/HeroBanner';
+import Header from '@/components/layout/Header';
 import contactDatesImage from '@/assets/contact-dates.png';
 
 const ContactPage = () => {
@@ -74,9 +74,9 @@ const ContactPage = () => {
   ];
 
   return (
-    <div className="pb-16">
-      {/* Hero Banner */}
-      <HeroBanner compact />
+    <>
+      <Header />
+      <div className="pt-32 pb-16">
       {/* Hero Section with Date Background */}
       <section className="relative py-24 overflow-hidden">
         <div 
@@ -213,7 +213,8 @@ const ContactPage = () => {
           </div>
         </div>
       </section>
-    </div>
+      </div>
+    </>
   );
 };
 
