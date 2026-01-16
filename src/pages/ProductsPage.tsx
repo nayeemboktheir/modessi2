@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Filter, X, ChevronDown, Grid3X3, LayoutGrid, Loader2 } from 'lucide-react';
+import { Filter, X, ChevronDown, Grid3X3, LayoutGrid, Loader2, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import ProductCard from '@/components/products/ProductCard';
@@ -252,8 +252,20 @@ const ProductsPage = () => {
           {/* Main Content */}
           <main className="flex-1">
             {/* Toolbar */}
-            <div className="flex items-center justify-between mb-6 gap-4">
-              <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between mb-6 gap-4">
+              {/* Search Bar */}
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="প্রোডাক্ট খুঁজুন..."
+                  value={searchQuery}
+                  onChange={(e) => updateFilter('search', e.target.value || null)}
+                  className="pl-10 h-10"
+                />
+              </div>
+
+              <div className="flex items-center justify-between sm:justify-end gap-3">
                 {/* Mobile Filter Toggle */}
                 <Button
                   variant="outline"
@@ -284,24 +296,24 @@ const ProductsPage = () => {
                     <LayoutGrid className="h-4 w-4" />
                   </button>
                 </div>
-              </div>
 
-              {/* Sort */}
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground hidden sm:inline">Sort by:</span>
-                <div className="relative">
-                  <select
-                    value={sortBy}
-                    onChange={(e) => updateFilter('sort', e.target.value)}
-                    className="h-10 pl-3 pr-8 rounded-lg border border-border bg-background text-sm appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary"
-                  >
-                    <option value="newest">Newest</option>
-                    <option value="price-low">Price: Low to High</option>
-                    <option value="price-high">Price: High to Low</option>
-                    <option value="rating">Highest Rated</option>
-                    <option value="popular">Most Popular</option>
-                  </select>
-                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                {/* Sort */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground hidden sm:inline">Sort by:</span>
+                  <div className="relative">
+                    <select
+                      value={sortBy}
+                      onChange={(e) => updateFilter('sort', e.target.value)}
+                      className="h-10 pl-3 pr-8 rounded-lg border border-border bg-background text-sm appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                      <option value="newest">Newest</option>
+                      <option value="price-low">Price: Low to High</option>
+                      <option value="price-high">Price: High to Low</option>
+                      <option value="rating">Highest Rated</option>
+                      <option value="popular">Most Popular</option>
+                    </select>
+                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  </div>
                 </div>
               </div>
             </div>
