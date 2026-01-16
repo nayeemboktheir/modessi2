@@ -146,6 +146,7 @@ const mapProductFromDB = (data: any): Product => {
     originalPrice: originalPrice,
     images: data.images || [],
     category: data.categories?.name || 'Uncategorized',
+    categorySlug: data.categories?.slug || undefined,
     subcategory: undefined,
     rating: Number(data.rating) || 0,
     reviewCount: data.review_count || 0,

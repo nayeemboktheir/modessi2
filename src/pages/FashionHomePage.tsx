@@ -174,7 +174,7 @@ export default function FashionHomePage() {
       title: 'নতুন টু পিস কালেকশন',
       subtitle: 'এক্সক্লুসিভ ডিজাইন, প্রিমিয়াম কোয়ালিটি - ৩০% পর্যন্ত ছাড়',
       image: 'https://images.unsplash.com/photo-1617922001439-4a2e6562f328?w=1920&q=80',
-      link: '/category/two-pcs',
+      link: '/products?category=two-piece',
       badge: '৩০% ছাড়'
     },
     {
@@ -182,7 +182,7 @@ export default function FashionHomePage() {
       title: 'থ্রি পিস স্পেশাল',
       subtitle: 'প্রিমিয়াম ফেব্রিক, এলিগ্যান্ট ডিজাইন - নতুন আগমন',
       image: 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=1920&q=80',
-      link: '/category/three-pcs',
+      link: '/products?category=three-piece',
       badge: 'নতুন'
     },
     {
@@ -356,10 +356,10 @@ export default function FashionHomePage() {
               <Link to="/" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
                 হোম
               </Link>
-              <Link to="/category/two-pcs" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+              <Link to="/products?category=two-piece" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
                 টু পিস
               </Link>
-              <Link to="/category/three-pcs" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+              <Link to="/products?category=three-piece" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
                 থ্রি পিস
               </Link>
               <Link to="/products" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
@@ -440,7 +440,7 @@ export default function FashionHomePage() {
                   </li>
                   <li>
                     <Link 
-                      to="/category/two-pcs" 
+                      to="/products?category=two-piece" 
                       className="block py-2 text-foreground hover:text-primary font-medium"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
@@ -449,7 +449,7 @@ export default function FashionHomePage() {
                   </li>
                   <li>
                     <Link 
-                      to="/category/three-pcs" 
+                      to="/products?category=three-piece" 
                       className="block py-2 text-foreground hover:text-primary font-medium"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
@@ -652,7 +652,7 @@ export default function FashionHomePage() {
                 <motion.div
                   whileHover={{ y: -5 }}
                   className="group cursor-pointer"
-                  onClick={() => navigate('/category/two-pcs')}
+                  onClick={() => navigate('/products?category=two-piece')}
                 >
                   <div className="relative overflow-hidden rounded-2xl aspect-square bg-gradient-to-br from-pink-100 to-pink-50">
                     <img
@@ -671,7 +671,7 @@ export default function FashionHomePage() {
                 <motion.div
                   whileHover={{ y: -5 }}
                   className="group cursor-pointer"
-                  onClick={() => navigate('/category/three-pcs')}
+                  onClick={() => navigate('/products?category=three-piece')}
                 >
                   <div className="relative overflow-hidden rounded-2xl aspect-square bg-gradient-to-br from-purple-100 to-purple-50">
                     <img
@@ -868,7 +868,7 @@ export default function FashionHomePage() {
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-pink-500 to-rose-500 p-8 md:p-10 cursor-pointer group"
-              onClick={() => navigate('/category/two-pcs')}
+              onClick={() => navigate('/products?category=two-piece')}
             >
               <div className="relative z-10">
                 <Badge className="mb-3 bg-white/20 text-white border-0">সীমিত অফার</Badge>
@@ -889,7 +889,7 @@ export default function FashionHomePage() {
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-violet-500 to-purple-500 p-8 md:p-10 cursor-pointer group"
-              onClick={() => navigate('/category/three-pcs')}
+              onClick={() => navigate('/products?category=three-piece')}
             >
               <div className="relative z-10">
                 <Badge className="mb-3 bg-white/20 text-white border-0">নতুন আগমন</Badge>
@@ -1045,8 +1045,8 @@ export default function FashionHomePage() {
               <h4 className="font-semibold mb-4">কুইক লিংক</h4>
               <ul className="space-y-2 text-sm text-background/70">
                 <li><Link to="/products" className="hover:text-primary transition-colors">সব প্রোডাক্ট</Link></li>
-                <li><Link to="/category/two-pcs" className="hover:text-primary transition-colors">টু পিস</Link></li>
-                <li><Link to="/category/three-pcs" className="hover:text-primary transition-colors">থ্রি পিস</Link></li>
+                <li><Link to="/products?category=two-piece" className="hover:text-primary transition-colors">টু পিস</Link></li>
+                <li><Link to="/products?category=three-piece" className="hover:text-primary transition-colors">থ্রি পিস</Link></li>
                 <li><Link to="/about" className="hover:text-primary transition-colors">আমাদের সম্পর্কে</Link></li>
               </ul>
             </div>

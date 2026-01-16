@@ -20,6 +20,7 @@ export interface Product {
   originalPrice?: number;
   images: string[];
   category: string;
+  categorySlug?: string;
   subcategory?: string;
   rating: number;
   reviewCount: number;

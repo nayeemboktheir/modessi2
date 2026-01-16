@@ -47,10 +47,11 @@ const ProductsPage = () => {
   const filteredProducts = useMemo(() => {
     let result = [...products];
 
-    // Category filter
+    // Category filter - match by categorySlug or by category name converted to slug
     if (categoryFilter) {
       result = result.filter(
-        (p) => p.category.toLowerCase().replace(/[^a-z0-9]/g, '-') === categoryFilter
+        (p) => p.categorySlug === categoryFilter || 
+               p.category.toLowerCase().replace(/[^a-z0-9]/g, '-') === categoryFilter
       );
     }
 
