@@ -29,7 +29,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { Search, Eye, Package, Truck, CheckCircle, XCircle, Clock, Send, Printer, Globe, UserPlus, Plus, Check, Tag, RefreshCw, RotateCcw, Loader2, UserCheck, History, Trash2 } from 'lucide-react';
+import { Search, Eye, Package, Truck, CheckCircle, XCircle, Clock, Send, Printer, Globe, UserPlus, Plus, Check, Tag, RefreshCw, RotateCcw, Loader2, UserCheck, History, Trash2, Calendar } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { supabase } from '@/integrations/supabase/client';
 import { getAllOrders, updateOrderStatus, deleteOrder } from '@/services/adminService';
 import {
@@ -142,6 +144,8 @@ export default function AdminOrders() {
   const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
 
   useEffect(() => {
     loadOrders();
@@ -196,9 +200,26 @@ export default function AdminOrders() {
 
   const filteredOrders = orders.filter(order => {
     const matchesSearch = order.order_number.toLowerCase().includes(search.toLowerCase()) ||
-      order.shipping_name.toLowerCase().includes(search.toLowerCase());
+      order.shipping_name.toLowerCase().includes(search.toLowerCase()) ||
+      order.shipping_phone.includes(search);
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
     const matchesSource = sourceFilter === 'all' || order.order_source === sourceFilter;
+    
+    // Date filter
+    const orderDate = new Date(order.created_at);
+    orderDate.setHours(0, 0, 0, 0);
+    
+    let matchesDate = true;
+    if (dateFrom) {
+      const fromDate = new Date(dateFrom);
+      fromDate.setHours(0, 0, 0, 0);
+      matchesDate = matchesDate && orderDate >= fromDate;
+    }
+    if (dateTo) {
+      const toDate = new Date(dateTo);
+      toDate.setHours(23, 59, 59, 999);
+      matchesDate = matchesDate && orderDate <= toDate;
+    }
     
     // Steadfast filter
     let matchesSteadfast = true;
@@ -219,7 +240,7 @@ export default function AdminOrders() {
       matchesSteadfast = false;
     }
     
-    return matchesSearch && matchesStatus && matchesSource && matchesSteadfast;
+    return matchesSearch && matchesStatus && matchesSource && matchesSteadfast && matchesDate;
   });
 
   // Count for Steadfast filters
@@ -758,17 +779,68 @@ export default function AdminOrders() {
 
       <Card>
         <CardHeader>
-          <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex items-center gap-2 flex-1">
               <Search className="h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by order number or customer..."
+                placeholder="Search by order number, customer, or phone..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="max-w-sm"
               />
             </div>
-            <div className="flex gap-2">
+            
+            {/* Date Filter */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Calendar className="h-4 w-4" />
+                    {dateFrom ? format(dateFrom, 'dd MMM yyyy') : 'From Date'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={dateFrom}
+                    onSelect={setDateFrom}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+              
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Calendar className="h-4 w-4" />
+                    {dateTo ? format(dateTo, 'dd MMM yyyy') : 'To Date'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={dateTo}
+                    onSelect={setDateTo}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+              
+              {(dateFrom || dateTo) && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}
+                  className="text-muted-foreground"
+                >
+                  <XCircle className="h-4 w-4 mr-1" />
+                  Clear
+                </Button>
+              )}
+            </div>
+          </div>
+          
+          <div className="flex gap-2 flex-wrap mt-4">
               {selectedOrderIds.size > 0 && (
                 <>
                   <Select
@@ -819,10 +891,9 @@ export default function AdminOrders() {
                 </>
               )}
             </div>
-          </div>
         </CardHeader>
-        <CardContent>
-          <Table>
+        <CardContent className="overflow-x-auto">
+          <Table className="min-w-[1400px]">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-10">
@@ -976,7 +1047,7 @@ export default function AdminOrders() {
               ))}
               {filteredOrders.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={13} className="text-center py-8 text-muted-foreground">
                     No orders found
                   </TableCell>
                 </TableRow>
