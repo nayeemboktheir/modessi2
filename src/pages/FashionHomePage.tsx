@@ -1078,53 +1078,62 @@ export default function FashionHomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-foreground text-background py-12 md:py-16">
+      <footer className="bg-[#1a1a2e] text-white py-12 md:py-16">
         <div className="container-custom">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
             <div className="col-span-2 md:col-span-1">
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
-                  <Sparkles className="w-5 h-5 text-primary-foreground" />
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-500 to-orange-400 flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 text-white" />
                 </div>
-                <span className="text-2xl font-bold">এলিগ্যান্স</span>
+                <span className="text-2xl font-bold bg-gradient-to-r from-pink-400 to-orange-400 bg-clip-text text-transparent">এলিগ্যান্স</span>
               </div>
-              <p className="text-background/70 text-sm">
-                প্রিমিয়াম কোয়ালিটি টু পিস ও থ্রি পিস কালেকশন। আপনার স্টাইল, আপনার পছন্দ।
+              <p className="text-gray-400 text-sm">
+                প্রিমিয়াম কোয়ালিটি টু পিস ও থ্রি পিস কালেকশন। <span className="text-pink-400">আপনার স্টাইল, আপনার পছন্দ।</span>
               </p>
             </div>
             
             <div>
-              <h4 className="font-semibold mb-4">কুইক লিংক</h4>
-              <ul className="space-y-2 text-sm text-background/70">
-                <li><Link to="/products" className="hover:text-primary transition-colors">সব প্রোডাক্ট</Link></li>
-                <li><Link to="/products?category=two-piece" className="hover:text-primary transition-colors">টু পিস</Link></li>
-                <li><Link to="/products?category=three-piece" className="hover:text-primary transition-colors">থ্রি পিস</Link></li>
-                <li><Link to="/about" className="hover:text-primary transition-colors">আমাদের সম্পর্কে</Link></li>
+              <h4 className="font-semibold mb-4 text-white">কুইক লিংক</h4>
+              <ul className="space-y-2 text-sm text-gray-400">
+                <li><Link to="/products" className="hover:text-pink-400 transition-colors">সব প্রোডাক্ট</Link></li>
+                <li><Link to="/products?category=two-piece" className="hover:text-pink-400 transition-colors">টু পিস</Link></li>
+                <li><Link to="/products?category=three-piece" className="hover:text-pink-400 transition-colors">থ্রি পিস</Link></li>
+                <li><Link to="/about" className="hover:text-pink-400 transition-colors">আমাদের সম্পর্কে</Link></li>
               </ul>
             </div>
             
             <div>
-              <h4 className="font-semibold mb-4">সাহায্য</h4>
-              <ul className="space-y-2 text-sm text-background/70">
-                <li><Link to="/contact" className="hover:text-primary transition-colors">যোগাযোগ</Link></li>
-                <li><Link to="#" className="hover:text-primary transition-colors">শিপিং পলিসি</Link></li>
-                <li><Link to="#" className="hover:text-primary transition-colors">রিটার্ন পলিসি</Link></li>
-                <li><Link to="#" className="hover:text-primary transition-colors">FAQ</Link></li>
+              <h4 className="font-semibold mb-4 text-white">সাহায্য</h4>
+              <ul className="space-y-2 text-sm text-gray-400">
+                <li><Link to="/contact" className="hover:text-pink-400 transition-colors">যোগাযোগ</Link></li>
+                <li><Link to="/contact" className="hover:text-pink-400 transition-colors">শিপিং পলিসি</Link></li>
+                <li><Link to="/contact" className="hover:text-pink-400 transition-colors">রিটার্ন পলিসি</Link></li>
+                <li><Link to="/contact" className="hover:text-pink-400 transition-colors">FAQ</Link></li>
               </ul>
             </div>
             
             <div>
-              <h4 className="font-semibold mb-4">যোগাযোগ</h4>
-              <ul className="space-y-2 text-sm text-background/70">
-                <li>📞 ০১৭XX-XXXXXX</li>
-                <li>✉️ info@elegance.com</li>
-                <li>📍 ঢাকা, বাংলাদেশ</li>
+              <h4 className="font-semibold mb-4 text-white">যোগাযোগ</h4>
+              <ul className="space-y-3 text-sm text-gray-400">
+                <li className="flex items-center gap-2">
+                  <span className="text-pink-400">📞</span>
+                  <a href="tel:+8801995909243" className="hover:text-pink-400 transition-colors">01995-909243</a>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-pink-400">✉️</span>
+                  <a href="https://www.facebook.com/messages/t/282687191604098/" target="_blank" rel="noopener noreferrer" className="hover:text-pink-400 transition-colors">Facebook Inbox</a>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-pink-400">📍</span>
+                  <span>Mirpur-13, Dhaka-1216</span>
+                </li>
               </ul>
             </div>
           </div>
           
-          <div className="border-t border-background/20 pt-8 text-center text-sm text-background/60">
-            <p>© ২০২৬ এলিগ্যান্স। সর্বস্বত্ব সংরক্ষিত।</p>
+          <div className="border-t border-gray-700/50 pt-8 text-center text-sm text-gray-500">
+            <p>© {new Date().getFullYear()} এলিগ্যান্স। সর্বস্বত্ব সংরক্ষিত।</p>
           </div>
         </div>
       </footer>
