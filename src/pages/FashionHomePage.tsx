@@ -36,6 +36,7 @@ interface Category {
   slug: string;
   image_url: string | null;
   description: string | null;
+  productImage?: string | null; // First product image from this category
 }
 
 interface Banner {
@@ -81,7 +82,30 @@ export default function FashionHomePage() {
           .select('*')
           .order('sort_order', { ascending: true });
         
-        if (categoriesData) setCategories(categoriesData);
+        if (categoriesData) {
+          // Fetch a product image for each category that doesn't have an image
+          const categoriesWithImages = await Promise.all(
+            categoriesData.map(async (cat) => {
+              if (cat.image_url) return cat;
+              
+              // Get the first product with an image from this category
+              const { data: productData } = await supabase
+                .from('products')
+                .select('images')
+                .eq('category_id', cat.id)
+                .eq('is_active', true)
+                .not('images', 'is', null)
+                .limit(1)
+                .single();
+              
+              return {
+                ...cat,
+                productImage: productData?.images?.[0] || null
+              };
+            })
+          );
+          setCategories(categoriesWithImages);
+        }
 
         const { data: featuredData } = await supabase
           .from('products')
@@ -591,6 +615,9 @@ export default function FashionHomePage() {
                 'from-amber-100 to-amber-50',
                 'from-emerald-100 to-emerald-50',
               ];
+
+              // Priority: category image_url > product image > fallback
+              const categoryImage = category.image_url || category.productImage || fallbackImages[index % fallbackImages.length];
               
               return (
                 <motion.div
@@ -601,7 +628,7 @@ export default function FashionHomePage() {
                 >
                   <div className={`relative overflow-hidden rounded-2xl aspect-square bg-gradient-to-br ${gradientColors[index % gradientColors.length]}`}>
                     <img
-                      src={category.image_url || fallbackImages[index % fallbackImages.length]}
+                      src={categoryImage}
                       alt={category.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                       onError={(e) => {
