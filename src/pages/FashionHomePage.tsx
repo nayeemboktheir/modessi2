@@ -173,7 +173,7 @@ export default function FashionHomePage() {
       id: '1',
       title: 'নতুন টু পিস কালেকশন',
       subtitle: 'এক্সক্লুসিভ ডিজাইন, প্রিমিয়াম কোয়ালিটি - ৩০% পর্যন্ত ছাড়',
-      image: 'https://modessi.shop/wp-content/uploads/2025/01/DSC7057.jpg',
+      image: 'https://modessi.shop/wp-content/uploads/2025/01/DSC7059.jpg',
       link: '/products?category=two-piece',
       badge: '৩০% ছাড়'
     },
@@ -181,7 +181,7 @@ export default function FashionHomePage() {
       id: '2',
       title: 'থ্রি পিস স্পেশাল',
       subtitle: 'প্রিমিয়াম ফেব্রিক, এলিগ্যান্ট ডিজাইন - নতুন আগমন',
-      image: 'https://modessi.shop/wp-content/uploads/2025/01/DSC7224.jpg',
+      image: 'https://modessi.shop/wp-content/uploads/2025/01/DSC7226.jpg',
       link: '/products?category=three-piece',
       badge: 'নতুন'
     },
@@ -189,7 +189,7 @@ export default function FashionHomePage() {
       id: '3',
       title: 'সামার কালেকশন ২০২৬',
       subtitle: 'কমফোর্টেবল এবং স্টাইলিশ - গরমের জন্য পারফেক্ট',
-      image: 'https://modessi.shop/wp-content/uploads/2025/01/DSC7100.jpg',
+      image: 'https://modessi.shop/wp-content/uploads/2025/01/DSC7102.jpg',
       link: '/products',
       badge: 'ট্রেন্ডিং'
     }
