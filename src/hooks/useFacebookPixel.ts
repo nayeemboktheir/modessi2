@@ -29,7 +29,7 @@ interface UserData {
 
 let pixelConfig: FacebookPixelConfig | null = null;
 let isPixelLoading = false;
-let pixelLoadPromise: Promise<void> | null = null;
+let isPixelInitialized = false;
 
 // Capture and store fbclid from URL for better event matching
 const captureFbclid = (): string | null => {
@@ -67,14 +67,35 @@ const getExternalId = (): string => {
 };
 
 const loadPixelScript = (pixelId: string, userData?: UserData): Promise<void> => {
-  if (pixelLoadPromise) return pixelLoadPromise;
+  // If already initialized, just resolve immediately
+  if (isPixelInitialized && window.fbq) {
+    console.log('Meta Pixel already initialized, skipping...');
+    return Promise.resolve();
+  }
+
+  if (isPixelLoading) {
+    // Wait for existing load to complete
+    return new Promise((resolve) => {
+      const checkReady = setInterval(() => {
+        if (isPixelInitialized && window.fbq) {
+          clearInterval(checkReady);
+          resolve();
+        }
+      }, 100);
+      // Timeout after 10 seconds
+      setTimeout(() => {
+        clearInterval(checkReady);
+        resolve();
+      }, 10000);
+    });
+  }
 
   isPixelLoading = true;
 
   // Capture fbclid on initial load
   captureFbclid();
 
-  pixelLoadPromise = new Promise((resolve) => {
+  return new Promise((resolve) => {
     console.log('Loading Meta Pixel script with Advanced Matching...');
 
     // Build advanced matching data
@@ -88,17 +109,39 @@ const loadPixelScript = (pixelId: string, userData?: UserData): Promise<void> =>
     if (userData?.firstName) advancedMatchingData.fn = userData.firstName.toLowerCase().trim();
     if (userData?.lastName) advancedMatchingData.ln = userData.lastName.toLowerCase().trim();
 
+    // Check if script is already on the page
+    const existingScript = document.querySelector('script[src*="fbevents.js"]');
+    
     // If fbq already exists, just (re)initialize with our pixel ID and advanced matching
     if (window.fbq && typeof window.fbq === 'function') {
       window.fbq('init', pixelId, advancedMatchingData);
       window.fbq('track', 'PageView');
-      console.log('Meta Pixel initialized with Advanced Matching:', Object.keys(advancedMatchingData));
+      console.log('Meta Pixel initialized (existing fbq) with Advanced Matching:', Object.keys(advancedMatchingData));
       isPixelLoading = false;
+      isPixelInitialized = true;
       resolve();
       return;
     }
 
-    // Standard Facebook Pixel initialization
+    // If script exists but fbq isn't ready, wait for it
+    if (existingScript) {
+      const waitForFbq = () => {
+        if (window.fbq && typeof window.fbq === 'function') {
+          window.fbq('init', pixelId, advancedMatchingData);
+          window.fbq('track', 'PageView');
+          console.log('Meta Pixel initialized (waited for fbq) with Advanced Matching:', Object.keys(advancedMatchingData));
+          isPixelLoading = false;
+          isPixelInitialized = true;
+          resolve();
+        } else {
+          setTimeout(waitForFbq, 100);
+        }
+      };
+      waitForFbq();
+      return;
+    }
+
+    // Standard Facebook Pixel initialization - inject script
     (function (f: any, b: Document, e: string, v: string, n?: any, t?: any, s?: any) {
       if (f.fbq) return;
       n = f.fbq = function () {
@@ -113,7 +156,11 @@ const loadPixelScript = (pixelId: string, userData?: UserData): Promise<void> =>
       t.async = true;
       t.src = v;
       s = b.getElementsByTagName(e)[0];
-      s.parentNode.insertBefore(t, s);
+      if (s && s.parentNode) {
+        s.parentNode.insertBefore(t, s);
+      } else {
+        b.head.appendChild(t);
+      }
     })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
 
     // Initialize the pixel after script is ready with advanced matching
@@ -121,8 +168,9 @@ const loadPixelScript = (pixelId: string, userData?: UserData): Promise<void> =>
       if (window.fbq && typeof window.fbq === 'function') {
         window.fbq('init', pixelId, advancedMatchingData);
         window.fbq('track', 'PageView');
-        console.log('Meta Pixel initialized with Advanced Matching:', Object.keys(advancedMatchingData));
+        console.log('Meta Pixel initialized (new script) with Advanced Matching:', Object.keys(advancedMatchingData));
         isPixelLoading = false;
+        isPixelInitialized = true;
         resolve();
       } else {
         setTimeout(checkAndInit, 100);
@@ -132,17 +180,17 @@ const loadPixelScript = (pixelId: string, userData?: UserData): Promise<void> =>
     setTimeout(checkAndInit, 300);
 
     // Add noscript fallback
-    const noscript = document.createElement('noscript');
-    const img = document.createElement('img');
-    img.height = 1;
-    img.width = 1;
-    img.style.display = 'none';
-    img.src = `https://www.facebook.com/tr?id=${pixelId}&ev=PageView&noscript=1`;
-    noscript.appendChild(img);
-    document.body.appendChild(noscript);
+    if (!document.querySelector('noscript img[src*="facebook.com/tr"]')) {
+      const noscript = document.createElement('noscript');
+      const img = document.createElement('img');
+      img.height = 1;
+      img.width = 1;
+      img.style.display = 'none';
+      img.src = `https://www.facebook.com/tr?id=${pixelId}&ev=PageView&noscript=1`;
+      noscript.appendChild(img);
+      document.body.appendChild(noscript);
+    }
   });
-
-  return pixelLoadPromise;
 };
 
 export const useFacebookPixel = () => {
