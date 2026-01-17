@@ -30,45 +30,9 @@ function isBangladeshPhone(phone: string) {
   return /^(\+?880)?01[3-9]\d{8}$/.test(normalized);
 }
 
-// Background task: Send Facebook CAPI event
-async function sendCapiEvent(
-  supabaseUrl: string,
-  phone: string,
-  name: string,
-  total: number,
-  itemsFinal: Array<{ productId: string | null; name: string; quantity: number }>,
-  orderId: string
-) {
-  try {
-    console.log('Sending Purchase event to Facebook CAPI...');
-    const capiUrl = `${supabaseUrl}/functions/v1/facebook-capi`;
-    const capiResponse = await fetch(capiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        event_name: 'Purchase',
-        user_data: {
-          phone: phone,
-          first_name: name.split(' ')[0] || name,
-          last_name: name.split(' ').slice(1).join(' ') || undefined,
-        },
-        custom_data: {
-          currency: 'BDT',
-          value: total,
-          content_ids: itemsFinal.map((i) => i.productId || i.name),
-          content_type: 'product',
-          num_items: itemsFinal.reduce((sum, i) => sum + i.quantity, 0),
-          order_id: orderId,
-        },
-        event_source_url: 'https://shop.example.com/checkout',
-      }),
-    });
-    const capiResult = await capiResponse.json();
-    console.log('CAPI response:', JSON.stringify(capiResult));
-  } catch (capiError) {
-    console.error('Failed to send CAPI event:', capiError);
-  }
-}
+// Background task: Facebook purchase event is intentionally NOT sent here.
+// We only count "Purchase" when the user reaches the order confirmation page.
+// This prevents double-counting and ensures event_source_url is accurate.
 
 // Background task: Send order email notification
 async function sendOrderEmail(
@@ -571,7 +535,6 @@ Deno.serve(async (req) => {
     // Schedule background tasks using EdgeRuntime.waitUntil
     // These run after the response is sent, so the user doesn't wait
     const backgroundTasks = Promise.all([
-      sendCapiEvent(supabaseUrl, phone, name, total, itemsFinal, orderId),
       sendOrderSms(supabaseUrl, serviceKey, phone, name, orderNumber, total, orderId),
       sendOrderEmail(supabaseUrl, orderId, orderNumber, name, phone, address, subtotal, shippingCost, total, itemsFinal, notes),
     ]);

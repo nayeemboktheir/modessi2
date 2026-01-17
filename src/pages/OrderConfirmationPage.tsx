@@ -1,4 +1,4 @@
-import { useLocation, useNavigate, Link } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Package, Phone, Home, Truck, ArrowRight } from 'lucide-react';
@@ -33,10 +33,14 @@ const OrderConfirmationPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const state = location.state as OrderDetails | null;
-  const hasTrackedPurchase = useRef(false);
-  
-  const { trackPurchase: trackPixelPurchase, isReady: pixelReady, setUserData } = useFacebookPixel();
+
+  const purchaseEventIdRef = useRef<string | null>(null);
+  const hasSentServerPurchaseRef = useRef(false);
+  const hasSentPixelPurchaseRef = useRef(false);
+
+  const { isReady: pixelReady, setUserData } = useFacebookPixel();
   const { trackPurchase: trackServerPurchase } = useServerTracking();
+
   
   const orderNumber = state?.orderNumber || '';
   const customerName = state?.customerName;
@@ -47,65 +51,83 @@ const OrderConfirmationPage = () => {
   const fromLandingPage = state?.fromLandingPage;
   const landingPageSlug = state?.landingPageSlug;
 
-  // Track Purchase event with deduplication (same eventID for Pixel + CAPI)
+  // 1) Prepare event id + user data once (fast)
   useEffect(() => {
-    if (!orderNumber || hasTrackedPurchase.current) return;
-    
-    // Only track if we have order data
-    if (total && total > 0) {
-      hasTrackedPurchase.current = true;
-      
-      const eventId = generateEventId();
-      const contentIds = items.map(item => item.productId);
-      
-      // Extract first and last name from customer name
-      const nameParts = (customerName || '').trim().split(' ');
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || '';
-      
-      console.log('[OrderConfirmation] Firing Purchase event with deduplication:', { eventId, orderNumber, total, numItems });
-      
-      // Update user data for better matching
-      if (phone || firstName) {
-        setUserData?.({
-          phone: phone,
-          firstName,
-          lastName,
-        });
-      }
-      
-      // 1. Client-side Pixel tracking with eventID
-      if (pixelReady && window.fbq) {
-        window.fbq('track', 'Purchase', {
-          content_ids: contentIds.length > 0 ? contentIds : [orderNumber],
-          content_type: 'product',
-          value: total,
-          currency: 'BDT',
-          num_items: numItems || 1,
-        }, { eventID: eventId });
-        console.log('[Pixel] Purchase event fired with eventID:', eventId);
-      }
-      
-      // 2. Server-side CAPI tracking with same event_id for deduplication
-      trackServerPurchase({
-        orderId: orderNumber,
-        contentIds: contentIds.length > 0 ? contentIds : [orderNumber],
-        value: total,
-        numItems: numItems || 1,
-        currency: 'BDT',
-        userData: {
-          phone: phone,
-          firstName,
-          lastName,
-        },
-        eventId: eventId, // CRITICAL: Same event ID for deduplication
-      }).then(result => {
-        console.log('[CAPI] Purchase tracking result:', result);
-      }).catch(err => {
-        console.error('[CAPI] Purchase tracking error:', err);
+    if (!orderNumber || !total || total <= 0) return;
+
+    if (!purchaseEventIdRef.current) {
+      purchaseEventIdRef.current = generateEventId();
+    }
+
+    // Update user data for better matching (safe to call multiple times)
+    const nameParts = (customerName || '').trim().split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+
+    if (phone || firstName) {
+      setUserData?.({
+        phone,
+        firstName,
+        lastName,
       });
     }
-  }, [orderNumber, total, items, numItems, customerName, phone, pixelReady, setUserData, trackServerPurchase]);
+  }, [orderNumber, total, customerName, phone, setUserData]);
+
+  // 2) Send SERVER Purchase exactly once (this is the one that matters most)
+  useEffect(() => {
+    if (!orderNumber || !total || total <= 0) return;
+    if (hasSentServerPurchaseRef.current) return;
+
+    hasSentServerPurchaseRef.current = true;
+
+    const eventId = purchaseEventIdRef.current || generateEventId();
+    purchaseEventIdRef.current = eventId;
+
+    const contentIds = items.map((item) => item.productId);
+
+    const nameParts = (customerName || '').trim().split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+
+    trackServerPurchase({
+      orderId: orderNumber,
+      contentIds: contentIds.length > 0 ? contentIds : [orderNumber],
+      value: total,
+      numItems: numItems || 1,
+      currency: 'BDT',
+      userData: { phone, firstName, lastName },
+      eventId,
+    }).catch((err) => {
+      console.error('[CAPI] Purchase tracking error:', err);
+    });
+  }, [orderNumber, total, items, numItems, customerName, phone, trackServerPurchase]);
+
+  // 3) Send BROWSER Purchase as soon as Pixel is ready (no missing/slow init)
+  useEffect(() => {
+    if (!orderNumber || !total || total <= 0) return;
+    if (hasSentPixelPurchaseRef.current) return;
+    if (!pixelReady || !window.fbq) return;
+
+    const eventId = purchaseEventIdRef.current || generateEventId();
+    purchaseEventIdRef.current = eventId;
+
+    const contentIds = items.map((item) => item.productId);
+
+    window.fbq(
+      'track',
+      'Purchase',
+      {
+        content_ids: contentIds.length > 0 ? contentIds : [orderNumber],
+        content_type: 'product',
+        value: total,
+        currency: 'BDT',
+        num_items: numItems || 1,
+      },
+      { eventID: eventId }
+    );
+
+    hasSentPixelPurchaseRef.current = true;
+  }, [orderNumber, total, items, numItems, pixelReady]);
 
 
 
