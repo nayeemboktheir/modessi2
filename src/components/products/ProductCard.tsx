@@ -256,24 +256,24 @@ const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
 
             {/* Add to Cart / Buy Now Buttons for products with variations */}
             {hasVariations && (
-              <div className="flex gap-1.5 mt-3 relative z-10">
+              <div className="flex gap-2 mt-3 relative z-10">
                 <button 
                   type="button"
-                  className="flex-1 inline-flex items-center justify-center gap-1 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-2 py-2 text-[11px] sm:text-xs font-medium transition-colors pointer-events-auto whitespace-nowrap"
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-2 py-2.5 text-xs font-medium transition-colors pointer-events-auto"
                   onClick={handleAddToCart}
+                  title="কার্টে যোগ করুন"
                 >
-                  <ShoppingCart className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
-                  <span className="hidden md:inline">কার্টে যোগ করুন</span>
-                  <span className="md:hidden">কার্ট</span>
+                  <ShoppingCart className="h-4 w-4 shrink-0" />
+                  <span>কার্ট</span>
                 </button>
                 <button 
                   type="button"
-                  className="flex-1 inline-flex items-center justify-center gap-1 bg-accent text-accent-foreground hover:bg-accent/90 rounded-md px-2 py-2 text-[11px] sm:text-xs font-medium transition-colors pointer-events-auto whitespace-nowrap"
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 bg-amber-500 text-white hover:bg-amber-600 rounded-md px-2 py-2.5 text-xs font-medium transition-colors pointer-events-auto"
                   onClick={handleBuyNow}
+                  title="এখনই কিনুন"
                 >
-                  <Zap className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
-                  <span className="hidden md:inline">এখনই কিনুন</span>
-                  <span className="md:hidden">কিনুন</span>
+                  <Zap className="h-4 w-4 shrink-0" />
+                  <span>কিনুন</span>
                 </button>
               </div>
             )}
