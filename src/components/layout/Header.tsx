@@ -20,6 +20,7 @@ import { selectWishlistItems } from '@/store/slices/wishlistSlice';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { categories } from '@/data/mockData';
+import siteLogo from '@/assets/site-logo.png';
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -76,17 +77,12 @@ const Header = () => {
       <div className="container-custom py-4">
         <div className="flex items-center justify-between gap-4">
           {/* Logo */}
-          <Link to="/" className="flex-shrink-0 flex items-center gap-2">
-            {siteLogo && (
-              <img 
-                src={siteLogo} 
-                alt="Logo" 
-                className="h-10 w-auto"
-              />
-            )}
-            <h1 className="text-xl md:text-2xl font-display font-bold text-primary">
-              {siteName}
-            </h1>
+          <Link to="/" className="flex-shrink-0">
+            <img 
+              src={siteLogo} 
+              alt="Site Logo" 
+              className="h-10 w-auto"
+            />
           </Link>
 
           {/* Search Bar - Desktop */}
