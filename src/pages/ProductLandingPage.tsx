@@ -334,17 +334,31 @@ const VideoSection = memo(({ videoUrl }: { videoUrl?: string }) => {
   const iframeInfo = isIframe ? extractIframeInfo(videoUrl) : null;
   const isPortrait = iframeInfo && iframeInfo.aspectRatio < 1;
   
-  // Modify iframe HTML to add proper attributes for cross-origin
+  // Modify iframe HTML to normalize sizing and add safe defaults
   const getModifiedIframeHtml = (html: string) => {
     let modified = html
       .replace(/width=["']?\d+["']?/gi, 'width="100%"')
       .replace(/height=["']?\d+["']?/gi, 'height="100%"');
-    
-    // Add sandbox attribute if not present for better compatibility
-    if (!modified.includes('sandbox=')) {
-      modified = modified.replace('<iframe', '<iframe sandbox="allow-scripts allow-same-origin allow-popups allow-forms"');
+
+    // NOTE: Facebook embeds often break when sandboxed, so we deliberately strip sandbox.
+    modified = modified.replace(/\s+sandbox=["'][^"']*["']/gi, '');
+
+    // Ensure common embed permissions exist
+    if (!/\s+allow=/.test(modified)) {
+      modified = modified.replace(
+        '<iframe',
+        '<iframe allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"'
+      );
     }
-    
+
+    if (!/\s+allowfullscreen/i.test(modified)) {
+      modified = modified.replace('<iframe', '<iframe allowfullscreen');
+    }
+
+    if (!/\s+referrerpolicy=/.test(modified)) {
+      modified = modified.replace('<iframe', '<iframe referrerpolicy="no-referrer-when-downgrade"');
+    }
+
     return modified;
   };
 
