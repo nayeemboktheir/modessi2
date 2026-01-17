@@ -85,6 +85,7 @@ export default function AdminMarketing() {
   const [testEventCode, setTestEventCode] = useState('');
   const [savingFb, setSavingFb] = useState(false);
   const [loadingFb, setLoadingFb] = useState(true);
+  const [showCapiToken, setShowCapiToken] = useState(false);
 
   // Google Analytics state
   const [googleSettings, setGoogleSettings] = useState<GoogleSettings>({
@@ -725,14 +726,25 @@ export default function AdminMarketing() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="capiToken">Access Token</Label>
-                <Input
-                  id="capiToken"
-                  type="password"
-                  value={capiToken}
-                  onChange={(e) => setCapiToken(e.target.value)}
-                  placeholder="Enter your Conversion API Access Token"
-                  disabled={!capiEnabled}
-                />
+                <div className="relative">
+                  <Input
+                    id="capiToken"
+                    type={showCapiToken ? "text" : "password"}
+                    value={capiToken}
+                    onChange={(e) => setCapiToken(e.target.value)}
+                    placeholder="Enter your Conversion API Access Token"
+                    disabled={!capiEnabled}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCapiToken(!showCapiToken)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    disabled={!capiEnabled}
+                  >
+                    {showCapiToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
                 <p className="text-xs text-muted-foreground">
                   Generate a token in Events Manager → Settings → Conversions API
                 </p>
