@@ -739,15 +739,6 @@ export default function AdminOrders() {
       <div className="overflow-x-auto">
         <Tabs value={statusFilter} onValueChange={setStatusFilter} className="w-full">
           <TabsList className="h-auto p-1 bg-muted/50 inline-flex w-auto min-w-full">
-            <TabsTrigger 
-              value="all" 
-              className="data-[state=active]:bg-background data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none px-4"
-            >
-              All
-              <Badge variant="outline" className="ml-2 h-5 px-1.5 text-xs">
-                {orders.filter(o => sourceFilter === 'all' || o.order_source === sourceFilter).length}
-              </Badge>
-            </TabsTrigger>
             {statusOptions.map((status) => (
               <TabsTrigger 
                 key={status.value} 
@@ -760,6 +751,15 @@ export default function AdminOrders() {
                 </Badge>
               </TabsTrigger>
             ))}
+            <TabsTrigger 
+              value="all" 
+              className="data-[state=active]:bg-background data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none px-4"
+            >
+              All
+              <Badge variant="outline" className="ml-2 h-5 px-1.5 text-xs">
+                {orders.filter(o => sourceFilter === 'all' || o.order_source === sourceFilter).length}
+              </Badge>
+            </TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
