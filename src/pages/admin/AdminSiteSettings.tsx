@@ -123,8 +123,13 @@ const AdminSiteSettings = () => {
         .from('shop-assets')
         .getPublicUrl(filePath);
 
-      setHeaderSettings((prev) => ({ ...prev, site_logo: publicUrl }));
-      toast.success('Logo uploaded successfully');
+      const nextSettings = { ...headerSettings, site_logo: publicUrl };
+      setHeaderSettings(nextSettings);
+
+      // Auto-save right after upload so the storefront header updates immediately
+      saveHeaderMutation.mutate(nextSettings);
+
+      toast.success('Logo uploaded & saved successfully');
     } catch (error) {
       console.error('Error uploading logo:', error);
       toast.error('Failed to upload logo');
