@@ -781,6 +781,16 @@ const ProductLandingPage = () => {
 
       if (error) throw error;
 
+      // place-order returns 200 even for blocked attempts (data.error + errorCode)
+      if (data?.error) {
+        toast.error(data.error);
+        return;
+      }
+
+      if (!data?.orderId) {
+        throw new Error('Order was not created');
+      }
+
       navigate('/order-confirmation', {
         state: {
           orderNumber: data.orderNumber || data.orderId,
