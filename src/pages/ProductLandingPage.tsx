@@ -254,7 +254,7 @@ const FeaturesBanner = memo(() => (
           { text: "প্রিমিয়াম কোয়ালিটি", icon: "✨" },
           { text: "কালার গ্যারান্টি", icon: "🎨" },
           { text: "কমফোর্টেবল ফিট", icon: "👕" },
-          { text: "ফ্রি এক্সচেঞ্জ", icon: "🔄" }
+          { text: "ইজি এক্সচেঞ্জ", icon: "🔄" }
         ].map((item, idx) => (
           <div key={idx} className="flex items-center gap-2 bg-white/50 backdrop-blur-sm px-4 py-2 rounded-full text-foreground font-semibold text-sm shadow-sm hover:bg-white/70 transition-colors">
             <span>{item.icon}</span>
