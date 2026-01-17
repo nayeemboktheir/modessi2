@@ -20,6 +20,8 @@ interface OrderDetails {
   total?: number;
   items?: OrderItem[];
   numItems?: number;
+  city?: string;
+  district?: string;
   fromLandingPage?: boolean;
   landingPageSlug?: string;
 }
@@ -48,6 +50,8 @@ const OrderConfirmationPage = () => {
   const total = state?.total;
   const items = state?.items || [];
   const numItems = state?.numItems || items.reduce((sum, item) => sum + item.quantity, 0);
+  const city = state?.city;
+  const district = state?.district;
   const fromLandingPage = state?.fromLandingPage;
   const landingPageSlug = state?.landingPageSlug;
 
@@ -95,7 +99,13 @@ const OrderConfirmationPage = () => {
       value: total,
       numItems: numItems || 1,
       currency: 'BDT',
-      userData: { phone, firstName, lastName },
+      userData: { 
+        phone, 
+        firstName, 
+        lastName,
+        city: city || district, // Use city or district for better matching
+        country: 'bd',
+      },
       eventId,
     }).catch((err) => {
       console.error('[CAPI] Purchase tracking error:', err);

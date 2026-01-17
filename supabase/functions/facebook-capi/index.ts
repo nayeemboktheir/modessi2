@@ -17,6 +17,10 @@ interface ConversionEvent {
     ph?: string[];
     fn?: string[];
     ln?: string[];
+    ct?: string[]; // City
+    st?: string[]; // State/Region
+    zp?: string[]; // Zip/Postal code
+    country?: string[]; // Country code
     external_id?: string[];
     client_ip_address?: string;
     client_user_agent?: string;
@@ -41,6 +45,10 @@ interface RequestBody {
     phone?: string;
     first_name?: string;
     last_name?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+    country?: string;
     external_id?: string;
     fbc?: string; // Click ID cookie
     fbp?: string; // Browser ID cookie
@@ -195,10 +203,34 @@ serve(async (req) => {
     // Hash and add name
     if (body.user_data.first_name) {
       userData.fn = [await hashData(body.user_data.first_name)];
+      console.log("Added hashed first name");
     }
     if (body.user_data.last_name) {
       userData.ln = [await hashData(body.user_data.last_name)];
+      console.log("Added hashed last name");
     }
+    
+    // Hash and add city (important for match quality)
+    if (body.user_data.city) {
+      userData.ct = [await hashData(body.user_data.city)];
+      console.log("Added hashed city");
+    }
+    
+    // Hash and add state/region
+    if (body.user_data.state) {
+      userData.st = [await hashData(body.user_data.state)];
+      console.log("Added hashed state");
+    }
+    
+    // Hash and add zip code
+    if (body.user_data.zip) {
+      userData.zp = [await hashData(body.user_data.zip)];
+      console.log("Added hashed zip");
+    }
+    
+    // Add country - default to Bangladesh (bd)
+    userData.country = [await hashData(body.user_data.country || "bd")];
+    console.log("Added hashed country");
     
     // Add external ID for cross-device tracking (already hashed by client or use as-is)
     if (body.user_data.external_id) {

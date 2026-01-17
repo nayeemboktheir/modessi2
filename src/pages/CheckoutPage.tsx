@@ -385,6 +385,8 @@ const CheckoutPage = () => {
           total: total,
           items: orderItems,
           numItems: cartItems.reduce((sum, item) => sum + item.quantity, 0),
+          city: shippingZone === 'inside_dhaka' ? 'dhaka' : 'bangladesh',
+          district: shippingZone === 'inside_dhaka' ? 'dhaka' : undefined,
         },
         replace: true, // Replace to prevent back navigation to checkout
       });

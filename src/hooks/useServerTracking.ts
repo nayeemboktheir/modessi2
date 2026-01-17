@@ -6,6 +6,10 @@ interface UserData {
   phone?: string;
   firstName?: string;
   lastName?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  country?: string;
 }
 
 interface CustomData {
@@ -162,6 +166,10 @@ export const useServerTracking = () => {
           phone: userData.phone,
           first_name: userData.firstName,
           last_name: userData.lastName,
+          city: userData.city,
+          state: userData.state,
+          zip: userData.zip,
+          country: userData.country || 'bd', // Default to Bangladesh
           external_id: getExternalId(),
           fbc: getFbc(),
           fbp: getFbp(),
