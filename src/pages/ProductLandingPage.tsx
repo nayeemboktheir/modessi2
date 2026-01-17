@@ -692,7 +692,24 @@ const ProductLandingPage = () => {
   const navigate = useNavigate();
   const [currentImage, setCurrentImage] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showFloatingCta, setShowFloatingCta] = useState(true);
+  const checkoutRef = useRef<HTMLDivElement>(null);
 
+  // Hide floating CTA when checkout section is visible
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setShowFloatingCta(!entry.isIntersecting);
+      },
+      { threshold: 0.3 }
+    );
+
+    if (checkoutRef.current) {
+      observer.observe(checkoutRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
   const { data: product, isLoading, error } = useQuery({
     queryKey: ["product-landing", slug],
     queryFn: async () => {
@@ -802,18 +819,22 @@ const ProductLandingPage = () => {
       <GallerySection images={product.images} />
       <VideoSection videoUrl={product.video_url} />
       <DeliverySection />
-      <CheckoutSection product={product} onSubmit={handleOrderSubmit} isSubmitting={isSubmitting} />
-      
-      {/* Floating CTA */}
-      <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-sm border-t md:hidden z-50 safe-area-inset-bottom">
-        <Button
-          onClick={scrollToCheckout}
-          className="w-full h-12 text-base font-bold bg-gradient-to-r from-amber-500 to-orange-500 text-gray-900 rounded-xl shadow-lg"
-        >
-          <ShoppingBag className="mr-2 h-5 w-5" />
-          এখনই অর্ডার করুন
-        </Button>
+      <div ref={checkoutRef}>
+        <CheckoutSection product={product} onSubmit={handleOrderSubmit} isSubmitting={isSubmitting} />
       </div>
+      
+      {/* Floating CTA - hidden when checkout is visible */}
+      {showFloatingCta && (
+        <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-sm border-t md:hidden z-50 safe-area-inset-bottom">
+          <Button
+            onClick={scrollToCheckout}
+            className="w-full h-12 text-base font-bold bg-gradient-to-r from-amber-500 to-orange-500 text-gray-900 rounded-xl shadow-lg"
+          >
+            <ShoppingBag className="mr-2 h-5 w-5" />
+            এখনই অর্ডার করুন
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
