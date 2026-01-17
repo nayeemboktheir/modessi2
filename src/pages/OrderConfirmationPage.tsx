@@ -98,6 +98,7 @@ const OrderConfirmationPage = () => {
           firstName,
           lastName,
         },
+        eventId: eventId, // CRITICAL: Same event ID for deduplication
       }).then(result => {
         console.log('[CAPI] Purchase tracking result:', result);
       }).catch(err => {

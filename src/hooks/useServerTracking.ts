@@ -425,6 +425,7 @@ export const useServerTracking = () => {
     numItems: number;
     currency?: string;
     userData: UserData;
+    eventId?: string; // For deduplication with browser pixel
   }) => {
     return trackServerEvent({
       eventName: 'Purchase',
@@ -437,6 +438,7 @@ export const useServerTracking = () => {
         num_items: params.numItems,
         currency: params.currency || 'BDT',
       },
+      eventId: params.eventId, // Pass event ID for deduplication
     });
   }, [trackServerEvent]);
   
