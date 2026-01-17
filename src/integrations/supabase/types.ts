@@ -550,6 +550,7 @@ export type Database = {
           created_at: string
           discount: number | null
           id: string
+          invoice_note: string | null
           is_printed: boolean
           notes: string | null
           order_number: string
@@ -564,6 +565,7 @@ export type Database = {
           shipping_postal_code: string | null
           shipping_street: string
           status: string
+          steadfast_note: string | null
           subtotal: number
           total: number
           tracking_number: string | null
@@ -574,6 +576,7 @@ export type Database = {
           created_at?: string
           discount?: number | null
           id?: string
+          invoice_note?: string | null
           is_printed?: boolean
           notes?: string | null
           order_number: string
@@ -588,6 +591,7 @@ export type Database = {
           shipping_postal_code?: string | null
           shipping_street: string
           status?: string
+          steadfast_note?: string | null
           subtotal: number
           total: number
           tracking_number?: string | null
@@ -598,6 +602,7 @@ export type Database = {
           created_at?: string
           discount?: number | null
           id?: string
+          invoice_note?: string | null
           is_printed?: boolean
           notes?: string | null
           order_number?: string
@@ -612,6 +617,7 @@ export type Database = {
           shipping_postal_code?: string | null
           shipping_street?: string
           status?: string
+          steadfast_note?: string | null
           subtotal?: number
           total?: number
           tracking_number?: string | null

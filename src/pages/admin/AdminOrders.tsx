@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import {
@@ -66,6 +67,7 @@ interface OrderItem {
   product_image: string | null;
   quantity: number;
   price: number;
+  variation_name: string | null;
 }
 
 interface Order {
@@ -86,6 +88,8 @@ interface Order {
   shipping_postal_code: string | null;
   tracking_number: string | null;
   notes: string | null;
+  invoice_note: string | null;
+  steadfast_note: string | null;
   created_at: string;
   order_items: OrderItem[];
   order_source: string;
@@ -146,6 +150,9 @@ export default function AdminOrders() {
   const [deleting, setDeleting] = useState(false);
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [invoiceNote, setInvoiceNote] = useState('');
+  const [steadfastNote, setSteadfastNote] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
 
   useEffect(() => {
     loadOrders();
@@ -290,7 +297,38 @@ export default function AdminOrders() {
   const openOrderDetail = (order: Order) => {
     setSelectedOrder(order);
     setTrackingNumber(order.tracking_number || '');
+    setInvoiceNote(order.invoice_note || '');
+    setSteadfastNote(order.steadfast_note || '');
     setIsDetailOpen(true);
+  };
+
+  const handleSaveNotes = async () => {
+    if (!selectedOrder) return;
+    setSavingNotes(true);
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          invoice_note: invoiceNote || null,
+          steadfast_note: steadfastNote || null,
+        })
+        .eq('id', selectedOrder.id);
+
+      if (error) throw error;
+      
+      // Update local state
+      setOrders(prev => prev.map(o => 
+        o.id === selectedOrder.id 
+          ? { ...o, invoice_note: invoiceNote || null, steadfast_note: steadfastNote || null }
+          : o
+      ));
+      setSelectedOrder({ ...selectedOrder, invoice_note: invoiceNote || null, steadfast_note: steadfastNote || null });
+      toast.success('Notes saved');
+    } catch (error) {
+      toast.error('Failed to save notes');
+    } finally {
+      setSavingNotes(false);
+    }
   };
 
   const handleStatusChange = async (orderId: string, newStatus: string) => {
@@ -375,6 +413,9 @@ export default function AdminOrders() {
     try {
       const fullAddress = `${order.shipping_street}, ${order.shipping_district}, ${order.shipping_city}${order.shipping_postal_code ? `, ${order.shipping_postal_code}` : ''}`;
       
+      // Use steadfast_note if available, otherwise fall back to notes, then to item list
+      const noteToSend = order.steadfast_note || order.notes || `Order items: ${order.order_items.map(i => `${i.product_name}${i.variation_name ? ` (${i.variation_name})` : ''} x${i.quantity}`).join(', ')}`;
+      
       const { data, error } = await supabase.functions.invoke('steadfast-courier', {
         body: {
           orderId: order.id,
@@ -383,7 +424,7 @@ export default function AdminOrders() {
           recipient_phone: order.shipping_phone,
           recipient_address: fullAddress,
           cod_amount: order.payment_method === 'cod' ? Number(order.total) : 0,
-          note: order.notes || `Order items: ${order.order_items.map(i => `${i.product_name} x${i.quantity}`).join(', ')}`,
+          note: noteToSend,
         },
       });
 
@@ -441,6 +482,8 @@ export default function AdminOrders() {
       
       const orderPayloads = ordersToSend.map(order => {
         const fullAddress = `${order.shipping_street}, ${order.shipping_district}, ${order.shipping_city}${order.shipping_postal_code ? `, ${order.shipping_postal_code}` : ''}`;
+        // Use steadfast_note if available, otherwise fall back to notes, then to item list
+        const noteToSend = order.steadfast_note || order.notes || `Order items: ${order.order_items.map(i => `${i.product_name}${i.variation_name ? ` (${i.variation_name})` : ''} x${i.quantity}`).join(', ')}`;
         return {
           orderId: order.id,
           invoice: order.order_number,
@@ -448,7 +491,7 @@ export default function AdminOrders() {
           recipient_phone: order.shipping_phone,
           recipient_address: fullAddress,
           cod_amount: order.payment_method === 'cod' ? Number(order.total) : 0,
-          note: order.notes || `Order items: ${order.order_items.map(i => `${i.product_name} x${i.quantity}`).join(', ')}`,
+          note: noteToSend,
         };
       });
 
@@ -1140,6 +1183,9 @@ export default function AdminOrders() {
                       )}
                       <div className="flex-1">
                         <p className="font-medium">{item.product_name}</p>
+                        {item.variation_name && (
+                          <p className="text-sm text-blue-600 font-medium">Size: {item.variation_name}</p>
+                        )}
                         <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
                       </div>
                       <p className="font-medium">৳{Number(item.price).toFixed(0)}</p>
@@ -1167,6 +1213,39 @@ export default function AdminOrders() {
                   <span>Total</span>
                   <span>৳{Number(selectedOrder.total).toFixed(0)}</span>
                 </div>
+              </div>
+
+              {/* Notes Section */}
+              <div className="border-t pt-4 space-y-4">
+                <h3 className="font-medium">Order Notes</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm text-muted-foreground">Invoice Note (shows on invoice)</Label>
+                    <Textarea
+                      value={invoiceNote}
+                      onChange={(e) => setInvoiceNote(e.target.value)}
+                      placeholder="Note to show on printed invoice..."
+                      rows={2}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm text-muted-foreground">Steadfast Note (sent to courier)</Label>
+                    <Textarea
+                      value={steadfastNote}
+                      onChange={(e) => setSteadfastNote(e.target.value)}
+                      placeholder="Note to send to Steadfast..."
+                      rows={2}
+                    />
+                  </div>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleSaveNotes}
+                  disabled={savingNotes}
+                >
+                  {savingNotes ? 'Saving...' : 'Save Notes'}
+                </Button>
               </div>
 
               <div className="border-t pt-4 space-y-4">

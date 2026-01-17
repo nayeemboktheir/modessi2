@@ -22,6 +22,8 @@ type PlaceOrderBody = {
   shipping: { name: string; phone: string; address: string };
   shippingZone?: 'inside_dhaka' | 'outside_dhaka';
   notes?: string;
+  invoiceNote?: string | null;
+  steadfastNote?: string | null;
   orderSource?: 'web' | 'manual';
 };
 
@@ -477,6 +479,8 @@ Deno.serve(async (req) => {
     
     // Parse notes and order source
     const notes = typeof body.notes === 'string' ? body.notes.trim().slice(0, 500) : null;
+    const invoiceNote = typeof body.invoiceNote === 'string' ? body.invoiceNote.trim().slice(0, 500) : null;
+    const steadfastNote = typeof body.steadfastNote === 'string' ? body.steadfastNote.trim().slice(0, 500) : null;
     const orderSource = body.orderSource === 'manual' ? 'manual' : 'web';
 
     const orderId = crypto.randomUUID();
@@ -501,6 +505,8 @@ Deno.serve(async (req) => {
         shipping_district: 'N/A',
         shipping_postal_code: null,
         notes,
+        invoice_note: invoiceNote,
+        steadfast_note: steadfastNote,
         order_source: orderSource,
       },
     ]);

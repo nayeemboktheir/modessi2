@@ -145,7 +145,8 @@ export function ManualOrderDialog({ open, onOpenChange, onOrderCreated }: Manual
   const [mobileNumber, setMobileNumber] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
-  const [shippingNote, setShippingNote] = useState('');
+  const [invoiceNote, setInvoiceNote] = useState('');
+  const [steadfastNote, setSteadfastNote] = useState('');
   const [deliveryMethod, setDeliveryMethod] = useState('steadfast');
   const [shippingZone, setShippingZone] = useState<'inside_dhaka' | 'outside_dhaka'>('outside_dhaka');
   
@@ -339,7 +340,8 @@ export function ManualOrderDialog({ open, onOpenChange, onOrderCreated }: Manual
     setMobileNumber('');
     setCustomerName('');
     setCustomerAddress('');
-    setShippingNote('');
+    setInvoiceNote('');
+    setSteadfastNote('');
     setDeliveryMethod('steadfast');
     setShippingZone('outside_dhaka');
     setDiscount('');
@@ -465,7 +467,8 @@ export function ManualOrderDialog({ open, onOpenChange, onOrderCreated }: Manual
             address: customerAddress,
           },
           shippingZone,
-          notes: shippingNote,
+          invoiceNote: invoiceNote || null,
+          steadfastNote: steadfastNote || null,
           orderSource: 'manual',
         },
       });
@@ -653,8 +656,8 @@ export function ManualOrderDialog({ open, onOpenChange, onOrderCreated }: Manual
             </div>
           </div>
 
-          {/* Address and Notes Row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Address Row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="address" className="text-sm text-muted-foreground">Address</Label>
               <Input
@@ -662,16 +665,6 @@ export function ManualOrderDialog({ open, onOpenChange, onOrderCreated }: Manual
                 value={customerAddress}
                 onChange={(e) => setCustomerAddress(e.target.value)}
                 placeholder="Enter address"
-                className="h-9"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="shippingNote" className="text-sm text-muted-foreground">Shipping Note</Label>
-              <Input
-                id="shippingNote"
-                value={shippingNote}
-                onChange={(e) => setShippingNote(e.target.value)}
-                placeholder="Enter shipping note"
                 className="h-9"
               />
             </div>
@@ -686,6 +679,30 @@ export function ManualOrderDialog({ open, onOpenChange, onOrderCreated }: Manual
                   <SelectItem value="outside_dhaka">Outside Dhaka</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+          </div>
+
+          {/* Notes Row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="invoiceNote" className="text-sm text-muted-foreground">Invoice Note (shows on invoice)</Label>
+              <Input
+                id="invoiceNote"
+                value={invoiceNote}
+                onChange={(e) => setInvoiceNote(e.target.value)}
+                placeholder="Note for printed invoice..."
+                className="h-9"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="steadfastNote" className="text-sm text-muted-foreground">Steadfast Note (sent to courier)</Label>
+              <Input
+                id="steadfastNote"
+                value={steadfastNote}
+                onChange={(e) => setSteadfastNote(e.target.value)}
+                placeholder="Note for Steadfast..."
+                className="h-9"
+              />
             </div>
           </div>
 

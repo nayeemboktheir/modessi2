@@ -8,6 +8,7 @@ interface OrderItem {
   product_image: string | null;
   quantity: number;
   price: number;
+  variation_name?: string | null;
 }
 
 interface Order {
@@ -28,6 +29,8 @@ interface Order {
   shipping_postal_code: string | null;
   tracking_number: string | null;
   notes: string | null;
+  invoice_note?: string | null;
+  steadfast_note?: string | null;
   created_at: string;
   order_items: OrderItem[];
 }
@@ -178,6 +181,11 @@ export const OrderInvoice = forwardRef<HTMLDivElement, OrderInvoiceProps>(
                     )}
                     <div>
                       <p style={{ fontWeight: '600', margin: 0, fontSize: '14px' }}>{item.product_name}</p>
+                      {item.variation_name && (
+                        <p style={{ color: '#2563eb', fontSize: '12px', margin: '2px 0 0 0', fontWeight: '500' }}>
+                          Size: {item.variation_name}
+                        </p>
+                      )}
                       <p style={{ color: '#c53030', fontSize: '12px', margin: '3px 0 0 0' }}>
                         ৳{Number(item.price).toFixed(0)}
                       </p>
@@ -201,8 +209,9 @@ export const OrderInvoice = forwardRef<HTMLDivElement, OrderInvoiceProps>(
         {/* Notes & Totals */}
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
           {/* Notes */}
-          <div style={{ color: '#c53030', fontSize: '14px' }}>
-            {order.notes && <p style={{ fontWeight: '500' }}>Note: {order.notes}</p>}
+          <div style={{ color: '#c53030', fontSize: '14px', maxWidth: '300px' }}>
+            {order.invoice_note && <p style={{ fontWeight: '500', margin: '0 0 4px 0' }}>Note: {order.invoice_note}</p>}
+            {order.notes && !order.invoice_note && <p style={{ fontWeight: '500' }}>Note: {order.notes}</p>}
           </div>
 
           {/* Totals */}
