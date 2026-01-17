@@ -11,6 +11,13 @@ import { Plus, Minus, Trash2, Star, Loader2, Phone, MessageCircle, UserCheck, Hi
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 
+interface ProductVariation {
+  id: string;
+  name: string;
+  price: number;
+  stock: number;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -18,11 +25,13 @@ interface Product {
   images: string[] | null;
   stock: number;
   slug: string;
+  variations?: ProductVariation[];
 }
 
 interface OrderItem {
   product: Product;
   quantity: number;
+  variation?: ProductVariation;
 }
 
 interface ManualOrderDialogProps {
@@ -140,6 +149,7 @@ export function ManualOrderDialog({ open, onOpenChange, onOrderCreated }: Manual
   const [nameSearch, setNameSearch] = useState('');
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [creating, setCreating] = useState(false);
+  const [selectedProductForSize, setSelectedProductForSize] = useState<Product | null>(null);
   
   // Customer info
   const [mobileNumber, setMobileNumber] = useState('');
@@ -285,14 +295,38 @@ export function ManualOrderDialog({ open, onOpenChange, onOrderCreated }: Manual
   const loadProducts = async () => {
     setLoadingProducts(true);
     try {
-      const { data, error } = await supabase
+      // Fetch products with their variations
+      const { data: productsData, error: productsError } = await supabase
         .from('products')
         .select('id, name, price, images, stock, slug')
         .eq('is_active', true)
         .order('name');
 
-      if (error) throw error;
-      setProducts(data || []);
+      if (productsError) throw productsError;
+
+      // Fetch all variations
+      const { data: variationsData, error: variationsError } = await supabase
+        .from('product_variations')
+        .select('id, name, price, stock, product_id')
+        .eq('is_active', true)
+        .order('sort_order');
+
+      if (variationsError) throw variationsError;
+
+      // Map variations to products
+      const productsWithVariations = (productsData || []).map(product => ({
+        ...product,
+        variations: (variationsData || [])
+          .filter(v => v.product_id === product.id)
+          .map(v => ({
+            id: v.id,
+            name: v.name,
+            price: v.price,
+            stock: v.stock,
+          })),
+      }));
+
+      setProducts(productsWithVariations);
     } catch (error) {
       toast.error('Failed to load products');
     } finally {
@@ -306,30 +340,70 @@ export function ManualOrderDialog({ open, onOpenChange, onOrderCreated }: Manual
     return matchesCode && matchesName;
   });
 
-  const addProduct = (product: Product) => {
-    const existing = orderItems.find(item => item.product.id === product.id);
+  // Handle product click - if it has variations, show size selector, otherwise add directly
+  const handleProductClick = (product: Product) => {
+    if (product.variations && product.variations.length > 0) {
+      setSelectedProductForSize(product);
+    } else {
+      addProductWithoutVariation(product);
+    }
+  };
+
+  // Add product without variation
+  const addProductWithoutVariation = (product: Product) => {
+    const existing = orderItems.find(item => item.product.id === product.id && !item.variation);
     if (existing) {
-      updateQuantity(product.id, existing.quantity + 1);
+      updateQuantity(product.id, undefined, existing.quantity + 1);
     } else {
       setOrderItems([...orderItems, { product, quantity: 1 }]);
     }
   };
 
-  const updateQuantity = (productId: string, quantity: number) => {
+  // Add product with specific variation
+  const addProductWithVariation = (product: Product, variation: ProductVariation) => {
+    const existing = orderItems.find(item => item.product.id === product.id && item.variation?.id === variation.id);
+    if (existing) {
+      updateQuantity(product.id, variation.id, existing.quantity + 1);
+    } else {
+      setOrderItems([...orderItems, { product, quantity: 1, variation }]);
+    }
+    setSelectedProductForSize(null);
+  };
+
+  const updateQuantity = (productId: string, variationId: string | undefined, quantity: number) => {
     if (quantity < 1) {
-      removeProduct(productId);
+      removeProduct(productId, variationId);
       return;
     }
-    setOrderItems(orderItems.map(item =>
-      item.product.id === productId ? { ...item, quantity } : item
-    ));
+    setOrderItems(orderItems.map(item => {
+      if (item.product.id === productId) {
+        if (variationId && item.variation?.id === variationId) {
+          return { ...item, quantity };
+        }
+        if (!variationId && !item.variation) {
+          return { ...item, quantity };
+        }
+      }
+      return item;
+    }));
   };
 
-  const removeProduct = (productId: string) => {
-    setOrderItems(orderItems.filter(item => item.product.id !== productId));
+  const removeProduct = (productId: string, variationId?: string) => {
+    setOrderItems(orderItems.filter(item => {
+      if (item.product.id === productId) {
+        if (variationId) {
+          return item.variation?.id !== variationId;
+        }
+        return !!item.variation; // Keep items with variations if removing non-variation item
+      }
+      return true;
+    }));
   };
 
-  const subtotal = orderItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const subtotal = orderItems.reduce((sum, item) => {
+    const itemPrice = item.variation ? item.variation.price : item.product.price;
+    return sum + itemPrice * item.quantity;
+  }, 0);
   const discountAmount = Number(discount) || 0;
   const advanceAmount = Number(advance) || 0;
   const shippingCost = Number(deliveryCharge) || 0;
@@ -352,6 +426,7 @@ export function ManualOrderDialog({ open, onOpenChange, onOrderCreated }: Manual
     setCourierHistory(undefined);
     setSelectedCustomerData(null);
     setShowCustomerSuggestions(false);
+    setSelectedProductForSize(null);
   };
 
   // Handle mobile number input with smart paste parsing
@@ -454,13 +529,19 @@ export function ManualOrderDialog({ open, onOpenChange, onOrderCreated }: Manual
       const { data, error } = await supabase.functions.invoke('place-order', {
         body: {
           userId: null,
-          items: orderItems.map(item => ({
-            productId: item.product.id,
-            quantity: item.quantity,
-            productName: item.product.name,
-            productImage: item.product.images?.[0] || null,
-            price: item.product.price,
-          })),
+          items: orderItems.map(item => {
+            const itemPrice = item.variation ? item.variation.price : item.product.price;
+            const variationName = item.variation?.name || null;
+            return {
+              productId: item.product.id,
+              variationId: item.variation?.id || null,
+              variationName,
+              quantity: item.quantity,
+              productName: variationName ? `${item.product.name} (${variationName})` : item.product.name,
+              productImage: item.product.images?.[0] || null,
+              price: itemPrice,
+            };
+          }),
           shipping: {
             name: customerName,
             phone: mobileNumber,
@@ -718,54 +799,63 @@ export function ManualOrderDialog({ open, onOpenChange, onOrderCreated }: Manual
                   <p className="text-sm text-blue-500">No Products added. Please add products to the order</p>
                 ) : (
                   <div className="space-y-2">
-                    {orderItems.map(item => (
-                      <div
-                        key={item.product.id}
-                        className="flex items-center gap-2 p-2 bg-muted/30 rounded-md"
-                      >
-                        {item.product.images?.[0] && (
-                          <img
-                            src={item.product.images[0]}
-                            alt={item.product.name}
-                            className="w-12 h-12 object-cover rounded"
-                          />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{item.product.name}</p>
-                          <p className="text-xs text-muted-foreground">৳{item.product.price}</p>
+                    {orderItems.map((item, index) => {
+                      const itemKey = item.variation ? `${item.product.id}-${item.variation.id}` : item.product.id;
+                      const itemPrice = item.variation ? item.variation.price : item.product.price;
+                      return (
+                        <div
+                          key={itemKey}
+                          className="flex items-center gap-2 p-2 bg-muted/30 rounded-md"
+                        >
+                          {item.product.images?.[0] && (
+                            <img
+                              src={item.product.images[0]}
+                              alt={item.product.name}
+                              className="w-12 h-12 object-cover rounded"
+                            />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{item.product.name}</p>
+                            {item.variation && (
+                              <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">
+                                {item.variation.name}
+                              </Badge>
+                            )}
+                            <p className="text-xs text-muted-foreground">৳{itemPrice}</p>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => updateQuantity(item.product.id, item.variation?.id, item.quantity - 1)}
+                            >
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <span className="w-6 text-center text-sm">{item.quantity}</span>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => updateQuantity(item.product.id, item.variation?.id, item.quantity + 1)}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-destructive"
+                              onClick={() => removeProduct(item.product.id, item.variation?.id)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                          <p className="font-medium text-sm w-16 text-right">
+                            ৳{itemPrice * item.quantity}
+                          </p>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className="w-6 text-center text-sm">{item.quantity}</span>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-destructive"
-                            onClick={() => removeProduct(item.product.id)}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                        <p className="font-medium text-sm w-16 text-right">
-                          ৳{item.product.price * item.quantity}
-                        </p>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
@@ -812,7 +902,7 @@ export function ManualOrderDialog({ open, onOpenChange, onOrderCreated }: Manual
                       <div
                         key={product.id}
                         className="flex items-center gap-2 p-2 hover:bg-muted/50 rounded-md cursor-pointer group"
-                        onClick={() => addProduct(product)}
+                        onClick={() => handleProductClick(product)}
                       >
                         {product.images?.[0] ? (
                           <img
@@ -832,6 +922,9 @@ export function ManualOrderDialog({ open, onOpenChange, onOrderCreated }: Manual
                             <p className="text-xs text-muted-foreground">Price: ৳{product.price}</p>
                             <p className="text-xs text-muted-foreground">Stock: {product.stock}</p>
                           </div>
+                          {product.variations && product.variations.length > 0 && (
+                            <p className="text-xs text-amber-600 font-medium">{product.variations.length} sizes available</p>
+                          )}
                         </div>
                         <Button
                           variant="ghost"
@@ -844,6 +937,37 @@ export function ManualOrderDialog({ open, onOpenChange, onOrderCreated }: Manual
                     ))
                   )}
                 </div>
+
+                {/* Size Selector Popup */}
+                {selectedProductForSize && (
+                  <div className="mt-3 p-3 border-2 border-primary rounded-lg bg-primary/5">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="font-medium text-sm">Select Size for: {selectedProductForSize.name}</p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2"
+                        onClick={() => setSelectedProductForSize(null)}
+                      >
+                        ✕
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedProductForSize.variations?.map(variation => (
+                        <Button
+                          key={variation.id}
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-3 hover:bg-primary hover:text-primary-foreground"
+                          onClick={() => addProductWithVariation(selectedProductForSize, variation)}
+                        >
+                          {variation.name}
+                          <span className="ml-1 text-xs opacity-70">(৳{variation.price})</span>
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
