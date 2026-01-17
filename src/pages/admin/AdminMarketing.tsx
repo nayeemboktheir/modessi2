@@ -739,10 +739,9 @@ export default function AdminMarketing() {
                   <button
                     type="button"
                     onClick={() => setShowCapiToken(!showCapiToken)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                    disabled={!capiEnabled}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground hover:text-primary transition-colors z-10"
                   >
-                    {showCapiToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showCapiToken ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 </div>
                 <p className="text-xs text-muted-foreground">
