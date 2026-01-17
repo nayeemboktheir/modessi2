@@ -125,7 +125,7 @@ const HeroSection = memo(({ product, currentImage, setCurrentImage, onBuyNow }: 
   return (
     <section className="gradient-dark py-8 md:py-14">
       <div className="container mx-auto px-4">
-        <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
+        <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center max-w-5xl mx-auto">
           {/* Image */}
           <div className="relative max-w-lg mx-auto w-full">
             {discount > 0 && (
@@ -189,7 +189,7 @@ const HeroSection = memo(({ product, currentImage, setCurrentImage, onBuyNow }: 
           </div>
 
           {/* Product Info */}
-          <div className="text-primary-foreground space-y-5">
+          <div className="text-primary-foreground space-y-5 text-center md:text-left">
             <div>
               <span className="inline-block bg-accent/20 text-accent px-3 py-1 rounded-full text-sm font-medium mb-3">
                 🔥 হট সেলিং প্রোডাক্ট
@@ -274,18 +274,20 @@ const GallerySection = memo(({ images }: { images: string[] }) => {
   return (
     <section className="py-12 md:py-16 gradient-elegant">
       <div className="container mx-auto px-4">
-        <div className="text-center mb-8">
-          <span className="inline-block bg-primary/10 text-primary px-4 py-1.5 rounded-full text-sm font-medium mb-3">
-            📸 গ্যালারি
-          </span>
-          <h2 className="text-2xl md:text-3xl font-bold text-foreground">প্রোডাক্ট গ্যালারি</h2>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {images.slice(0, 6).map((img, idx) => (
-            <div key={idx} className="group aspect-square rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 ring-1 ring-border">
-              <OptimizedImage src={img} alt="" className="w-full h-full group-hover:scale-110 transition-transform duration-500" />
-            </div>
-          ))}
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-8">
+            <span className="inline-block bg-primary/10 text-primary px-4 py-1.5 rounded-full text-sm font-medium mb-3">
+              📸 গ্যালারি
+            </span>
+            <h2 className="text-2xl md:text-3xl font-bold text-foreground">প্রোডাক্ট গ্যালারি</h2>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {images.slice(0, 6).map((img, idx) => (
+              <div key={idx} className="group aspect-square rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 ring-1 ring-border">
+                <OptimizedImage src={img} alt="" className="w-full h-full group-hover:scale-110 transition-transform duration-500" />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </section>
