@@ -697,19 +697,27 @@ const ProductLandingPage = () => {
 
   // Hide floating CTA when checkout section is visible
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setShowFloatingCta(!entry.isIntersecting);
-      },
-      { threshold: 0.3 }
-    );
+    const checkVisibility = () => {
+      if (checkoutRef.current) {
+        const rect = checkoutRef.current.getBoundingClientRect();
+        // Hide floating button when checkout section top is in lower 70% of viewport
+        const isCheckoutVisible = rect.top < window.innerHeight * 0.7;
+        setShowFloatingCta(!isCheckoutVisible);
+      }
+    };
 
-    if (checkoutRef.current) {
-      observer.observe(checkoutRef.current);
-    }
+    // Check on scroll
+    window.addEventListener('scroll', checkVisibility, { passive: true });
+    // Initial check after a small delay to ensure DOM is ready
+    const timer = setTimeout(checkVisibility, 100);
 
-    return () => observer.disconnect();
+    return () => {
+      window.removeEventListener('scroll', checkVisibility);
+      clearTimeout(timer);
+    };
   }, []);
+
+
   const { data: product, isLoading, error } = useQuery({
     queryKey: ["product-landing", slug],
     queryFn: async () => {
