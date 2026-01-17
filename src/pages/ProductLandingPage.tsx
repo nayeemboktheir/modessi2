@@ -202,7 +202,7 @@ const HeroSection = memo(({ product, currentImage, setCurrentImage, onBuyNow }: 
             )}
 
             {/* Price */}
-            <div className="flex items-baseline gap-4 flex-wrap py-3 px-5 bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10">
+            <div className="flex items-baseline gap-4 flex-wrap py-3 px-5 bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 justify-center md:justify-start">
               <span className="text-4xl md:text-5xl font-bold text-accent">৳{product.price.toLocaleString()}</span>
               {product.original_price && product.original_price > product.price && (
                 <span className="text-xl text-primary-foreground/50 line-through">৳{product.original_price.toLocaleString()}</span>
