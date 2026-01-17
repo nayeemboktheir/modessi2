@@ -471,6 +471,7 @@ const CheckoutSection = memo(({ product, onSubmit, isSubmitting }: {
   });
   const [shippingZone, setShippingZone] = useState<ShippingZone>('outside_dhaka');
   const formRef = useRef<HTMLFormElement>(null);
+  const sizeSelectionRef = useRef<HTMLDivElement>(null);
 
   const variations = useMemo(() => {
     // De-dupe by variation name to avoid showing the same "Size" multiple times
@@ -500,6 +501,8 @@ const CheckoutSection = memo(({ product, onSubmit, isSubmitting }: {
     e.preventDefault();
     if (variations.length > 0 && !form.selectedVariationId) {
       toast.error("সাইজ সিলেক্ট করুন");
+      // Scroll to size selection area
+      sizeSelectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
     if (!form.name.trim() || !form.phone.trim() || !form.address.trim()) {
@@ -548,7 +551,7 @@ const CheckoutSection = memo(({ product, onSubmit, isSubmitting }: {
 
                 {/* Size Selection */}
                 {variations.length > 0 && (
-                  <div className="mb-4">
+                  <div ref={sizeSelectionRef} className="mb-4">
                     <p className="text-sm font-medium text-gray-700 mb-2">সাইজ নির্বাচন করুন <span className="text-red-500">*</span></p>
                     <div className="flex flex-wrap gap-2">
                       {variations.map((v) => (
