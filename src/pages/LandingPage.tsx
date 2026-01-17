@@ -264,7 +264,8 @@ const SectionRenderer = ({ section, theme, slug }: SectionRendererProps) => {
             address: orderForm.address,
           },
           shippingZone,
-          orderSource: 'web',
+          // IMPORTANT: mark as landing page so admin stats + order protection work consistently
+          orderSource: 'landing_page',
           notes: `LP:${slug}`,
         },
       });

@@ -100,14 +100,14 @@ const AdminLandingPages = () => {
     },
   });
 
-  // Fetch orders from landing pages
+  // Fetch orders from landing pages (we identify landing orders by notes prefix "LP:")
   const { data: landingOrders } = useQuery({
     queryKey: ["landing-page-orders"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("orders")
         .select("id, notes, total, order_source, created_at")
-        .eq("order_source", "landing_page")
+        .like("notes", "LP:%")
         .order("created_at", { ascending: false });
 
       if (error) throw error;

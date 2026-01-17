@@ -27,9 +27,22 @@ type PlaceOrderBody = {
   orderSource?: 'web' | 'manual' | 'landing_page';
 };
 
+function normalizeBdPhoneLocal(phone: string) {
+  // Canonicalize to BD local format: 01XXXXXXXXX
+  // Accepts: 01..., 8801..., +8801..., spaces, dashes, etc.
+  let digits = String(phone || '').replace(/\D/g, '');
+
+  if (digits.startsWith('880')) digits = digits.slice(3);
+  if (digits.length === 10 && digits.startsWith('1')) digits = `0${digits}`;
+  if (digits.length === 11 && digits.startsWith('01')) return digits;
+
+  // fallback: if we can't normalize cleanly, return digits as-is (validation will fail later)
+  return digits;
+}
+
 function isBangladeshPhone(phone: string) {
-  const normalized = phone.replace(/\s/g, '');
-  return /^(\+?880)?01[3-9]\d{8}$/.test(normalized);
+  const local = normalizeBdPhoneLocal(phone);
+  return /^01[3-9]\d{8}$/.test(local);
 }
 
 // Background task: Facebook purchase event is intentionally NOT sent here.
@@ -161,7 +174,8 @@ Deno.serve(async (req) => {
 
     // Basic validation
     const name = (body?.shipping?.name ?? '').trim();
-    const phone = (body?.shipping?.phone ?? '').trim();
+    const phoneRaw = (body?.shipping?.phone ?? '').trim();
+    const phone = normalizeBdPhoneLocal(phoneRaw);
     const address = (body?.shipping?.address ?? '').trim();
 
     if (!name || name.length > 100) {
@@ -171,6 +185,7 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Validate against canonical local form (01XXXXXXXXX)
     if (!phone || phone.length > 30 || !isBangladeshPhone(phone)) {
       return new Response(JSON.stringify({ error: 'Invalid phone number' }), {
         status: 400,
@@ -197,12 +212,12 @@ Deno.serve(async (req) => {
     });
     
     // Normalize phone number for comparison
-    const normalizedPhone = phone.replace(/\s/g, '').replace(/^\+?880/, '0');
+    const normalizedPhone = phone; // already canonical local form
     const phoneVariants = [
-      phone,
       normalizedPhone,
       `+880${normalizedPhone.substring(1)}`,
       `880${normalizedPhone.substring(1)}`,
+      normalizedPhone.replace(/^0/, ''), // 1XXXXXXXXX
     ];
     
     // === STATUS-BASED BLOCKING ===
