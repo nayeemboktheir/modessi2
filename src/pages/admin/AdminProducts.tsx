@@ -36,7 +36,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, Search, Package, Upload, X, Image as ImageIcon, Loader2, Play, CalendarIcon } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Package, Upload, X, Image as ImageIcon, Loader2, Play, CalendarIcon, Copy } from 'lucide-react';
 import { 
   getAllProducts, 
   createProduct, 
@@ -445,6 +445,63 @@ export default function AdminProducts() {
       loadData();
     } catch (error) {
       toast.error('Failed to delete product');
+    }
+  };
+
+  const handleDuplicate = async (product: Product) => {
+    try {
+      setSubmitting(true);
+      
+      // Create duplicated product data
+      const duplicatedData = {
+        name: `${product.name} (Copy)`,
+        slug: `${product.slug}-copy-${Date.now()}`,
+        description: product.description || undefined,
+        short_description: product.short_description || undefined,
+        long_description: product.long_description || undefined,
+        price: product.price,
+        original_price: product.original_price || undefined,
+        category_id: product.category_id || undefined,
+        stock: product.stock,
+        images: product.images || [],
+        video_url: product.video_url || undefined,
+        tags: product.tags || [],
+        is_featured: product.is_featured || false,
+        is_new: product.is_new || false,
+        is_active: false, // Set as inactive by default
+      };
+
+      // Create the new product
+      const newProduct = await createProduct(duplicatedData);
+
+      // Fetch and duplicate variations
+      const { data: existingVariations } = await supabase
+        .from('product_variations')
+        .select('*')
+        .eq('product_id', product.id)
+        .order('sort_order');
+
+      if (existingVariations && existingVariations.length > 0) {
+        await supabase.from('product_variations').insert(
+          existingVariations.map((v, idx) => ({
+            product_id: newProduct.id,
+            name: v.name,
+            price: v.price,
+            original_price: v.original_price || null,
+            stock: v.stock,
+            sort_order: idx + 1,
+            is_active: v.is_active,
+          }))
+        );
+      }
+
+      toast.success('প্রোডাক্ট ডুপ্লিকেট হয়েছে');
+      loadData();
+    } catch (error) {
+      console.error('Duplicate error:', error);
+      toast.error('ডুপ্লিকেট করতে ব্যর্থ হয়েছে');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -953,6 +1010,14 @@ export default function AdminProducts() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDuplicate(product)}
+                      title="ডুপ্লিকেট করুন"
+                    >
+                      <Copy className="h-4 w-4 text-muted-foreground" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"
