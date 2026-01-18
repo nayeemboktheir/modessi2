@@ -218,7 +218,21 @@ export const WidgetPreview = ({ widget, theme }: WidgetPreviewProps) => {
         );
       }
 
-      const embedUrl = getEmbedUrl(url);
+      let embedUrl = getEmbedUrl(url);
+
+      // Facebook: prefer plugin iframe with the *original* public URL (Elementor-style)
+      if (
+        (url.includes("facebook.com") || url.includes("fb.watch")) &&
+        !url.includes("facebook.com/plugins/video.php")
+      ) {
+        const absolute = /^https?:\/\//i.test(url)
+          ? url
+          : url.startsWith("//")
+            ? `https:${url}`
+            : `https://${url}`;
+        embedUrl = `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(absolute)}&show_text=false&lazy=true`;
+      }
+
       const isEmbed =
         embedUrl.includes("youtube.com/embed") ||
         embedUrl.includes("vimeo.com") ||

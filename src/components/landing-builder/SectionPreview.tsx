@@ -532,7 +532,21 @@ export const SectionPreview = ({ section, theme }: SectionPreviewProps) => {
       );
     }
 
-    const embedUrl = getEmbedUrl(videoUrl);
+    let embedUrl = getEmbedUrl(videoUrl);
+
+    // Facebook: prefer plugin iframe with the *original* public URL (Elementor-style)
+    if (
+      (videoUrl.includes("facebook.com") || videoUrl.includes("fb.watch")) &&
+      !videoUrl.includes("facebook.com/plugins/video.php")
+    ) {
+      const absolute = /^https?:\/\//i.test(videoUrl)
+        ? videoUrl
+        : videoUrl.startsWith("//")
+          ? `https:${videoUrl}`
+          : `https://${videoUrl}`;
+      embedUrl = `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(absolute)}&show_text=false&lazy=true`;
+    }
+
     const isEmbed =
       embedUrl.includes("youtube.com/embed") ||
       embedUrl.includes("vimeo.com") ||
