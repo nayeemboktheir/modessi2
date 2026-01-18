@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { getEmbedUrl, normalizeExternalUrl } from "@/lib/videoEmbed";
+import { getEmbedUrl, normalizeExternalUrl, parseIframeHtml } from "@/lib/videoEmbed";
 import {
   ChevronLeft,
   ChevronRight,
@@ -30,64 +30,6 @@ import {
   SHIPPING_RATES,
 } from "@/components/checkout/ShippingMethodSelector";
 import { toast } from "sonner";
-
-// Facebook XFBML embeds (Elementor-style)
-// Note: Facebook may still show login for some reels depending on the reel/privacy settings,
-// but XFBML is the closest to Elementor's HTML block behavior.
-declare global {
-  interface Window {
-    FB?: {
-      XFBML?: { parse: (dom?: Element) => void };
-    };
-  }
-}
-
-const loadFacebookSdkOnce = (() => {
-  let promise: Promise<void> | null = null;
-  return () => {
-    if (promise) return promise;
-    promise = new Promise<void>((resolve) => {
-      if (typeof window === "undefined") return resolve();
-      if (window.FB?.XFBML) return resolve();
-
-      const existing = document.querySelector('script[data-fb-sdk="true"]') as HTMLScriptElement | null;
-      if (existing) {
-        existing.addEventListener("load", () => resolve(), { once: true });
-        return;
-      }
-
-      const script = document.createElement("script");
-      script.async = true;
-      script.defer = true;
-      script.crossOrigin = "anonymous";
-      script.src = "https://connect.facebook.net/en_US/sdk.js#xfbml=1&version=v19.0";
-      script.dataset.fbSdk = "true";
-      script.onload = () => resolve();
-      document.head.appendChild(script);
-    });
-    return promise;
-  };
-})();
-
-const useFacebookXfbml = (enabled: boolean, containerRef: React.RefObject<HTMLElement>) => {
-  useEffect(() => {
-    if (!enabled) return;
-
-    let cancelled = false;
-    loadFacebookSdkOnce().then(() => {
-      if (cancelled) return;
-      const el = containerRef.current;
-      if (!el) return;
-      // Parse only inside this container (Elementor-like behavior)
-      window.FB?.XFBML?.parse(el);
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [enabled, containerRef]);
-};
-
 // ====== Interfaces ======
 interface ProductVariation {
   id: string;
@@ -364,86 +306,35 @@ const VideoSection = memo(({ videoUrl }: { videoUrl?: string }) => {
 
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const isIframe = videoUrl.trim().startsWith("<iframe");
+  const raw = (videoUrl || "").trim();
+  const iframeHtml = parseIframeHtml(raw);
 
-  // Extract aspect ratio and URL from iframe if available
+  // For layout + fallback link text only (rendering is handled by iframeHtml above)
   const extractIframeInfo = (html: string) => {
-    const widthMatch = html.match(/width=["']?(\d+)/);
-    const heightMatch = html.match(/height=["']?(\d+)/);
-    const hrefMatch = html.match(/href=([^&"'\s]+)/);
-    const srcMatch = html.match(/src=["']([^"']+)["']/);
+    const widthMatch = html.match(/width=["']?(\d+)/i);
+    const heightMatch = html.match(/height=["']?(\d+)/i);
+    const hrefMatch = html.match(/href=([^&"'\s]+)/i);
+    const srcMatch = html.match(/src\s*=\s*["']([^"']+)["']/i);
+
     const width = widthMatch ? parseInt(widthMatch[1]) : 16;
     const height = heightMatch ? parseInt(heightMatch[1]) : 9;
 
-    // Try to extract Facebook reel/video URL
     let fbUrl = "";
     if (hrefMatch) {
       fbUrl = normalizeExternalUrl(decodeURIComponent(hrefMatch[1]));
-    } else if (srcMatch && srcMatch[1].includes("facebook.com")) {
-      const innerHref = srcMatch[1].match(/href=([^&]+)/);
+    } else if (srcMatch && /facebook\.com|fb\.watch/i.test(srcMatch[1])) {
+      const innerHref = srcMatch[1].match(/href=([^&]+)/i);
       if (innerHref) fbUrl = normalizeExternalUrl(decodeURIComponent(innerHref[1]));
     }
 
     return { aspectRatio: width / height, fbUrl };
   };
 
+  const iframeInfo = raw.startsWith("<") ? extractIframeInfo(raw) : null;
+  const isPortrait = Boolean(iframeInfo && iframeInfo.aspectRatio < 1);
+  const fallbackHref = iframeInfo?.fbUrl || "";
+
   const getEmbedUrlSafe = (url: string) => getEmbedUrl(url);
-
-  const iframeInfo = isIframe ? extractIframeInfo(videoUrl) : null;
-  const isPortrait = iframeInfo && iframeInfo.aspectRatio < 1;
-
-  const isFacebook = Boolean(
-    iframeInfo?.fbUrl && /facebook\.com|fb\.watch/i.test(iframeInfo.fbUrl)
-  );
-
-  // Elementor-style rendering: XFBML (fb-video) instead of raw iframe.
-  // This sometimes avoids the login interstitial for reels.
-  useFacebookXfbml(isFacebook, containerRef as unknown as React.RefObject<HTMLElement>);
-
-  const buildIframe = (src: string) => {
-    return `<iframe src="${src}" style="position:absolute;inset:0;width:100%;height:100%;border:none;overflow:hidden;" scrolling="no" frameborder="0" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"></iframe>`;
-  };
-
-  // Normalize iframe HTML: for FB reels prefer rebuilding via getEmbedUrl()
-  const getSafeIframeHtml = (rawIframeHtml: string) => {
-    if (iframeInfo?.fbUrl) {
-      return buildIframe(getEmbedUrlSafe(iframeInfo.fbUrl));
-    }
-
-    let modified = rawIframeHtml
-      .replace(/width=["']?\d+["']?/gi, 'width="100%"')
-      .replace(/height=["']?\d+["']?/gi, 'height="100%"');
-
-    modified = modified.replace(/\s+sandbox=["'][^"']*["']/gi, "");
-
-    if (!/\s+allow=/.test(modified)) {
-      modified = modified.replace(
-        "<iframe",
-        '<iframe allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"'
-      );
-    }
-
-    if (!/\s+scrolling=/i.test(modified)) {
-      modified = modified.replace("<iframe", '<iframe scrolling="no"');
-    }
-    if (!/\s+frameborder=/i.test(modified)) {
-      modified = modified.replace("<iframe", '<iframe frameborder="0"');
-    }
-
-    if (!/\s+allowfullscreen/i.test(modified)) {
-      modified = modified.replace("<iframe", '<iframe allowfullscreen="true"');
-    }
-
-    const isFacebookPlugin = /facebook\.com\/plugins\/video\.php/i.test(modified);
-    if (!isFacebookPlugin && !/\s+referrerpolicy=/i.test(modified)) {
-      modified = modified.replace(
-        "<iframe",
-        '<iframe referrerpolicy="no-referrer-when-downgrade"'
-      );
-    }
-
-    return modified;
-  };
 
   return (
     <section className="py-10 md:py-16 gradient-dark">
@@ -458,27 +349,19 @@ const VideoSection = memo(({ videoUrl }: { videoUrl?: string }) => {
 
         <div className={`max-w-3xl mx-auto ${isPortrait ? "max-w-sm" : ""}`}>
           <div
+            ref={containerRef}
             className="relative rounded-2xl overflow-hidden shadow-2xl bg-gray-900 ring-1 ring-white/10"
             style={{ aspectRatio: isPortrait ? "9/16" : "16/9" }}
           >
-            {isFacebook && iframeInfo?.fbUrl ? (
-              <div ref={containerRef} className="absolute inset-0">
-                <div
-                  className="fb-video"
-                  data-href={iframeInfo.fbUrl}
-                  data-allowfullscreen="true"
-                  data-show-text="false"
-                  data-width="500"
-                />
-              </div>
-            ) : isIframe ? (
+            {iframeHtml ? (
               <div
-                className="absolute inset-0 [&>iframe]:!w-full [&>iframe]:!h-full [&>iframe]:!border-0"
-                dangerouslySetInnerHTML={{ __html: getSafeIframeHtml(videoUrl) }}
+                className="absolute inset-0"
+                // Elementor-like: allow only sanitized iframe HTML
+                dangerouslySetInnerHTML={{ __html: iframeHtml }}
               />
-            ) : videoUrl.match(/\.(mp4|webm|ogg)$/i) ? (
+            ) : raw.match(/\.(mp4|webm|ogg)$/i) ? (
               <video
-                src={videoUrl}
+                src={raw}
                 controls
                 className="absolute inset-0 w-full h-full object-contain"
                 preload="metadata"
@@ -486,7 +369,7 @@ const VideoSection = memo(({ videoUrl }: { videoUrl?: string }) => {
               />
             ) : (
               <iframe
-                src={getEmbedUrlSafe(videoUrl)}
+                src={getEmbedUrlSafe(raw)}
                 title="Video"
                 allowFullScreen
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -496,10 +379,10 @@ const VideoSection = memo(({ videoUrl }: { videoUrl?: string }) => {
             )}
           </div>
 
-          {iframeInfo?.fbUrl && (
+          {fallbackHref && (
             <div className="text-center mt-4">
               <a
-                href={iframeInfo.fbUrl}
+                href={fallbackHref}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 text-accent hover:text-accent/80 transition-colors text-sm"
