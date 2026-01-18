@@ -25,7 +25,10 @@ import {
   Heart,
   Sparkles,
   Check,
+  Play,
+  FileText,
 } from "lucide-react";
+import { getEmbedUrl } from "@/lib/videoEmbed";
 
 import {
   ShippingMethodSelector,
@@ -61,6 +64,7 @@ interface OrderForm {
   name: string;
   phone: string;
   address: string;
+  note: string;
   quantity: number;
   selectedProductId: string;
   selectedVariationId: string;
@@ -69,6 +73,9 @@ interface OrderForm {
   shippingCost?: number;
   total?: number;
 }
+
+// Video URL for this landing page (can be updated)
+const VIDEO_URL = "";
 
 // Product slugs for this landing page
 const PRODUCT_SLUGS = ['new-cotton-tarsel-light-pink', 'new-cotton-tarsel-blue'];
@@ -396,6 +403,73 @@ const DeliverySection = memo(() => (
 ));
 DeliverySection.displayName = 'DeliverySection';
 
+// ====== Video Section ======
+const VideoSection = memo(({ videoUrl }: { videoUrl?: string }) => {
+  if (!videoUrl) return null;
+
+  const raw = (videoUrl || "").trim();
+  
+  // Check if it's raw HTML (iframe embed code)
+  const isRawHtml = raw.startsWith("<");
+  
+  // Extract aspect ratio info from iframe for proper sizing
+  const extractAspectInfo = (html: string) => {
+    const widthMatch = html.match(/width=["']?(\d+)/i);
+    const heightMatch = html.match(/height=["']?(\d+)/i);
+    const width = widthMatch ? parseInt(widthMatch[1]) : 16;
+    const height = heightMatch ? parseInt(heightMatch[1]) : 9;
+    return { aspectRatio: width / height, isPortrait: height > width };
+  };
+
+  const aspectInfo = isRawHtml ? extractAspectInfo(raw) : { aspectRatio: 16/9, isPortrait: false };
+
+  return (
+    <section className="py-10 md:py-16 bg-gradient-to-b from-gray-800 to-gray-900">
+      <div className="container mx-auto px-4">
+        <div className="text-center mb-8">
+          <span className="inline-flex items-center gap-2 bg-rose-500/20 text-rose-300 px-4 py-1.5 rounded-full text-sm font-medium mb-3">
+            <Play className="h-4 w-4" />
+            ভিডিও দেখুন
+          </span>
+          <h2 className="text-2xl md:text-3xl font-bold text-white">প্রোডাক্ট ভিডিও</h2>
+        </div>
+
+        <div className={`max-w-3xl mx-auto ${aspectInfo.isPortrait ? "max-w-sm" : ""}`}>
+          <div
+            className="relative rounded-2xl overflow-hidden shadow-2xl bg-gray-900 ring-1 ring-white/10"
+            style={{ aspectRatio: aspectInfo.isPortrait ? "9/16" : "16/9" }}
+          >
+            {isRawHtml ? (
+              <div
+                className="absolute inset-0 [&>iframe]:!absolute [&>iframe]:!inset-0 [&>iframe]:!w-full [&>iframe]:!h-full [&>iframe]:!border-0"
+                dangerouslySetInnerHTML={{ __html: raw }}
+              />
+            ) : raw.match(/\.(mp4|webm|ogg)$/i) ? (
+              <video
+                src={raw}
+                controls
+                className="absolute inset-0 w-full h-full object-contain"
+                preload="metadata"
+                playsInline
+              />
+            ) : (
+              <iframe
+                src={getEmbedUrl(raw)}
+                title="Video"
+                allowFullScreen
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                referrerPolicy="no-referrer-when-downgrade"
+                className="absolute inset-0 w-full h-full border-0"
+              />
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+});
+VideoSection.displayName = "VideoSection";
+
 // ====== Checkout Section ======
 const CheckoutSection = memo(({ products, onSubmit, isSubmitting, selectedProductId, onProductSelect }: { 
   products: ProductData[]; 
@@ -405,7 +479,7 @@ const CheckoutSection = memo(({ products, onSubmit, isSubmitting, selectedProduc
   onProductSelect: (productId: string) => void;
 }) => {
   const [form, setForm] = useState<OrderForm>({
-    name: "", phone: "", address: "", quantity: 1, 
+    name: "", phone: "", address: "", note: "", quantity: 1, 
     selectedProductId: "",
     selectedVariationId: "",
   });
@@ -623,6 +697,18 @@ const CheckoutSection = memo(({ products, onSubmit, isSubmitting, selectedProduc
                   className="pl-10 text-base rounded-lg border-2 focus:border-rose-500 resize-none"
                 />
               </div>
+              
+              {/* Note Field */}
+              <div className="relative">
+                <FileText className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                <Textarea
+                  value={form.note}
+                  onChange={(e) => updateForm('note', e.target.value)}
+                  placeholder="আপনি অন্য কিছু নিতে চাইলে বা কিছু বলতে চাইলে এখানে লিখুন (ঐচ্ছিক)"
+                  rows={2}
+                  className="pl-10 text-base rounded-lg border-2 focus:border-rose-500 resize-none"
+                />
+              </div>
             </div>
 
             {/* Shipping */}
@@ -783,7 +869,7 @@ const CottonTarselLandingPage = () => {
           shipping: { name: form.name, phone: form.phone, address: form.address },
           shippingZone: form.shippingZone,
           orderSource: 'landing_page',
-          notes: 'LP:cotton-tarsel-collection',
+          notes: form.note ? `LP:cotton-tarsel-collection | কাস্টমার নোট: ${form.note}` : 'LP:cotton-tarsel-collection',
         },
       });
 
@@ -852,6 +938,7 @@ const CottonTarselLandingPage = () => {
       />
       <FeaturesBanner />
       <ProductsGallery products={products} />
+      <VideoSection videoUrl={VIDEO_URL} />
       <DeliverySection />
       <div ref={checkoutRef}>
         <CheckoutSection 
