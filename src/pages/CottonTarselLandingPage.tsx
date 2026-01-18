@@ -36,6 +36,8 @@ import {
   SHIPPING_RATES,
 } from "@/components/checkout/ShippingMethodSelector";
 import { toast } from "sonner";
+import { useFacebookPixel } from "@/hooks/useFacebookPixel";
+import { useServerTracking } from "@/hooks/useServerTracking";
 
 // ====== Interfaces ======
 interface ProductVariation {
@@ -983,6 +985,18 @@ const CottonTarselLandingPage = () => {
   const [showFloatingCta, setShowFloatingCta] = useState(true);
   const [selectedProductId, setSelectedProductId] = useState("");
   const checkoutRef = useRef<HTMLDivElement>(null);
+  const hasTrackedViewContent = useRef(false);
+
+  // Facebook Pixel & Server Tracking
+  const { 
+    isReady: pixelReady, 
+    trackViewContentWithEventId, 
+    trackInitiateCheckoutWithEventId,
+    trackPurchaseWithEventId,
+    generateEventId,
+    setUserData
+  } = useFacebookPixel();
+  const serverTracking = useServerTracking();
 
   // Hide floating CTA when checkout section is visible
   useEffect(() => {
@@ -1033,6 +1047,33 @@ const CottonTarselLandingPage = () => {
     staleTime: 5 * 60 * 1000,
   });
 
+  // Track ViewContent when products are loaded
+  useEffect(() => {
+    if (products && products.length > 0 && pixelReady && !hasTrackedViewContent.current) {
+      hasTrackedViewContent.current = true;
+      const firstProduct = products[0];
+      const eventId = generateEventId('ViewContent');
+      
+      // Browser Pixel
+      trackViewContentWithEventId({
+        content_ids: products.map(p => p.id),
+        content_name: 'Cotton Tarsel Collection',
+        content_type: 'product_group',
+        value: firstProduct.price,
+        currency: 'BDT',
+      }, eventId);
+
+      // Server-side tracking (CAPI)
+      serverTracking.trackViewContent({
+        contentId: firstProduct.id,
+        contentName: 'Cotton Tarsel Collection',
+        value: firstProduct.price,
+      });
+      
+      console.log('[Cotton Tarsel] ViewContent tracked with event_id:', eventId);
+    }
+  }, [products, pixelReady, trackViewContentWithEventId, generateEventId, serverTracking]);
+
   // Fetch video URL from admin_settings
   const { data: videoUrl } = useQuery({
     queryKey: ["cotton-tarsel-video-url"],
@@ -1049,10 +1090,38 @@ const CottonTarselLandingPage = () => {
     staleTime: 5 * 60 * 1000,
   });
 
+  // Track InitiateCheckout when user scrolls to checkout
+  const trackCheckoutView = useCallback(() => {
+    if (!products || products.length === 0 || !pixelReady) return;
+    
+    const firstProduct = products[0];
+    const eventId = generateEventId('InitiateCheckout');
+    
+    // Browser Pixel
+    trackInitiateCheckoutWithEventId({
+      content_ids: products.map(p => p.id),
+      num_items: 1,
+      value: firstProduct.price,
+      currency: 'BDT',
+    }, eventId);
+
+    // Server-side tracking
+    serverTracking.trackInitiateCheckout({
+      contentIds: products.map(p => p.id),
+      value: firstProduct.price,
+      numItems: 1,
+      eventId,
+    });
+    
+    console.log('[Cotton Tarsel] InitiateCheckout tracked with event_id:', eventId);
+  }, [products, pixelReady, trackInitiateCheckoutWithEventId, generateEventId, serverTracking]);
+
   const scrollToCheckout = useCallback(() => {
+    // Track InitiateCheckout when user clicks to checkout
+    trackCheckoutView();
     // Always go to checkout. Product selection will happen inside checkout.
     document.getElementById("checkout")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, []);
+  }, [trackCheckoutView]);
 
   const handleOrderSubmit = async (form: OrderForm) => {
     const selectedProduct = products?.find(p => p.id === form.selectedProductId);
@@ -1086,6 +1155,43 @@ const CottonTarselLandingPage = () => {
       if (!data?.orderId) {
         throw new Error('Order was not created');
       }
+
+      // Track Purchase event
+      const eventId = generateEventId('Purchase');
+      const purchaseValue = form.total || (selectedProduct.price * form.quantity);
+      
+      // Update user data for better matching
+      setUserData({
+        phone: form.phone,
+        firstName: form.name,
+      });
+
+      // Browser Pixel
+      trackPurchaseWithEventId({
+        content_ids: [selectedProduct.id],
+        content_type: 'product',
+        value: purchaseValue,
+        currency: 'BDT',
+        num_items: form.quantity,
+        phone: form.phone,
+      }, eventId);
+
+      // Server-side tracking (CAPI)
+      serverTracking.trackPurchase({
+        orderId: data.orderNumber || data.orderId,
+        contentIds: [selectedProduct.id],
+        contentNames: [selectedProduct.name],
+        contents: [{ id: selectedProduct.id, quantity: form.quantity, item_price: selectedProduct.price }],
+        value: purchaseValue,
+        numItems: form.quantity,
+        userData: {
+          phone: form.phone,
+          firstName: form.name,
+        },
+        eventId,
+      });
+      
+      console.log('[Cotton Tarsel] Purchase tracked with event_id:', eventId, 'value:', purchaseValue);
 
       navigate('/order-confirmation', {
         state: {
