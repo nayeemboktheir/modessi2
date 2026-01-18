@@ -3,7 +3,7 @@ import { Widget, ThemeSettings } from "./types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { getEmbedUrl } from "@/lib/videoEmbed";
+import { getEmbedUrl, parseIframeHtml } from "@/lib/videoEmbed";
 
 interface WidgetPreviewProps {
   widget: Widget;
@@ -200,53 +200,46 @@ export const WidgetPreview = ({ widget, theme }: WidgetPreviewProps) => {
       if (!url) {
         return (
           <div className="aspect-video bg-muted rounded-lg flex items-center justify-center text-muted-foreground">
-            Add Video URL
+            Add Video URL or Embed Code
           </div>
         );
       }
 
+      // Check if it's raw iframe HTML first (Elementor-style)
+      const iframeHtml = parseIframeHtml(url);
+      if (iframeHtml) {
+        return (
+          <div 
+            className="w-full rounded-lg overflow-hidden"
+            dangerouslySetInnerHTML={{ __html: iframeHtml }}
+          />
+        );
+      }
+
       const embedUrl = getEmbedUrl(url);
-      const isFacebookEmbed = embedUrl.includes("facebook.com/plugins/video.php");
       const isEmbed =
         embedUrl.includes("youtube.com/embed") ||
         embedUrl.includes("vimeo.com") ||
-        isFacebookEmbed;
+        embedUrl.includes("facebook.com/plugins/video.php");
 
       return (
-        <div>
-          <div className={isFacebookEmbed ? "w-full" : "aspect-video"}>
-            {isEmbed ? (
-              <iframe
-                src={embedUrl}
-                className="w-full rounded-lg"
-                style={isFacebookEmbed ? { border: 'none', overflow: 'hidden', width: '100%', height: '500px' } : { height: '100%' }}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-                referrerPolicy="no-referrer-when-downgrade"
-                scrolling="no"
-              />
-            ) : (
-              <video
-                src={url}
-                controls={settings.controls as boolean}
-                autoPlay={settings.autoplay as boolean}
-                loop={settings.loop as boolean}
-                className="w-full rounded-lg"
-              />
-            )}
-          </div>
-
-          {isFacebookEmbed && (
-            <div className="mt-3 flex flex-col items-center gap-2 text-center">
-              <p className="text-sm text-muted-foreground">
-                If Facebook shows a login screen, the reel/video isn’t public or embeddable.
-              </p>
-              <Button variant="outline" asChild>
-                <a href={url.startsWith("http") ? url : `https://${url}`} target="_blank" rel="noreferrer">
-                  Open on Facebook
-                </a>
-              </Button>
-            </div>
+        <div className="aspect-video">
+          {isEmbed ? (
+            <iframe
+              src={embedUrl}
+              className="w-full h-full rounded-lg"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+          ) : (
+            <video
+              src={url}
+              controls={settings.controls as boolean}
+              autoPlay={settings.autoplay as boolean}
+              loop={settings.loop as boolean}
+              className="w-full rounded-lg"
+            />
           )}
         </div>
       );

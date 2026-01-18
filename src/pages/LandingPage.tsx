@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/accordion";
 import { ShippingMethodSelector, ShippingZone, SHIPPING_RATES } from "@/components/checkout/ShippingMethodSelector";
 import { toast } from "sonner";
-import { getEmbedUrl as getVideoEmbedUrl } from "@/lib/videoEmbed";
+import { getEmbedUrl as getVideoEmbedUrl, parseIframeHtml } from "@/lib/videoEmbed";
 
 interface Section {
   id: string;
@@ -999,12 +999,35 @@ const SectionRenderer = ({ section, theme, slug }: SectionRendererProps) => {
       const videoUrl = settings.videoUrl || settings.youtubeUrl;
       if (!videoUrl) return null;
 
+      // Check if it's raw iframe HTML first (Elementor-style)
+      const iframeHtml = parseIframeHtml(videoUrl);
+      if (iframeHtml) {
+        return (
+          <section 
+            className="py-8 px-4"
+            style={{ 
+              backgroundColor: settings.backgroundColor || 'transparent',
+              color: settings.textColor
+            }}
+          >
+            <div className="max-w-4xl mx-auto">
+              {settings.title && (
+                <h2 className="text-2xl font-bold text-center mb-6">{settings.title}</h2>
+              )}
+              <div 
+                className="w-full rounded-lg shadow-lg overflow-hidden"
+                dangerouslySetInnerHTML={{ __html: iframeHtml }}
+              />
+            </div>
+          </section>
+        );
+      }
+
       const embedUrl = getVideoEmbedUrl(videoUrl);
-      const isFacebookEmbed = embedUrl.includes("facebook.com/plugins/video.php");
       const isEmbed = 
         embedUrl.includes("youtube.com/embed") || 
         embedUrl.includes("vimeo.com") || 
-        isFacebookEmbed;
+        embedUrl.includes("facebook.com/plugins/video.php");
 
       return (
         <section 
@@ -1018,21 +1041,14 @@ const SectionRenderer = ({ section, theme, slug }: SectionRendererProps) => {
             {settings.title && (
               <h2 className="text-2xl font-bold text-center mb-6">{settings.title}</h2>
             )}
-            <div className={isFacebookEmbed ? "w-full" : "aspect-video"}>
+            <div className="aspect-video">
               {isEmbed ? (
                 <iframe
                   src={embedUrl}
-                  className="w-full rounded-lg shadow-lg"
-                  style={isFacebookEmbed ? {
-                    border: 'none',
-                    overflow: 'hidden',
-                    width: '100%',
-                    height: '500px'
-                  } : { height: '100%' }}
+                  className="w-full h-full rounded-lg shadow-lg"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowFullScreen
                   referrerPolicy="no-referrer-when-downgrade"
-                  scrolling="no"
                 />
               ) : (
                 <video
@@ -1044,23 +1060,6 @@ const SectionRenderer = ({ section, theme, slug }: SectionRendererProps) => {
                 />
               )}
             </div>
-
-            {isFacebookEmbed && (
-              <div className="mt-3 flex flex-col items-center gap-2 text-center">
-                <p className="text-sm text-muted-foreground">
-                  If Facebook shows a login screen, the reel/video isn’t public or embeddable.
-                </p>
-                <Button variant="outline" asChild>
-                  <a
-                    href={videoUrl.startsWith("http") ? videoUrl : `https://${videoUrl}`}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Open on Facebook
-                  </a>
-                </Button>
-              </div>
-            )}
           </div>
         </section>
       );
