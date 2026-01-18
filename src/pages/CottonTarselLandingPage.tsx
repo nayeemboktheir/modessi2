@@ -992,9 +992,7 @@ const CottonTarselLandingPage = () => {
     isReady: pixelReady, 
     trackViewContentWithEventId, 
     trackInitiateCheckoutWithEventId,
-    trackPurchaseWithEventId,
     generateEventId,
-    setUserData
   } = useFacebookPixel();
   const serverTracking = useServerTracking();
 
@@ -1156,43 +1154,8 @@ const CottonTarselLandingPage = () => {
         throw new Error('Order was not created');
       }
 
-      // Track Purchase event
-      const eventId = generateEventId('Purchase');
-      const purchaseValue = form.total || (selectedProduct.price * form.quantity);
-      
-      // Update user data for better matching
-      setUserData({
-        phone: form.phone,
-        firstName: form.name,
-      });
-
-      // Browser Pixel
-      trackPurchaseWithEventId({
-        content_ids: [selectedProduct.id],
-        content_type: 'product',
-        value: purchaseValue,
-        currency: 'BDT',
-        num_items: form.quantity,
-        phone: form.phone,
-      }, eventId);
-
-      // Server-side tracking (CAPI)
-      serverTracking.trackPurchase({
-        orderId: data.orderNumber || data.orderId,
-        contentIds: [selectedProduct.id],
-        contentNames: [selectedProduct.name],
-        contents: [{ id: selectedProduct.id, quantity: form.quantity, item_price: selectedProduct.price }],
-        value: purchaseValue,
-        numItems: form.quantity,
-        userData: {
-          phone: form.phone,
-          firstName: form.name,
-        },
-        eventId,
-      });
-      
-      console.log('[Cotton Tarsel] Purchase tracked with event_id:', eventId, 'value:', purchaseValue);
-
+      // Purchase tracking is handled in OrderConfirmationPage for accuracy
+      // Navigate with all required data for tracking
       navigate('/order-confirmation', {
         state: {
           orderNumber: data.orderNumber || data.orderId,
