@@ -630,15 +630,13 @@ const CheckoutSection = memo(({ products, onSubmit, isSubmitting, selectedProduc
   const [shippingZone, setShippingZone] = useState<ShippingZone>('outside_dhaka');
   const sizeSelectionRef = useRef<HTMLDivElement>(null);
 
-  // Sync form with selected product from hero - auto select first product if none selected
+  // Sync form with selected product from hero - but don't auto-select, let user choose
   useEffect(() => {
     if (selectedProductId) {
       setForm(prev => ({ ...prev, selectedProductId }));
-    } else if (products.length > 0 && !form.selectedProductId) {
-      // Auto-select first product if none is selected
-      setForm(prev => ({ ...prev, selectedProductId: products[0].id }));
     }
-  }, [selectedProductId, products]);
+    // Don't auto-select first product - let user select manually
+  }, [selectedProductId]);
 
   const selectedProduct = useMemo(
     () => products.find(p => p.id === form.selectedProductId),
@@ -678,7 +676,8 @@ const CheckoutSection = memo(({ products, onSubmit, isSubmitting, selectedProduc
     
     if (!form.selectedProductId) {
       toast.error("প্রোডাক্ট সিলেক্ট করুন");
-      document.getElementById("product-selector")?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Scroll to product selection in checkout, not hero
+      document.getElementById("checkout-product-selector")?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
     
@@ -716,7 +715,7 @@ const CheckoutSection = memo(({ products, onSubmit, isSubmitting, selectedProduc
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Product Selection with visual indicator */}
-            <div className={`bg-white rounded-xl shadow-lg overflow-hidden border-2 ${!form.selectedProductId ? 'border-rose-300' : 'border-transparent'}`}>
+            <div id="checkout-product-selector" className={`bg-white rounded-xl shadow-lg overflow-hidden border-2 ${!form.selectedProductId ? 'border-rose-300' : 'border-transparent'}`}>
               <div className="bg-gradient-to-r from-rose-500 to-pink-500 text-white py-3 px-4 font-bold flex items-center gap-2">
                 <Heart className="h-4 w-4" />
                 কালার সিলেক্ট করুন {!form.selectedProductId && <span className="text-yellow-200">*</span>}
@@ -724,7 +723,7 @@ const CheckoutSection = memo(({ products, onSubmit, isSubmitting, selectedProduc
               
               <div className="p-4">
                 {!form.selectedProductId && (
-                  <p className="text-sm text-rose-500 mb-3 font-medium">👆 উপরে থেকে অথবা এখান থেকে কালার সিলেক্ট করুন</p>
+                  <p className="text-sm text-rose-500 mb-3 font-medium">👇 এখান থেকে কালার সিলেক্ট করুন</p>
                 )}
                 <div className="grid grid-cols-2 gap-3">
                   {products.map((product) => (
