@@ -74,8 +74,7 @@ interface OrderForm {
   total?: number;
 }
 
-// Video URL for this landing page (can be updated)
-const VIDEO_URL = "";
+// Product slugs for this landing page
 
 // Product slugs for this landing page
 const PRODUCT_SLUGS = ['new-cotton-tarsel-light-pink', 'new-cotton-tarsel-blue'];
@@ -841,6 +840,22 @@ const CottonTarselLandingPage = () => {
     staleTime: 5 * 60 * 1000,
   });
 
+  // Fetch video URL from admin_settings
+  const { data: videoUrl } = useQuery({
+    queryKey: ["cotton-tarsel-video-url"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("admin_settings")
+        .select("value")
+        .eq("key", "cotton_tarsel_video_url")
+        .maybeSingle();
+
+      if (error) throw error;
+      return data?.value || "";
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
   const scrollToCheckout = useCallback(() => {
     // If no product selected, scroll to product selector first
     if (!selectedProductId) {
@@ -938,7 +953,7 @@ const CottonTarselLandingPage = () => {
       />
       <FeaturesBanner />
       <ProductsGallery products={products} />
-      <VideoSection videoUrl={VIDEO_URL} />
+      <VideoSection videoUrl={videoUrl} />
       <DeliverySection />
       <div ref={checkoutRef}>
         <CheckoutSection 

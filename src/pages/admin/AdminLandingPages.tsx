@@ -1,13 +1,14 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Plus, Edit, Trash2, Eye, EyeOff, ExternalLink, Copy, Package, TrendingUp, ShoppingCart, Pencil, Search, CalendarIcon, X, Sparkles } from "lucide-react";
+import { Plus, Edit, Trash2, Eye, EyeOff, ExternalLink, Copy, Package, TrendingUp, ShoppingCart, Pencil, Search, CalendarIcon, X, Sparkles, Video } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -81,6 +82,10 @@ const AdminLandingPages = () => {
   const [newProductSlug, setNewProductSlug] = useState("");
   const [productSearch, setProductSearch] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  
+  // Cotton Tarsel video edit states
+  const [cottonTarselVideoOpen, setCottonTarselVideoOpen] = useState(false);
+  const [cottonTarselVideoUrl, setCottonTarselVideoUrl] = useState("");
 
   const { data: landingPages, isLoading } = useQuery({
     queryKey: ["admin-landing-pages"],
@@ -121,6 +126,21 @@ const AdminLandingPages = () => {
 
       if (error) throw error;
       return data as Order[];
+    },
+  });
+
+  // Fetch Cotton Tarsel video URL from admin_settings
+  const { data: cottonTarselVideoSetting } = useQuery({
+    queryKey: ["cotton-tarsel-video-setting"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("admin_settings")
+        .select("value")
+        .eq("key", "cotton_tarsel_video_url")
+        .maybeSingle();
+
+      if (error) throw error;
+      return data?.value || "";
     },
   });
 
@@ -170,6 +190,39 @@ const AdminLandingPages = () => {
     },
     onError: (error) => {
       toast.error("Failed to delete landing page");
+      console.error(error);
+    },
+  });
+
+  // Save Cotton Tarsel video URL mutation
+  const saveCottonTarselVideoMutation = useMutation({
+    mutationFn: async (videoUrl: string) => {
+      const { data: existing } = await supabase
+        .from("admin_settings")
+        .select("id")
+        .eq("key", "cotton_tarsel_video_url")
+        .maybeSingle();
+
+      if (existing) {
+        const { error } = await supabase
+          .from("admin_settings")
+          .update({ value: videoUrl })
+          .eq("key", "cotton_tarsel_video_url");
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("admin_settings")
+          .insert({ key: "cotton_tarsel_video_url", value: videoUrl });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cotton-tarsel-video-setting"] });
+      toast.success("ভিডিও লিংক সেভ হয়েছে");
+      setCottonTarselVideoOpen(false);
+    },
+    onError: (error) => {
+      toast.error("ভিডিও লিংক সেভ করতে সমস্যা হয়েছে");
       console.error(error);
     },
   });
@@ -537,6 +590,17 @@ const AdminLandingPages = () => {
                         <Button
                           variant="outline"
                           size="sm"
+                          onClick={() => {
+                            setCottonTarselVideoUrl(cottonTarselVideoSetting || "");
+                            setCottonTarselVideoOpen(true);
+                          }}
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
                           asChild
                         >
                           <a
@@ -857,6 +921,53 @@ const AdminLandingPages = () => {
               disabled={!newProductSlug || updateProductSlugMutation.isPending}
             >
               {updateProductSlugMutation.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cotton Tarsel Video Edit Dialog */}
+      <Dialog open={cottonTarselVideoOpen} onOpenChange={setCottonTarselVideoOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Video className="h-5 w-5 text-rose-500" />
+              Cotton Tarsel ভিডিও এডিট
+            </DialogTitle>
+            <DialogDescription>
+              Facebook এম্বেড কোড বা ভিডিও লিংক দিন। ল্যান্ডিং পেইজে এই ভিডিও দেখানো হবে।
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-3">
+              <Label htmlFor="cotton-tarsel-video">ভিডিও Embed কোড / লিংক</Label>
+              <Textarea
+                id="cotton-tarsel-video"
+                value={cottonTarselVideoUrl}
+                onChange={(e) => setCottonTarselVideoUrl(e.target.value)}
+                placeholder="<iframe src='https://www.facebook.com/plugins/video.php?...' ...></iframe>
+
+অথবা
+
+https://www.facebook.com/watch/?v=123456789"
+                rows={6}
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                ফেসবুক ভিডিও থেকে "Embed" অপশন থেকে কোড কপি করুন অথবা সরাসরি ভিডিও লিংক দিন।
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCottonTarselVideoOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => saveCottonTarselVideoMutation.mutate(cottonTarselVideoUrl)}
+              disabled={saveCottonTarselVideoMutation.isPending}
+              className="bg-rose-500 hover:bg-rose-600"
+            >
+              {saveCottonTarselVideoMutation.isPending ? "সেভ হচ্ছে..." : "সেভ করুন"}
             </Button>
           </DialogFooter>
         </DialogContent>
