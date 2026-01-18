@@ -31,7 +31,19 @@ export const getEmbedUrl = (input: string): string => {
   if (url.includes("facebook.com") || url.includes("fb.watch")) {
     // If it's already a plugin URL, keep it.
     if (url.includes("facebook.com/plugins/video.php")) return url;
-    return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=false&lazy=true`;
+
+    // Reels sometimes fail to embed directly. Convert to a watch URL when we can.
+    // Example: https://www.facebook.com/reel/1525868642033344 -> https://www.facebook.com/watch/?v=1525868642033344
+    const reelMatch = url.match(/facebook\.com\/(?:reel|reels)\/(\d+)/i);
+    const videoMatch = url.match(/facebook\.com\/(?:watch\/\?v=|videos\/)(\d+)/i);
+
+    const canonicalHref = reelMatch
+      ? `https://www.facebook.com/watch/?v=${reelMatch[1]}`
+      : videoMatch
+        ? `https://www.facebook.com/watch/?v=${videoMatch[1]}`
+        : url;
+
+    return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(canonicalHref)}&show_text=false&lazy=true`;
   }
 
   return url;
