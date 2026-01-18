@@ -77,6 +77,24 @@ export const fetchNewProducts = async (): Promise<Product[]> => {
   return (data || []).map(mapProductFromDB);
 };
 
+// Fetch recent products (most recently added)
+export const fetchRecentProducts = async (limit: number = 8): Promise<Product[]> => {
+  const { data, error } = await supabase
+    .from('products')
+    .select(`
+      *,
+      categories:category_id (name, slug),
+      product_variations!product_variations_product_id_fkey (*)
+    `)
+    .eq('is_active', true)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+
+  return (data || []).map(mapProductFromDB);
+};
+
 // Fetch single product by slug
 export const fetchProductBySlug = async (slug: string): Promise<Product | null> => {
   const { data, error } = await supabase

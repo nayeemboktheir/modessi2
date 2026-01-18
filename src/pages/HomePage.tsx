@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { ArrowRight, Leaf, Truck, Shield, Heart, Check, Star, Loader2, Apple, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ProductCard from '@/components/products/ProductCard';
-import { fetchFeaturedProducts, fetchNewProducts } from '@/services/productService';
+import { fetchFeaturedProducts, fetchNewProducts, fetchRecentProducts } from '@/services/productService';
 import { Product } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import whyChooseBg from '@/assets/why-choose-bg.png';
@@ -84,19 +84,22 @@ interface HomePageContent {
 const HomePage = () => {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [newProducts, setNewProducts] = useState<Product[]>([]);
+  const [recentProducts, setRecentProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [content, setContent] = useState<HomePageContent>({});
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [featured, newArrivals, contentData] = await Promise.all([
+        const [featured, newArrivals, recent, contentData] = await Promise.all([
           fetchFeaturedProducts(),
           fetchNewProducts(),
+          fetchRecentProducts(8),
           supabase.from('home_page_content').select('*'),
         ]);
         setFeaturedProducts(featured);
         setNewProducts(newArrivals);
+        setRecentProducts(recent);
         
         if (contentData.data) {
           const contentMap: HomePageContent = {};
@@ -416,6 +419,40 @@ const HomePage = () => {
           </div>
         </div>
       </section>
+
+      {/* Recent Products - সাম্প্রতিক প্রোডাক্ট */}
+      {recentProducts.length > 0 && (
+        <section className="py-16 md:py-24 bg-muted/30">
+          <div className="container-custom">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center mb-12"
+            >
+              <span className="text-secondary font-medium">নতুন আপলোড</span>
+              <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground mt-2">
+                সাম্প্রতিক প্রোডাক্ট
+              </h2>
+            </motion.div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+              {recentProducts.map((product, index) => (
+                <ProductCard key={product.id} product={product} index={index} />
+              ))}
+            </div>
+
+            <div className="mt-10 text-center">
+              <Button variant="outline" size="lg" asChild>
+                <Link to="/products">
+                  সব প্রোডাক্ট দেখুন
+                  <ArrowRight className="h-5 w-5 mr-2" />
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Featured Products */}
       <section className="py-16 md:py-24 bg-background">
