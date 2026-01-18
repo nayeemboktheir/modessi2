@@ -629,6 +629,7 @@ const CheckoutSection = memo(({ products, onSubmit, isSubmitting, selectedProduc
   });
   const [shippingZone, setShippingZone] = useState<ShippingZone>('outside_dhaka');
   const sizeSelectionRef = useRef<HTMLDivElement>(null);
+  const [productImageIndex, setProductImageIndex] = useState<Record<string, number>>({});
 
   // Sync form with selected product from hero - but don't auto-select, let user choose
   useEffect(() => {
@@ -726,39 +727,68 @@ const CheckoutSection = memo(({ products, onSubmit, isSubmitting, selectedProduc
                   <p className="text-sm text-rose-500 mb-3 font-medium">👇 এখান থেকে কালার সিলেক্ট করুন</p>
                 )}
                 <div className="grid grid-cols-2 gap-3">
-                  {products.map((product) => (
-                    <button
-                      key={product.id}
-                      type="button"
-                      onClick={() => {
-                        updateForm('selectedProductId', product.id);
-                        onProductSelect(product.id);
-                      }}
-                      className={`relative p-3 rounded-xl border-2 transition-all ${
-                        form.selectedProductId === product.id
-                          ? 'border-rose-500 bg-rose-50 shadow-md'
-                          : 'border-gray-200 hover:border-rose-300'
-                      }`}
-                    >
-                      <div className="aspect-square rounded-lg overflow-hidden mb-2">
-                        <OptimizedImage 
-                          src={product.images?.[0] || ''} 
-                          alt={product.name} 
-                          className="w-full h-full"
-                        />
-                      </div>
-                      <p className="text-sm font-medium text-gray-800 line-clamp-1">
-                        {product.slug.includes('pink') ? 'লাইট পিংক' : 'ব্লু'}
-                      </p>
-                      <p className="text-rose-600 font-bold">৳{product.price.toLocaleString()}</p>
-                      
-                      {form.selectedProductId === product.id && (
-                        <div className="absolute top-2 right-2 w-6 h-6 bg-rose-500 rounded-full flex items-center justify-center">
-                          <Check className="h-4 w-4 text-white" />
+                  {products.map((product) => {
+                    const currentImageIdx = productImageIndex[product.id] || 0;
+                    const images = product.images || [];
+                    
+                    return (
+                      <button
+                        key={product.id}
+                        type="button"
+                        onClick={() => {
+                          updateForm('selectedProductId', product.id);
+                          onProductSelect(product.id);
+                        }}
+                        className={`relative p-3 rounded-xl border-2 transition-all ${
+                          form.selectedProductId === product.id
+                            ? 'border-rose-500 bg-rose-50 shadow-md'
+                            : 'border-gray-200 hover:border-rose-300'
+                        }`}
+                      >
+                        {/* Main Image */}
+                        <div className="aspect-square rounded-lg overflow-hidden mb-2">
+                          <OptimizedImage 
+                            src={images[currentImageIdx] || images[0] || ''} 
+                            alt={product.name} 
+                            className="w-full h-full"
+                          />
                         </div>
-                      )}
-                    </button>
-                  ))}
+                        
+                        {/* Mini Thumbnails - Click to change main image */}
+                        {images.length > 1 && (
+                          <div className="flex gap-1 justify-center mb-2">
+                            {images.slice(0, 3).map((img, idx) => (
+                              <div
+                                key={idx}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setProductImageIndex(prev => ({ ...prev, [product.id]: idx }));
+                                }}
+                                className={`w-10 h-10 rounded overflow-hidden border-2 cursor-pointer transition-all ${
+                                  currentImageIdx === idx 
+                                    ? 'border-rose-500 scale-105' 
+                                    : 'border-gray-200 opacity-70 hover:opacity-100'
+                                }`}
+                              >
+                                <OptimizedImage src={img} alt="" className="w-full h-full" />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        <p className="text-sm font-medium text-gray-800 line-clamp-1">
+                          {product.slug.includes('pink') ? 'লাইট পিংক' : 'ব্লু'}
+                        </p>
+                        <p className="text-rose-600 font-bold">৳{product.price.toLocaleString()}</p>
+                        
+                        {form.selectedProductId === product.id && (
+                          <div className="absolute top-2 right-2 w-6 h-6 bg-rose-500 rounded-full flex items-center justify-center">
+                            <Check className="h-4 w-4 text-white" />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
