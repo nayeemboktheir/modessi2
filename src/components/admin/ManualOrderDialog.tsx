@@ -449,7 +449,15 @@ export function ManualOrderDialog({ open, onOpenChange, onOrderCreated }: Manual
       }
     } else {
       // Just a phone number - normalize and set
-      const cleanNumber = converted.replace(/[^0-9]/g, '');
+      let cleanNumber = converted.replace(/[^0-9+]/g, '');
+      // Remove +88 or 88 prefix if present
+      if (cleanNumber.startsWith('+88')) {
+        cleanNumber = cleanNumber.substring(3);
+      } else if (cleanNumber.startsWith('88') && cleanNumber.length > 11) {
+        cleanNumber = cleanNumber.substring(2);
+      }
+      // Remove any remaining non-digit characters
+      cleanNumber = cleanNumber.replace(/[^0-9]/g, '');
       // Limit to 11 digits
       setMobileNumber(cleanNumber.slice(0, 11));
     }
@@ -953,7 +961,12 @@ export function ManualOrderDialog({ open, onOpenChange, onOrderCreated }: Manual
                       </Button>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {selectedProductForSize.variations?.map(variation => (
+                      {/* Dedupe variations by id to avoid duplicates */}
+                      {Array.from(
+                        new Map(
+                          (selectedProductForSize.variations || []).map(v => [v.id, v])
+                        ).values()
+                      ).map(variation => (
                         <Button
                           key={variation.id}
                           variant="outline"
