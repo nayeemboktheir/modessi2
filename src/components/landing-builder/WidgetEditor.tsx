@@ -599,13 +599,17 @@ export const WidgetEditor = ({
         return (
           <div className="space-y-3">
             <div className="space-y-1">
-              <Label className="text-xs">Video URL</Label>
-              <Input
-                value={settings.url as string || ''}
-                onChange={(e) => updateSettings('url', e.target.value)}
-                placeholder="YouTube or video URL"
-                className="h-8 text-xs"
+              <Label className="text-xs">Video URL or Embed Code (iframe)</Label>
+              <Textarea
+                value={(settings.url as string) || ""}
+                onChange={(e) => updateSettings("url", e.target.value)}
+                placeholder="Paste a YouTube/Facebook/Vimeo URL OR the full <iframe ...></iframe> code"
+                rows={4}
+                className="text-xs font-mono"
               />
+              <p className="text-[11px] text-muted-foreground">
+                Tip: for Facebook reels, paste the full iframe code from your Facebook page (Elementor-style).
+              </p>
             </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">

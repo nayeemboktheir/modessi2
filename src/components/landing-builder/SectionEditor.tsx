@@ -1113,14 +1113,16 @@ export const SectionEditor = ({
         </div>
 
         <div className="space-y-2">
-          <Label>YouTube URL or Video Embed URL</Label>
-          <Input
+          <Label>YouTube/Facebook URL or Embed Code (iframe)</Label>
+          <Textarea
             value={settings.videoUrl || settings.youtubeUrl || ''}
             onChange={(e) => updateSettings('videoUrl', e.target.value)}
-            placeholder="https://www.youtube.com/watch?v=... or https://youtu.be/..."
+            placeholder="Paste a video URL OR the full <iframe ...></iframe> embed code"
+            rows={4}
+            className="font-mono"
           />
           <p className="text-xs text-muted-foreground">
-            Paste any YouTube link (watch URL or share URL) - it will be converted automatically
+            For Facebook, the most reliable option is pasting the full iframe code from Facebook plugins.
           </p>
         </div>
 

@@ -244,9 +244,13 @@ export const WidgetPreview = ({ widget, theme }: WidgetPreviewProps) => {
             <iframe
               src={embedUrl}
               className="w-full h-full rounded-lg"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              scrolling="no"
+              frameBorder={0}
+              allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
               allowFullScreen
-              referrerPolicy="no-referrer-when-downgrade"
+              {...(!embedUrl.includes("facebook.com/plugins/video.php")
+                ? { referrerPolicy: "no-referrer-when-downgrade" as const }
+                : {})}
             />
           ) : (
             <video
