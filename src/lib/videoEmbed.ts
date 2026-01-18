@@ -40,8 +40,8 @@ export const parseIframeHtml = (input: string): string | null => {
     return null;
   }
 
-  // Return a responsive iframe (Elementor-like)
-  return `<iframe src="${src}" style="position:absolute;inset:0;width:100%;height:100%;border:0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="origin-when-cross-origin"></iframe>`;
+  // Return a responsive iframe (Elementor-like). Avoid strict referrer policies; Facebook can be picky.
+  return `<iframe src="${src}" style="position:absolute;inset:0;width:100%;height:100%;border:none;overflow:hidden;" scrolling="no" frameborder="0" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"></iframe>`;
 };
 
 export const normalizeExternalUrl = (input: string): string => {
