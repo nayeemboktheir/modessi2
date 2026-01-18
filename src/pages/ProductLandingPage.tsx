@@ -305,8 +305,8 @@ GallerySection.displayName = 'GallerySection';
 const VideoSection = memo(({ videoUrl }: { videoUrl?: string }) => {
   if (!videoUrl) return null;
 
-  const isIframe = videoUrl.trim().startsWith('<iframe');
-  
+  const isIframe = videoUrl.trim().startsWith("<iframe");
+
   // Extract aspect ratio and URL from iframe if available
   const extractIframeInfo = (html: string) => {
     const widthMatch = html.match(/width=["']?(\d+)/);
@@ -328,20 +328,31 @@ const VideoSection = memo(({ videoUrl }: { videoUrl?: string }) => {
     return { aspectRatio: width / height, fbUrl };
   };
 
-  
   const getEmbedUrlSafe = (url: string) => getEmbedUrl(url);
-
 
   const iframeInfo = isIframe ? extractIframeInfo(videoUrl) : null;
   const isPortrait = iframeInfo && iframeInfo.aspectRatio < 1;
-  
-  // Modify iframe HTML to normalize sizing and add safe defaults
-  const getModifiedIframeHtml = (html: string) => {
-    let modified = html
+
+  const buildIframe = (src: string) => {
+    return `<iframe src="${src}" style="position:absolute;inset:0;width:100%;height:100%;border:none;overflow:hidden;" scrolling="no" frameborder="0" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"></iframe>`;
+  };
+
+  // IMPORTANT:
+  // Facebook Reel embeds often show a login interstitial when used as `plugins/video.php?href=.../reel/...`.
+  // We normalize iframe input by extracting the canonical URL and re-building the embed via getEmbedUrl(),
+  // which converts reels -> watch/?v=ID and produces a more reliable plugins URL.
+  const getSafeIframeHtml = (rawIframeHtml: string) => {
+    // If we can extract a canonical FB URL, prefer rebuilding the iframe entirely.
+    if (iframeInfo?.fbUrl) {
+      return buildIframe(getEmbedUrlSafe(iframeInfo.fbUrl));
+    }
+
+    // Otherwise, keep the provided iframe but normalize its sizing and remove sandbox.
+    let modified = rawIframeHtml
       .replace(/width=["']?\d+["']?/gi, 'width="100%"')
       .replace(/height=["']?\d+["']?/gi, 'height="100%"');
 
-    // NOTE: Facebook embeds often break when sandboxed, so we deliberately strip sandbox.
+    // Facebook embeds often break when sandboxed, so we deliberately strip sandbox.
     modified = modified.replace(/\s+sandbox=["'][^"']*["']/gi, "");
 
     // Ensure common embed permissions exist
@@ -352,7 +363,6 @@ const VideoSection = memo(({ videoUrl }: { videoUrl?: string }) => {
       );
     }
 
-    // Ensure scrolling + frameborder match Facebook/Elementor embeds (less strict)
     if (!/\s+scrolling=/i.test(modified)) {
       modified = modified.replace("<iframe", '<iframe scrolling="no"');
     }
@@ -364,7 +374,7 @@ const VideoSection = memo(({ videoUrl }: { videoUrl?: string }) => {
       modified = modified.replace("<iframe", '<iframe allowfullscreen="true"');
     }
 
-    // IMPORTANT: don't force referrerpolicy for Facebook plugin embeds (can trigger login interstitial)
+    // Do not force referrerpolicy for Facebook plugin embeds (can trigger login interstitial)
     const isFacebookPlugin = /facebook\.com\/plugins\/video\.php/i.test(modified);
     if (!isFacebookPlugin && !/\s+referrerpolicy=/i.test(modified)) {
       modified = modified.replace(
@@ -386,24 +396,24 @@ const VideoSection = memo(({ videoUrl }: { videoUrl?: string }) => {
           </span>
           <h2 className="text-2xl md:text-3xl font-bold text-white">প্রোডাক্ট ভিডিও</h2>
         </div>
-        
-        <div className={`max-w-3xl mx-auto ${isPortrait ? 'max-w-sm' : ''}`}>
-          <div 
+
+        <div className={`max-w-3xl mx-auto ${isPortrait ? "max-w-sm" : ""}`}>
+          <div
             className="relative rounded-2xl overflow-hidden shadow-2xl bg-gray-900 ring-1 ring-white/10"
-            style={{ 
-              aspectRatio: isPortrait ? '9/16' : '16/9'
+            style={{
+              aspectRatio: isPortrait ? "9/16" : "16/9",
             }}
           >
             {isIframe ? (
-              <div 
-                className="absolute inset-0 [&>iframe]:!w-full [&>iframe]:!h-full [&>iframe]:!border-0" 
-                dangerouslySetInnerHTML={{ __html: getModifiedIframeHtml(videoUrl) }} 
+              <div
+                className="absolute inset-0 [&>iframe]:!w-full [&>iframe]:!h-full [&>iframe]:!border-0"
+                dangerouslySetInnerHTML={{ __html: getSafeIframeHtml(videoUrl) }}
               />
             ) : videoUrl.match(/\.(mp4|webm|ogg)$/i) ? (
-              <video 
-                src={videoUrl} 
-                controls 
-                className="absolute inset-0 w-full h-full object-contain" 
+              <video
+                src={videoUrl}
+                controls
+                className="absolute inset-0 w-full h-full object-contain"
                 preload="metadata"
                 playsInline
               />
@@ -416,10 +426,9 @@ const VideoSection = memo(({ videoUrl }: { videoUrl?: string }) => {
                 referrerPolicy="no-referrer-when-downgrade"
                 className="absolute inset-0 w-full h-full border-0"
               />
-
             )}
           </div>
-          
+
           {/* Fallback link for Facebook videos */}
           {iframeInfo?.fbUrl && (
             <div className="text-center mt-4">
@@ -427,20 +436,19 @@ const VideoSection = memo(({ videoUrl }: { videoUrl?: string }) => {
                 href={iframeInfo.fbUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-accent hover:text-accent/80 transition-colors text-sm"
+                className="inline-flex items-center gap-1 text-green-600 font-medium"
               >
-                <Play className="h-4 w-4" />
-                ভিডিও লোড না হলে এখানে ক্লিক করুন
+                <MessageCircle className="h-4 w-4" />
+                WhatsApp
               </a>
             </div>
           )}
-
         </div>
       </div>
     </section>
   );
 });
-VideoSection.displayName = 'VideoSection';
+VideoSection.displayName = "VideoSection";
 
 // ====== Product Description ======
 const ProductDescriptionSection = memo(({ description }: { description?: string }) => {
