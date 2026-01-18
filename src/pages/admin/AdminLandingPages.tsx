@@ -533,20 +533,31 @@ const AdminLandingPages = () => {
                       </span>
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="flex items-center justify-end gap-2">
                         <Button
-                          variant="ghost"
-                          size="icon"
+                          variant="outline"
+                          size="sm"
                           asChild
-                          title="View page"
                         >
                           <a
                             href="/cotton-tarsel"
                             target="_blank"
                             rel="noopener noreferrer"
                           >
-                            <ExternalLink className="h-4 w-4" />
+                            <ExternalLink className="h-4 w-4 mr-1" />
+                            View
                           </a>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            navigator.clipboard.writeText(`${window.location.origin}/cotton-tarsel`);
+                            toast.success("URL copied to clipboard!");
+                          }}
+                        >
+                          <Copy className="h-4 w-4 mr-1" />
+                          Copy URL
                         </Button>
                       </div>
                     </TableCell>
