@@ -844,7 +844,6 @@ const ProductLandingPage = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      <UrgencyBanner />
       <HeroSection product={product} currentImage={currentImage} setCurrentImage={setCurrentImage} onBuyNow={scrollToCheckout} />
       <FeaturesBanner />
       <ProductDescriptionSection description={product.long_description} />

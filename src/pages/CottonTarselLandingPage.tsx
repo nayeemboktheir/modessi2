@@ -844,7 +844,6 @@ const CottonTarselLandingPage = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      <UrgencyBanner />
       <HeroSection 
         products={products} 
         onBuyNow={scrollToCheckout} 
