@@ -127,7 +127,7 @@ const UrgencyBanner = memo(() => {
 });
 UrgencyBanner.displayName = 'UrgencyBanner';
 
-// ====== Hero Section - Mobile First with Product Info on Top ======
+// ====== Hero Section - Title on Top, Image, Then Price & CTA Below ======
 const HeroSection = memo(({ products, onBuyNow, selectedProductId, onProductSelect }: { 
   products: ProductData[]; 
   onBuyNow: () => void;
@@ -163,12 +163,33 @@ const HeroSection = memo(({ products, onBuyNow, selectedProductId, onProductSele
         <div className="absolute bottom-10 right-10 w-60 h-60 bg-pink-200/30 rounded-full blur-3xl" />
       </div>
 
-      <div className="container mx-auto px-4 relative z-10 max-w-6xl">
-        {/* Desktop: Two Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-10 items-center">
+      <div className="container mx-auto px-4 relative z-10 max-w-xl lg:max-w-6xl">
+        {/* Desktop: Two Column Layout, Mobile: Single Column */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 items-center">
           
-          {/* Left Column - Image (on mobile shows after product info) */}
-          <div className="order-2 lg:order-1">
+          {/* Left/Main Column - All content on mobile, Image on desktop */}
+          <div className="lg:order-1">
+            {/* Header Badge & Title - Shows on mobile only here */}
+            <div className="text-center lg:hidden mb-4">
+              <motion.div 
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-3"
+              >
+                <span className="inline-flex items-center gap-2 bg-gradient-to-r from-rose-500 to-pink-500 text-white px-5 py-2 rounded-full text-sm font-bold shadow-lg">
+                  <Flame className="h-4 w-4" />
+                  হট সেলিং প্রোডাক্ট
+                </span>
+              </motion.div>
+
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
+                প্রিমিয়াম কটন টারসেল
+              </h1>
+              <p className="text-gray-600 text-sm sm:text-base">
+                টারসেল ডিজাইন, প্রিমিয়াম ফেব্রিক্স
+              </p>
+            </div>
+
             {/* Color Selector - On top of image */}
             <div id="product-selector" className="flex justify-center gap-3 mb-4">
               {products.map((product) => (
@@ -197,6 +218,7 @@ const HeroSection = memo(({ products, onBuyNow, selectedProductId, onProductSele
               ))}
             </div>
 
+            {/* Image Section */}
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeProduct?.id}
@@ -212,7 +234,7 @@ const HeroSection = memo(({ products, onBuyNow, selectedProductId, onProductSele
                   </Badge>
                 )}
                 
-                <div className="relative aspect-square rounded-3xl overflow-hidden shadow-2xl bg-white ring-4 ring-rose-100 max-w-sm mx-auto lg:max-w-md">
+                <div className="relative aspect-square rounded-3xl overflow-hidden shadow-2xl bg-white ring-4 ring-rose-100 max-w-md mx-auto">
                   {activeProduct?.images?.[currentImage] && (
                     <OptimizedImage 
                       src={activeProduct.images[currentImage]} 
@@ -226,22 +248,22 @@ const HeroSection = memo(({ products, onBuyNow, selectedProductId, onProductSele
                     <>
                       <button
                         onClick={() => setCurrentImage((currentImage - 1 + activeProduct.images.length) % activeProduct.images.length)}
-                        className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-sm rounded-full p-2 shadow-xl hover:scale-110 transition-all"
+                        className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-sm rounded-full p-2.5 shadow-xl hover:scale-110 transition-all"
                       >
-                        <ChevronLeft className="h-4 w-4 text-gray-700" />
+                        <ChevronLeft className="h-5 w-5 text-gray-700" />
                       </button>
                       <button
                         onClick={() => setCurrentImage((currentImage + 1) % activeProduct.images.length)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-sm rounded-full p-2 shadow-xl hover:scale-110 transition-all"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-sm rounded-full p-2.5 shadow-xl hover:scale-110 transition-all"
                       >
-                        <ChevronRight className="h-4 w-4 text-gray-700" />
+                        <ChevronRight className="h-5 w-5 text-gray-700" />
                       </button>
-                      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 bg-black/20 backdrop-blur-sm px-2 py-1.5 rounded-full">
+                      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 bg-black/20 backdrop-blur-sm px-3 py-2 rounded-full">
                         {activeProduct.images.map((_, idx) => (
                           <button
                             key={idx}
                             onClick={() => setCurrentImage(idx)}
-                            className={`h-1.5 rounded-full transition-all ${idx === currentImage ? "bg-white w-5" : "bg-white/50 w-1.5"}`}
+                            className={`h-2 rounded-full transition-all ${idx === currentImage ? "bg-white w-6" : "bg-white/50 w-2"}`}
                           />
                         ))}
                       </div>
@@ -251,12 +273,12 @@ const HeroSection = memo(({ products, onBuyNow, selectedProductId, onProductSele
 
                 {/* Thumbnails */}
                 {activeProduct?.images && activeProduct.images.length > 1 && (
-                  <div className="flex gap-2 mt-3 justify-center">
+                  <div className="flex gap-2 mt-4 justify-center">
                     {activeProduct.images.slice(0, 6).map((img, idx) => (
                       <button
                         key={idx}
                         onClick={() => setCurrentImage(idx)}
-                        className={`w-11 h-11 sm:w-12 sm:h-12 rounded-lg overflow-hidden border-2 transition-all ${
+                        className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden border-2 transition-all ${
                           idx === currentImage 
                             ? "border-rose-500 scale-110 shadow-lg" 
                             : "border-gray-200 opacity-60 hover:opacity-100"
@@ -269,52 +291,107 @@ const HeroSection = memo(({ products, onBuyNow, selectedProductId, onProductSele
                 )}
               </motion.div>
             </AnimatePresence>
+
+            {/* Price & CTA - Below Image on Mobile */}
+            <div className="text-center mt-6 lg:hidden">
+              {/* Price Section - Bigger & More Prominent */}
+              <div className="mb-5">
+                <div className="flex items-center justify-center gap-3 flex-wrap">
+                  {activeProduct?.original_price && activeProduct.original_price > activeProduct.price && (
+                    <span className="text-gray-400 line-through text-xl sm:text-2xl">
+                      ৳{activeProduct.original_price.toLocaleString()}
+                    </span>
+                  )}
+                  <span className="text-rose-600 font-bold text-4xl sm:text-5xl">
+                    ৳{activeProduct?.price?.toLocaleString()}
+                  </span>
+                </div>
+                {discount > 0 && (
+                  <p className="text-green-600 font-semibold mt-1 text-sm">
+                    আপনি সেভ করছেন ৳{((activeProduct?.original_price || 0) - (activeProduct?.price || 0)).toLocaleString()}
+                  </p>
+                )}
+              </div>
+
+              {/* CTA Button - Full Width */}
+              <Button
+                onClick={onBuyNow}
+                size="lg"
+                className="w-full max-w-sm mx-auto h-14 text-lg font-bold bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white rounded-2xl shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02]"
+              >
+                <ShoppingBag className="mr-2 h-5 w-5" />
+                এখনই অর্ডার করুন
+              </Button>
+            </div>
           </div>
 
-          {/* Right Column - Product Info (on mobile shows first) */}
-          <div className="order-1 lg:order-2 text-center">
+          {/* Right Column - Product Info (Desktop only) */}
+          <div className="hidden lg:block lg:order-2 text-center lg:text-left">
             {/* Header Badge */}
             <motion.div 
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-3"
+              className="mb-4"
             >
-              <span className="inline-flex items-center gap-2 bg-gradient-to-r from-rose-500 to-pink-500 text-white px-4 py-1.5 rounded-full text-sm font-bold shadow-lg">
+              <span className="inline-flex items-center gap-2 bg-gradient-to-r from-rose-500 to-pink-500 text-white px-5 py-2 rounded-full text-sm font-bold shadow-lg">
                 <Flame className="h-4 w-4" />
                 হট সেলিং প্রোডাক্ট
               </span>
             </motion.div>
 
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-1">
+            <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
               প্রিমিয়াম কটন টারসেল
             </h1>
-            <p className="text-gray-600 text-sm lg:text-base mb-4">
+            <p className="text-gray-600 text-lg mb-6">
               টারসেল ডিজাইন, প্রিমিয়াম ফেব্রিক্স
             </p>
 
             {/* Price Section - Prominent */}
-            <div className="mb-4">
-              <div className="flex items-center justify-center gap-2 flex-wrap">
+            <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 inline-block">
+              <div className="flex items-center gap-3 flex-wrap">
                 {activeProduct?.original_price && activeProduct.original_price > activeProduct.price && (
-                  <span className="text-gray-400 line-through text-lg sm:text-xl">
+                  <span className="text-gray-400 line-through text-2xl">
                     ৳{activeProduct.original_price.toLocaleString()}
                   </span>
                 )}
-                <span className="text-rose-600 font-bold text-2xl sm:text-3xl lg:text-4xl">
+                <span className="text-rose-600 font-bold text-4xl lg:text-5xl">
                   ৳{activeProduct?.price?.toLocaleString()}
                 </span>
               </div>
+              {discount > 0 && (
+                <p className="text-green-600 font-semibold mt-2">
+                  আপনি সেভ করছেন ৳{((activeProduct?.original_price || 0) - (activeProduct?.price || 0)).toLocaleString()}
+                </p>
+              )}
             </div>
 
-            {/* CTA Button - Rose/Pink gradient, not golden */}
-            <Button
-              onClick={onBuyNow}
-              size="lg"
-              className="px-8 py-5 text-base font-bold bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white rounded-2xl shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02]"
-            >
-              <ShoppingBag className="mr-2 h-5 w-5" />
-              এখনই অর্ডার করুন
-            </Button>
+            {/* CTA Button */}
+            <div>
+              <Button
+                onClick={onBuyNow}
+                size="lg"
+                className="px-10 py-6 text-lg font-bold bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white rounded-2xl shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02]"
+              >
+                <ShoppingBag className="mr-2 h-5 w-5" />
+                এখনই অর্ডার করুন
+              </Button>
+            </div>
+
+            {/* Trust Badges */}
+            <div className="grid grid-cols-3 gap-4 mt-6">
+              {[
+                { icon: Shield, title: "১০০% গ্যারান্টি" },
+                { icon: Truck, title: "সারাদেশে ডেলিভারি" },
+                { icon: Gift, title: "ক্যাশ অন ডেলিভারি" },
+              ].map((item, idx) => (
+                <div key={idx} className="flex flex-col items-center gap-1 p-3 bg-white/60 backdrop-blur-sm rounded-xl border border-rose-100">
+                  <div className="w-10 h-10 bg-rose-100 rounded-full flex items-center justify-center">
+                    <item.icon className="h-5 w-5 text-rose-600" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700 text-center">{item.title}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
