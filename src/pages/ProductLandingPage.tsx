@@ -304,37 +304,21 @@ GallerySection.displayName = 'GallerySection';
 const VideoSection = memo(({ videoUrl }: { videoUrl?: string }) => {
   if (!videoUrl) return null;
 
-  const containerRef = useRef<HTMLDivElement>(null);
-
   const raw = (videoUrl || "").trim();
-  const iframeHtml = parseIframeHtml(raw);
-
-  // For layout + fallback link text only (rendering is handled by iframeHtml above)
-  const extractIframeInfo = (html: string) => {
+  
+  // Check if it's raw HTML (iframe embed code) - Elementor style: render exactly as-is
+  const isRawHtml = raw.startsWith("<");
+  
+  // Extract aspect ratio info from iframe for proper sizing
+  const extractAspectInfo = (html: string) => {
     const widthMatch = html.match(/width=["']?(\d+)/i);
     const heightMatch = html.match(/height=["']?(\d+)/i);
-    const hrefMatch = html.match(/href=([^&"'\s]+)/i);
-    const srcMatch = html.match(/src\s*=\s*["']([^"']+)["']/i);
-
     const width = widthMatch ? parseInt(widthMatch[1]) : 16;
     const height = heightMatch ? parseInt(heightMatch[1]) : 9;
-
-    let fbUrl = "";
-    if (hrefMatch) {
-      fbUrl = normalizeExternalUrl(decodeURIComponent(hrefMatch[1]));
-    } else if (srcMatch && /facebook\.com|fb\.watch/i.test(srcMatch[1])) {
-      const innerHref = srcMatch[1].match(/href=([^&]+)/i);
-      if (innerHref) fbUrl = normalizeExternalUrl(decodeURIComponent(innerHref[1]));
-    }
-
-    return { aspectRatio: width / height, fbUrl };
+    return { aspectRatio: width / height, isPortrait: height > width };
   };
 
-  const iframeInfo = raw.startsWith("<") ? extractIframeInfo(raw) : null;
-  const isPortrait = Boolean(iframeInfo && iframeInfo.aspectRatio < 1);
-  const fallbackHref = iframeInfo?.fbUrl || "";
-
-  const getEmbedUrlSafe = (url: string) => getEmbedUrl(url);
+  const aspectInfo = isRawHtml ? extractAspectInfo(raw) : { aspectRatio: 16/9, isPortrait: false };
 
   return (
     <section className="py-10 md:py-16 gradient-dark">
@@ -347,17 +331,16 @@ const VideoSection = memo(({ videoUrl }: { videoUrl?: string }) => {
           <h2 className="text-2xl md:text-3xl font-bold text-white">প্রোডাক্ট ভিডিও</h2>
         </div>
 
-        <div className={`max-w-3xl mx-auto ${isPortrait ? "max-w-sm" : ""}`}>
+        <div className={`max-w-3xl mx-auto ${aspectInfo.isPortrait ? "max-w-sm" : ""}`}>
           <div
-            ref={containerRef}
             className="relative rounded-2xl overflow-hidden shadow-2xl bg-gray-900 ring-1 ring-white/10"
-            style={{ aspectRatio: isPortrait ? "9/16" : "16/9" }}
+            style={{ aspectRatio: aspectInfo.isPortrait ? "9/16" : "16/9" }}
           >
-            {iframeHtml ? (
+            {isRawHtml ? (
+              // ELEMENTOR STYLE: Render raw HTML exactly as provided - no sanitization
               <div
-                className="absolute inset-0"
-                // Elementor-like: allow only sanitized iframe HTML
-                dangerouslySetInnerHTML={{ __html: iframeHtml }}
+                className="absolute inset-0 [&>iframe]:!absolute [&>iframe]:!inset-0 [&>iframe]:!w-full [&>iframe]:!h-full [&>iframe]:!border-0"
+                dangerouslySetInnerHTML={{ __html: raw }}
               />
             ) : raw.match(/\.(mp4|webm|ogg)$/i) ? (
               <video
@@ -369,7 +352,7 @@ const VideoSection = memo(({ videoUrl }: { videoUrl?: string }) => {
               />
             ) : (
               <iframe
-                src={getEmbedUrlSafe(raw)}
+                src={getEmbedUrl(raw)}
                 title="Video"
                 allowFullScreen
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -378,20 +361,6 @@ const VideoSection = memo(({ videoUrl }: { videoUrl?: string }) => {
               />
             )}
           </div>
-
-          {fallbackHref && (
-            <div className="text-center mt-4">
-              <a
-                href={fallbackHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-accent hover:text-accent/80 transition-colors text-sm"
-              >
-                <Play className="h-4 w-4" />
-                ভিডিও লোড না হলে এখানে ক্লিক করুন
-              </a>
-            </div>
-          )}
         </div>
       </div>
     </section>
