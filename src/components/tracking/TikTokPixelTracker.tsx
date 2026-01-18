@@ -9,6 +9,11 @@ export function TikTokPixelTracker() {
   const hasTrackedInitial = useRef<boolean>(false);
 
   useEffect(() => {
+    // Skip tracking for admin routes
+    if (location.pathname.startsWith('/admin')) {
+      return;
+    }
+    
     // Track page view when:
     // 1. Pixel is enabled and ready
     // 2. AND either path has changed OR we haven't tracked the initial page yet
