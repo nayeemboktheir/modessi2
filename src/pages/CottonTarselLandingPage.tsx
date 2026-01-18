@@ -306,11 +306,6 @@ const HeroSection = memo(({ products, onBuyNow, selectedProductId, onProductSele
                     ৳{activeProduct?.price?.toLocaleString()}
                   </span>
                 </div>
-                {discount > 0 && (
-                  <p className="text-green-600 font-semibold mt-1 text-sm">
-                    আপনি সেভ করছেন ৳{((activeProduct?.original_price || 0) - (activeProduct?.price || 0)).toLocaleString()}
-                  </p>
-                )}
               </div>
 
               {/* CTA Button - Full Width */}
@@ -358,11 +353,6 @@ const HeroSection = memo(({ products, onBuyNow, selectedProductId, onProductSele
                   ৳{activeProduct?.price?.toLocaleString()}
                 </span>
               </div>
-              {discount > 0 && (
-                <p className="text-green-600 font-semibold mt-2">
-                  আপনি সেভ করছেন ৳{((activeProduct?.original_price || 0) - (activeProduct?.price || 0)).toLocaleString()}
-                </p>
-              )}
             </div>
 
             {/* CTA Button */}
@@ -652,10 +642,15 @@ const CheckoutSection = memo(({ products, onSubmit, isSubmitting, selectedProduc
   const [shippingZone, setShippingZone] = useState<ShippingZone>('outside_dhaka');
   const sizeSelectionRef = useRef<HTMLDivElement>(null);
 
-  // Sync form with selected product from hero
+  // Sync form with selected product from hero - auto select first product if none selected
   useEffect(() => {
-    setForm(prev => ({ ...prev, selectedProductId }));
-  }, [selectedProductId]);
+    if (selectedProductId) {
+      setForm(prev => ({ ...prev, selectedProductId }));
+    } else if (products.length > 0 && !form.selectedProductId) {
+      // Auto-select first product if none is selected
+      setForm(prev => ({ ...prev, selectedProductId: products[0].id }));
+    }
+  }, [selectedProductId, products]);
 
   const selectedProduct = useMemo(
     () => products.find(p => p.id === form.selectedProductId),
