@@ -121,22 +121,15 @@ const UrgencyBanner = memo(() => {
 });
 UrgencyBanner.displayName = 'UrgencyBanner';
 
-// ====== Hero Section with Both Products ======
-const HeroSection = memo(({ products, onBuyNow }: { 
-  products: ProductData[]; onBuyNow: () => void;
+// ====== Hero Section with Image on Top and Color Selector Below ======
+const HeroSection = memo(({ products, onBuyNow, selectedProductId, onProductSelect }: { 
+  products: ProductData[]; 
+  onBuyNow: () => void;
+  selectedProductId: string;
+  onProductSelect: (productId: string) => void;
 }) => {
-  const [activeProductIndex, setActiveProductIndex] = useState(0);
-  const activeProduct = products[activeProductIndex];
+  const activeProduct = products.find(p => p.id === selectedProductId) || products[0];
   const [currentImage, setCurrentImage] = useState(0);
-
-  // Auto-switch between products
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setActiveProductIndex((prev) => (prev + 1) % products.length);
-      setCurrentImage(0);
-    }, 6000);
-    return () => clearInterval(timer);
-  }, [products.length]);
 
   // Auto-slide images for active product
   useEffect(() => {
@@ -145,14 +138,19 @@ const HeroSection = memo(({ products, onBuyNow }: {
       setCurrentImage((prev) => (prev + 1) % activeProduct.images.length);
     }, 3000);
     return () => clearInterval(timer);
-  }, [activeProduct, activeProductIndex]);
+  }, [activeProduct]);
+
+  // Reset image when product changes
+  useEffect(() => {
+    setCurrentImage(0);
+  }, [selectedProductId]);
 
   const discount = activeProduct?.original_price 
     ? Math.round(((activeProduct.original_price - activeProduct.price) / activeProduct.original_price) * 100) 
     : 0;
 
   return (
-    <section className="relative py-10 md:py-16 overflow-hidden bg-gradient-to-br from-rose-50 via-pink-50 to-amber-50">
+    <section className="relative py-8 md:py-12 overflow-hidden bg-gradient-to-br from-rose-50 via-pink-50 to-amber-50">
       {/* Background decorations */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-10 left-10 w-40 h-40 bg-rose-200/30 rounded-full blur-3xl" />
@@ -165,32 +163,29 @@ const HeroSection = memo(({ products, onBuyNow }: {
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8"
+          className="text-center mb-6"
         >
-          <span className="inline-flex items-center gap-2 bg-gradient-to-r from-rose-500 to-pink-500 text-white px-6 py-2 rounded-full text-sm font-bold shadow-lg">
+          <span className="inline-flex items-center gap-2 bg-gradient-to-r from-rose-500 to-pink-500 text-white px-5 py-2 rounded-full text-sm font-bold shadow-lg">
             <Sparkles className="h-4 w-4" />
             নতুন কালেকশন ২০২৬
             <Sparkles className="h-4 w-4" />
           </span>
-          <h1 className="text-3xl md:text-5xl font-bold mt-4 text-gray-900">
+          <h1 className="text-2xl md:text-4xl font-bold mt-3 text-gray-900">
             প্রিমিয়াম কটন টারসেল
           </h1>
-          <p className="text-gray-600 mt-2 text-lg">এমব্রয়ডারি ও টারসেল ডিজাইন • সুতি কাপড়</p>
+          <p className="text-gray-600 mt-1 text-base">এমব্রয়ডারি ও টারসেল ডিজাইন • সুতি কাপড়</p>
         </motion.div>
 
-        {/* Product Selector Tabs */}
-        <div className="flex justify-center gap-4 mb-8">
-          {products.map((product, index) => (
+        {/* Color Selector Tabs - Above Image */}
+        <div id="product-selector" className="flex justify-center gap-3 mb-6">
+          {products.map((product) => (
             <motion.button
               key={product.id}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => {
-                setActiveProductIndex(index);
-                setCurrentImage(0);
-              }}
-              className={`relative px-6 py-3 rounded-2xl font-semibold transition-all ${
-                activeProductIndex === index
+              onClick={() => onProductSelect(product.id)}
+              className={`relative px-5 py-2.5 rounded-full font-semibold transition-all ${
+                selectedProductId === product.id
                   ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-lg scale-105'
                   : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-rose-300'
               }`}
@@ -205,30 +200,23 @@ const HeroSection = memo(({ products, onBuyNow }: {
                 />
                 {product.slug.includes('pink') ? 'লাইট পিংক' : 'ব্লু'}
               </span>
-              {activeProductIndex === index && (
-                <motion.div
-                  layoutId="activeTab"
-                  className="absolute inset-0 bg-gradient-to-r from-rose-500 to-pink-500 rounded-2xl -z-10"
-                />
-              )}
             </motion.button>
           ))}
         </div>
 
-        {/* Main Product Display */}
-        <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center max-w-5xl mx-auto">
-          {/* Image Gallery */}
+        {/* Main Image Display - Centered */}
+        <div className="max-w-md mx-auto">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeProduct?.id}
-              initial={{ opacity: 0, x: -30 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 30 }}
-              transition={{ duration: 0.4 }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.3 }}
               className="relative"
             >
               {discount > 0 && (
-                <Badge className="absolute top-4 left-4 z-20 bg-red-500 text-white text-base px-4 py-2 font-bold shadow-lg">
+                <Badge className="absolute top-4 left-4 z-20 bg-red-500 text-white text-sm px-3 py-1.5 font-bold shadow-lg">
                   -{discount}% ছাড়
                 </Badge>
               )}
@@ -272,12 +260,12 @@ const HeroSection = memo(({ products, onBuyNow }: {
 
               {/* Thumbnails */}
               {activeProduct?.images && activeProduct.images.length > 1 && (
-                <div className="flex gap-3 mt-4 justify-center">
-                  {activeProduct.images.slice(0, 5).map((img, idx) => (
+                <div className="flex gap-2 mt-4 justify-center">
+                  {activeProduct.images.slice(0, 6).map((img, idx) => (
                     <button
                       key={idx}
                       onClick={() => setCurrentImage(idx)}
-                      className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-all ${
+                      className={`w-14 h-14 rounded-xl overflow-hidden border-2 transition-all ${
                         idx === currentImage 
                           ? "border-rose-500 scale-110 shadow-lg" 
                           : "border-gray-200 opacity-60 hover:opacity-100"
@@ -290,73 +278,18 @@ const HeroSection = memo(({ products, onBuyNow }: {
               )}
             </motion.div>
           </AnimatePresence>
+        </div>
 
-          {/* Product Info */}
-          <motion.div 
-            initial={{ opacity: 0, x: 30 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="text-center md:text-left space-y-5"
+        {/* CTA Button */}
+        <div className="text-center mt-6">
+          <Button
+            onClick={onBuyNow}
+            size="lg"
+            className="px-10 py-6 text-lg font-bold bg-gradient-to-r from-rose-500 to-pink-500 hover:from-pink-500 hover:to-rose-500 text-white rounded-2xl shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02]"
           >
-            <div>
-              <h2 className="text-2xl md:text-4xl font-bold text-gray-900 leading-tight">
-                {activeProduct?.name}
-              </h2>
-              {activeProduct?.short_description && (
-                <p className="text-gray-600 mt-2 text-lg">{activeProduct.short_description}</p>
-              )}
-            </div>
-
-            {/* Price */}
-            <div className="flex items-baseline gap-4 flex-wrap py-4 px-6 bg-white/80 backdrop-blur-sm rounded-2xl border border-rose-100 shadow-sm justify-center md:justify-start">
-              <span className="text-4xl md:text-5xl font-bold text-rose-600">
-                ৳{activeProduct?.price.toLocaleString()}
-              </span>
-              {activeProduct?.original_price && activeProduct.original_price > activeProduct.price && (
-                <span className="text-xl text-gray-400 line-through">
-                  ৳{activeProduct.original_price.toLocaleString()}
-                </span>
-              )}
-            </div>
-
-            {/* Features */}
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { icon: Check, text: 'প্রিমিয়াম কটন', color: 'text-green-500' },
-                { icon: Sparkles, text: 'এমব্রয়ডারি ওয়ার্ক', color: 'text-purple-500' },
-                { icon: Heart, text: 'কমফোর্টেবল ফিট', color: 'text-rose-500' },
-                { icon: Star, text: 'টারসেল ডিজাইন', color: 'text-amber-500' },
-              ].map((item, idx) => (
-                <div key={idx} className="flex items-center gap-2 bg-white/60 p-3 rounded-xl">
-                  <item.icon className={`h-5 w-5 ${item.color}`} />
-                  <span className="text-sm font-medium text-gray-700">{item.text}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* CTA */}
-            <Button
-              onClick={onBuyNow}
-              size="lg"
-              className="w-full md:w-auto px-12 py-7 text-xl font-bold bg-gradient-to-r from-rose-500 to-pink-500 hover:from-pink-500 hover:to-rose-500 text-white rounded-2xl shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02]"
-            >
-              <ShoppingBag className="mr-2 h-6 w-6" />
-              এখনই অর্ডার করুন
-            </Button>
-
-            {/* Trust Badges */}
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { icon: Shield, text: "১০০% গ্যারান্টি", color: "bg-green-100 text-green-600" },
-                { icon: Truck, text: "ফ্রি ডেলিভারি*", color: "bg-blue-100 text-blue-600" },
-                { icon: Gift, text: "ক্যাশ অন ডেলিভারি", color: "bg-purple-100 text-purple-600" },
-              ].map((item, idx) => (
-                <div key={idx} className={`text-center p-3 rounded-xl ${item.color}`}>
-                  <item.icon className="h-5 w-5 mx-auto mb-1" />
-                  <span className="text-xs font-medium">{item.text}</span>
-                </div>
-              ))}
-            </div>
-          </motion.div>
+            <ShoppingBag className="mr-2 h-5 w-5" />
+            এখনই অর্ডার করুন
+          </Button>
         </div>
       </div>
     </section>
@@ -464,20 +397,28 @@ const DeliverySection = memo(() => (
 DeliverySection.displayName = 'DeliverySection';
 
 // ====== Checkout Section ======
-const CheckoutSection = memo(({ products, onSubmit, isSubmitting }: { 
-  products: ProductData[]; onSubmit: (form: OrderForm) => void; isSubmitting: boolean;
+const CheckoutSection = memo(({ products, onSubmit, isSubmitting, selectedProductId, onProductSelect }: { 
+  products: ProductData[]; 
+  onSubmit: (form: OrderForm) => void; 
+  isSubmitting: boolean;
+  selectedProductId: string;
+  onProductSelect: (productId: string) => void;
 }) => {
   const [form, setForm] = useState<OrderForm>({
     name: "", phone: "", address: "", quantity: 1, 
-    selectedProductId: products[0]?.id || "",
+    selectedProductId: "",
     selectedVariationId: "",
   });
   const [shippingZone, setShippingZone] = useState<ShippingZone>('outside_dhaka');
-  const productSelectionRef = useRef<HTMLDivElement>(null);
   const sizeSelectionRef = useRef<HTMLDivElement>(null);
 
+  // Sync form with selected product from hero
+  useEffect(() => {
+    setForm(prev => ({ ...prev, selectedProductId }));
+  }, [selectedProductId]);
+
   const selectedProduct = useMemo(
-    () => products.find(p => p.id === form.selectedProductId) || products[0],
+    () => products.find(p => p.id === form.selectedProductId),
     [products, form.selectedProductId]
   );
 
@@ -513,8 +454,8 @@ const CheckoutSection = memo(({ products, onSubmit, isSubmitting }: {
     e.preventDefault();
     
     if (!form.selectedProductId) {
-      toast.error("কালার সিলেক্ট করুন");
-      productSelectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      toast.error("প্রোডাক্ট সিলেক্ট করুন");
+      document.getElementById("product-selector")?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
     
@@ -551,20 +492,26 @@ const CheckoutSection = memo(({ products, onSubmit, isSubmitting }: {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Product Selection */}
-            <div ref={productSelectionRef} className="bg-white rounded-xl shadow-lg overflow-hidden border">
+            {/* Product Selection with visual indicator */}
+            <div className={`bg-white rounded-xl shadow-lg overflow-hidden border-2 ${!form.selectedProductId ? 'border-rose-300' : 'border-transparent'}`}>
               <div className="bg-gradient-to-r from-rose-500 to-pink-500 text-white py-3 px-4 font-bold flex items-center gap-2">
                 <Heart className="h-4 w-4" />
-                কালার সিলেক্ট করুন
+                কালার সিলেক্ট করুন {!form.selectedProductId && <span className="text-yellow-200">*</span>}
               </div>
               
               <div className="p-4">
+                {!form.selectedProductId && (
+                  <p className="text-sm text-rose-500 mb-3 font-medium">👆 উপরে থেকে অথবা এখান থেকে কালার সিলেক্ট করুন</p>
+                )}
                 <div className="grid grid-cols-2 gap-3">
                   {products.map((product) => (
                     <button
                       key={product.id}
                       type="button"
-                      onClick={() => updateForm('selectedProductId', product.id)}
+                      onClick={() => {
+                        updateForm('selectedProductId', product.id);
+                        onProductSelect(product.id);
+                      }}
                       className={`relative p-3 rounded-xl border-2 transition-all ${
                         form.selectedProductId === product.id
                           ? 'border-rose-500 bg-rose-50 shadow-md'
@@ -756,6 +703,7 @@ const CottonTarselLandingPage = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showFloatingCta, setShowFloatingCta] = useState(true);
+  const [selectedProductId, setSelectedProductId] = useState("");
   const checkoutRef = useRef<HTMLDivElement>(null);
 
   // Hide floating CTA when checkout section is visible
@@ -808,8 +756,14 @@ const CottonTarselLandingPage = () => {
   });
 
   const scrollToCheckout = useCallback(() => {
+    // If no product selected, scroll to product selector first
+    if (!selectedProductId) {
+      toast.error("প্রোডাক্ট সিলেক্ট করুন");
+      document.getElementById("product-selector")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
     document.getElementById("checkout")?.scrollIntoView({ behavior: "smooth" });
-  }, []);
+  }, [selectedProductId]);
 
   const handleOrderSubmit = async (form: OrderForm) => {
     const selectedProduct = products?.find(p => p.id === form.selectedProductId);
@@ -891,12 +845,23 @@ const CottonTarselLandingPage = () => {
   return (
     <div className="min-h-screen bg-white">
       <UrgencyBanner />
-      <HeroSection products={products} onBuyNow={scrollToCheckout} />
+      <HeroSection 
+        products={products} 
+        onBuyNow={scrollToCheckout} 
+        selectedProductId={selectedProductId}
+        onProductSelect={setSelectedProductId}
+      />
       <FeaturesBanner />
       <ProductsGallery products={products} />
       <DeliverySection />
       <div ref={checkoutRef}>
-        <CheckoutSection products={products} onSubmit={handleOrderSubmit} isSubmitting={isSubmitting} />
+        <CheckoutSection 
+          products={products} 
+          onSubmit={handleOrderSubmit} 
+          isSubmitting={isSubmitting}
+          selectedProductId={selectedProductId}
+          onProductSelect={setSelectedProductId}
+        />
       </div>
       
       {/* Floating CTA */}
