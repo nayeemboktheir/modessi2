@@ -17,6 +17,8 @@ interface CustomData {
   value?: number;
   content_ids?: string[];
   content_type?: string;
+  content_name?: string;
+  contents?: Array<{ id: string; quantity: number; item_price?: number }>;
   num_items?: number;
   order_id?: string;
 }
@@ -388,6 +390,7 @@ export const useServerTracking = () => {
     numItems: number;
     currency?: string;
     userData?: UserData;
+    eventId?: string; // For deduplication with browser pixel
   }) => {
     return trackServerEvent({
       eventName: 'InitiateCheckout',
@@ -399,6 +402,7 @@ export const useServerTracking = () => {
         num_items: params.numItems,
         currency: params.currency || 'BDT',
       },
+      eventId: params.eventId,
     });
   }, [trackServerEvent]);
   
@@ -429,6 +433,8 @@ export const useServerTracking = () => {
   const trackPurchase = useCallback(async (params: {
     orderId: string;
     contentIds: string[];
+    contentNames?: string[];
+    contents?: Array<{ id: string; quantity: number; item_price?: number }>;
     value: number;
     numItems: number;
     currency?: string;
@@ -442,6 +448,8 @@ export const useServerTracking = () => {
         order_id: params.orderId,
         content_ids: params.contentIds,
         content_type: 'product',
+        content_name: params.contentNames?.join(', ') || undefined,
+        contents: params.contents,
         value: params.value,
         num_items: params.numItems,
         currency: params.currency || 'BDT',

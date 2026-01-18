@@ -33,6 +33,7 @@ interface ConversionEvent {
     content_ids?: string[];
     content_type?: string;
     content_name?: string;
+    contents?: Array<{ id: string; quantity: number; item_price?: number }>;
     num_items?: number;
     order_id?: string;
   };
@@ -59,6 +60,7 @@ interface RequestBody {
     content_ids?: string[];
     content_type?: string;
     content_name?: string;
+    contents?: Array<{ id: string; quantity: number; item_price?: number }>;
     num_items?: number;
     order_id?: string;
   };
@@ -263,8 +265,19 @@ serve(async (req) => {
       user_data: userData,
     };
 
+    // Build custom data with proper formatting for Facebook
     if (body.custom_data) {
-      event.custom_data = body.custom_data;
+      event.custom_data = {
+        ...body.custom_data,
+      };
+      
+      // If we have content_ids but no contents array, build contents for better matching
+      if (body.custom_data.content_ids && body.custom_data.content_ids.length > 0 && !body.custom_data.contents) {
+        event.custom_data.contents = body.custom_data.content_ids.map(id => ({
+          id,
+          quantity: 1,
+        }));
+      }
     }
     
     console.log("Event match parameters:", {

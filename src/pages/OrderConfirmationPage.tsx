@@ -88,6 +88,14 @@ const OrderConfirmationPage = () => {
     purchaseEventIdRef.current = eventId;
 
     const contentIds = items.map((item) => item.productId);
+    const contentNames = items.map((item) => item.productName);
+    
+    // Build contents array with quantity and price for better event matching
+    const contents = items.map((item) => ({
+      id: item.productId,
+      quantity: item.quantity,
+      item_price: item.price,
+    }));
 
     const nameParts = (customerName || '').trim().split(' ');
     const firstName = nameParts[0] || '';
@@ -96,6 +104,8 @@ const OrderConfirmationPage = () => {
     trackServerPurchase({
       orderId: orderNumber,
       contentIds: contentIds.length > 0 ? contentIds : [orderNumber],
+      contentNames: contentNames.length > 0 ? contentNames : undefined,
+      contents: contents.length > 0 ? contents : undefined,
       value: total,
       numItems: numItems || 1,
       currency: 'BDT',
@@ -110,7 +120,7 @@ const OrderConfirmationPage = () => {
     }).catch((err) => {
       console.error('[CAPI] Purchase tracking error:', err);
     });
-  }, [orderNumber, total, items, numItems, customerName, phone, trackServerPurchase]);
+  }, [orderNumber, total, items, numItems, customerName, phone, city, district, trackServerPurchase]);
 
   // 3) Send BROWSER Purchase as soon as Pixel is ready (no missing/slow init)
   useEffect(() => {

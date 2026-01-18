@@ -38,7 +38,7 @@ const CheckoutPage = () => {
   const dispatch = useAppDispatch();
   const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
-  const { trackInitiateCheckout, isReady, setUserData } = useFacebookPixel();
+  const { isReady, setUserData } = useFacebookPixel();
   const { trackInitiateCheckout: trackServerCheckout } = useServerTracking();
   
   const cartItems = useAppSelector(selectCartItems);
@@ -160,28 +160,34 @@ const CheckoutPage = () => {
     }
   }, [cartItems, authLoading, navigate]);
 
-  // Track InitiateCheckout event once (both client and server side)
+  // Track InitiateCheckout event once (both client and server side with same event ID)
   useEffect(() => {
     if (isReady && cartItems.length > 0 && !hasTrackedCheckout.current) {
-      console.log('Firing InitiateCheckout event (client + server)');
+      console.log('Firing InitiateCheckout event (client + server) with shared event_id');
       
       const contentIds = cartItems.map(item => item.product.id);
       const numItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
       
-      // Client-side tracking
-      trackInitiateCheckout({
-        content_ids: contentIds,
-        num_items: numItems,
-        value: cartTotal,
-        currency: 'BDT',
-      });
+      // Generate shared event ID for deduplication
+      const eventId = `InitiateCheckout_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       
-      // Server-side tracking via CAPI
+      // Client-side tracking with event ID
+      if (window.fbq) {
+        window.fbq('track', 'InitiateCheckout', {
+          content_ids: contentIds,
+          num_items: numItems,
+          value: cartTotal,
+          currency: 'BDT',
+        }, { eventID: eventId });
+      }
+      
+      // Server-side tracking via CAPI with same event ID
       trackServerCheckout({
         contentIds,
         value: cartTotal,
         numItems,
         currency: 'BDT',
+        eventId, // Pass the same event ID for deduplication
       }).then(result => {
         console.log('[CAPI] InitiateCheckout result:', result);
       }).catch(err => {
@@ -190,7 +196,7 @@ const CheckoutPage = () => {
       
       hasTrackedCheckout.current = true;
     }
-  }, [isReady, cartItems, cartTotal, trackInitiateCheckout, trackServerCheckout]);
+  }, [isReady, cartItems, cartTotal, trackServerCheckout]);
 
   // Save draft order when form changes
   const saveDraftOrder = useCallback(async () => {
