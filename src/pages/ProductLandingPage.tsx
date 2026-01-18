@@ -342,22 +342,35 @@ const VideoSection = memo(({ videoUrl }: { videoUrl?: string }) => {
       .replace(/height=["']?\d+["']?/gi, 'height="100%"');
 
     // NOTE: Facebook embeds often break when sandboxed, so we deliberately strip sandbox.
-    modified = modified.replace(/\s+sandbox=["'][^"']*["']/gi, '');
+    modified = modified.replace(/\s+sandbox=["'][^"']*["']/gi, "");
 
     // Ensure common embed permissions exist
     if (!/\s+allow=/.test(modified)) {
       modified = modified.replace(
-        '<iframe',
+        "<iframe",
         '<iframe allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"'
       );
     }
 
-    if (!/\s+allowfullscreen/i.test(modified)) {
-      modified = modified.replace('<iframe', '<iframe allowfullscreen');
+    // Ensure scrolling + frameborder match Facebook/Elementor embeds (less strict)
+    if (!/\s+scrolling=/i.test(modified)) {
+      modified = modified.replace("<iframe", '<iframe scrolling="no"');
+    }
+    if (!/\s+frameborder=/i.test(modified)) {
+      modified = modified.replace("<iframe", '<iframe frameborder="0"');
     }
 
-    if (!/\s+referrerpolicy=/.test(modified)) {
-      modified = modified.replace('<iframe', '<iframe referrerpolicy="no-referrer-when-downgrade"');
+    if (!/\s+allowfullscreen/i.test(modified)) {
+      modified = modified.replace("<iframe", '<iframe allowfullscreen="true"');
+    }
+
+    // IMPORTANT: don't force referrerpolicy for Facebook plugin embeds (can trigger login interstitial)
+    const isFacebookPlugin = /facebook\.com\/plugins\/video\.php/i.test(modified);
+    if (!isFacebookPlugin && !/\s+referrerpolicy=/i.test(modified)) {
+      modified = modified.replace(
+        "<iframe",
+        '<iframe referrerpolicy="no-referrer-when-downgrade"'
+      );
     }
 
     return modified;
