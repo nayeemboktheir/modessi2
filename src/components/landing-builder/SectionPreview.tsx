@@ -521,10 +521,12 @@ export const SectionPreview = ({ section, theme }: SectionPreviewProps) => {
             {settings.title && (
               <h2 className="text-2xl font-bold text-center mb-6" style={{ color: settings.textColor }}>{settings.title}</h2>
             )}
-            <div 
-              className="w-full rounded-lg shadow-lg overflow-hidden"
-              dangerouslySetInnerHTML={{ __html: iframeHtml }}
-            />
+            <div className="aspect-video relative w-full rounded-lg shadow-lg overflow-hidden">
+              <div
+                className="absolute inset-0"
+                dangerouslySetInnerHTML={{ __html: iframeHtml }}
+              />
+            </div>
           </div>
         </section>
       );

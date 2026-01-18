@@ -209,10 +209,12 @@ export const WidgetPreview = ({ widget, theme }: WidgetPreviewProps) => {
       const iframeHtml = parseIframeHtml(url);
       if (iframeHtml) {
         return (
-          <div 
-            className="w-full rounded-lg overflow-hidden"
-            dangerouslySetInnerHTML={{ __html: iframeHtml }}
-          />
+          <div className="aspect-video relative w-full rounded-lg overflow-hidden">
+            <div
+              className="absolute inset-0"
+              dangerouslySetInnerHTML={{ __html: iframeHtml }}
+            />
+          </div>
         );
       }
 

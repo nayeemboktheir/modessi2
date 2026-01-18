@@ -8,11 +8,14 @@ export const parseIframeHtml = (input: string): string | null => {
   const raw = (input || "").trim();
   if (!raw) return null;
 
-  // Check if it starts with an iframe tag
-  if (!/^<iframe\s/i.test(raw)) return null;
+  // Elementor (and others) may wrap the iframe in a div. If we can find an iframe tag anywhere, extract it.
+  const iframeMatch = raw.match(/<iframe\b[\s\S]*?<\/iframe>/i);
+  if (!iframeMatch) return null;
+
+  const iframeHtml = iframeMatch[0];
 
   // Extract src from the iframe
-  const srcMatch = raw.match(/src\s*=\s*["']([^"']+)["']/i);
+  const srcMatch = iframeHtml.match(/src\s*=\s*["']([^"']+)["']/i);
   if (!srcMatch) return null;
 
   const src = srcMatch[1];
@@ -37,8 +40,8 @@ export const parseIframeHtml = (input: string): string | null => {
     return null;
   }
 
-  // Return a cleaned iframe with essential attributes
-  return `<iframe src="${src}" style="width:100%;height:500px;border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`;
+  // Return a responsive iframe (Elementor-like)
+  return `<iframe src="${src}" style="position:absolute;inset:0;width:100%;height:100%;border:0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="origin-when-cross-origin"></iframe>`;
 };
 
 export const normalizeExternalUrl = (input: string): string => {
