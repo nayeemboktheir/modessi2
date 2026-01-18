@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import heroSlide1 from '@/assets/hero-slide-1.jpg';
 import heroSlide2 from '@/assets/hero-slide-2.jpg';
 import heroSlide3 from '@/assets/hero-slide-3.jpg';
+import defaultLogo from '@/assets/site-logo.png';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ShoppingBag, Heart, User, LayoutDashboard, ChevronRight, ChevronLeft,
@@ -67,9 +69,35 @@ export default function FashionHomePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  
+
   const cartCount = useAppSelector(selectCartCount);
   const wishlistItems = useAppSelector(selectWishlistItems);
+
+  // Site header settings (logo + name)
+  const { data: headerSettings } = useQuery({
+    queryKey: ['header-settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('admin_settings')
+        .select('key, value')
+        .in('key', ['site_name', 'site_logo', 'shop_logo_url']);
+
+      if (error) throw error;
+
+      const settingsMap: Record<string, string> = {};
+      data?.forEach(item => {
+        settingsMap[item.key] = item.value;
+      });
+
+      return settingsMap;
+    },
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+  });
+
+  const siteName = headerSettings?.site_name || 'Modessi';
+  const siteLogo = headerSettings?.site_logo || headerSettings?.shop_logo_url || defaultLogo;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -374,12 +402,22 @@ export default function FashionHomePage() {
 
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <span className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
-                এলিগ্যান্স
-              </span>
+              <img
+                src={siteLogo}
+                alt={siteName}
+                className="h-10 w-auto object-contain"
+                loading="eager"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  if (target.src !== defaultLogo) target.src = defaultLogo;
+                }}
+              />
+              {/* Only show text if logo is missing */}
+              {!siteLogo && (
+                <span className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
+                  {siteName}
+                </span>
+              )}
             </Link>
 
             {/* Search Bar - Desktop */}

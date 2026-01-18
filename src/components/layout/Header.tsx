@@ -42,17 +42,20 @@ const Header = () => {
         .from('admin_settings')
         .select('key, value')
         .in('key', ['site_name', 'site_logo', 'shop_logo_url']);
-      
+
       if (error) throw error;
-      
+
       const settingsMap: Record<string, string> = {};
       data?.forEach(item => {
         settingsMap[item.key] = item.value;
       });
-      
+
       return settingsMap;
     },
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    // Don't keep stale for minutes — we want header to reflect admin changes quickly
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 
   const siteName = headerSettings?.site_name || 'খেজুর বাজার';
@@ -88,22 +91,25 @@ const Header = () => {
         <div className="flex items-center justify-between gap-4">
           {/* Logo */}
           <Link to="/" className="flex-shrink-0">
-            {siteLogo ? (
-              <img 
-                src={siteLogo} 
-                alt={siteName || 'Site Logo'} 
-                className="h-10 w-auto object-contain"
-                onError={(e) => {
-                  // Fallback to default logo if URL fails
-                  const target = e.target as HTMLImageElement;
-                  if (target.src !== defaultLogo) {
-                    target.src = defaultLogo;
-                  }
-                }}
-              />
-            ) : (
-              <span className="text-xl font-bold text-primary">{siteName}</span>
-            )}
+            <div className="flex items-center gap-2">
+              {siteLogo ? (
+                <img
+                  src={siteLogo}
+                  alt={siteName || 'Site Logo'}
+                  className="h-10 w-auto object-contain"
+                  onError={(e) => {
+                    // Fallback to default logo if URL fails
+                    const target = e.target as HTMLImageElement;
+                    if (target.src !== defaultLogo) {
+                      target.src = defaultLogo;
+                    }
+                  }}
+                />
+              ) : null}
+              <span className="text-base md:text-lg font-semibold text-foreground leading-none">
+                {siteName}
+              </span>
+            </div>
           </Link>
 
           {/* Search Bar - Desktop */}
