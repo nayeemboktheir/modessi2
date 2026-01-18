@@ -176,16 +176,16 @@ const HeroSection = memo(({ products, onBuyNow, selectedProductId, onProductSele
                 animate={{ opacity: 1, y: 0 }}
                 className="mb-3"
               >
-                <span className="inline-flex items-center gap-2 bg-gradient-to-r from-rose-500 to-pink-500 text-white px-5 py-2 rounded-full text-sm font-bold shadow-lg">
-                  <Flame className="h-4 w-4" />
+                <span className="inline-flex items-center gap-2 bg-gradient-to-r from-rose-500 to-pink-500 text-white px-6 py-2.5 rounded-full text-base font-bold shadow-lg">
+                  <Flame className="h-5 w-5" />
                   হট সেলিং প্রোডাক্ট
                 </span>
               </motion.div>
 
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
+              <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
                 প্রিমিয়াম কটন টারসেল
               </h1>
-              <p className="text-gray-600 text-sm sm:text-base">
+              <p className="text-gray-600 text-base sm:text-lg">
                 টারসেল ডিজাইন, প্রিমিয়াম ফেব্রিক্স
               </p>
             </div>
@@ -302,7 +302,7 @@ const HeroSection = memo(({ products, onBuyNow, selectedProductId, onProductSele
                   </span>
                 )}
                 <span className="text-rose-600 font-bold text-4xl sm:text-5xl">
-                  ৳{activeProduct?.price?.toLocaleString()}
+                  ৳{activeProduct?.price?.toLocaleString()} টাকা
                 </span>
               </div>
             </div>
