@@ -1006,14 +1006,9 @@ const CottonTarselLandingPage = () => {
   });
 
   const scrollToCheckout = useCallback(() => {
-    // If no product selected, scroll to product selector first
-    if (!selectedProductId) {
-      toast.error("প্রোডাক্ট সিলেক্ট করুন");
-      document.getElementById("product-selector")?.scrollIntoView({ behavior: "smooth", block: "center" });
-      return;
-    }
-    document.getElementById("checkout")?.scrollIntoView({ behavior: "smooth" });
-  }, [selectedProductId]);
+    // Always go to checkout. Product selection will happen inside checkout.
+    document.getElementById("checkout")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
 
   const handleOrderSubmit = async (form: OrderForm) => {
     const selectedProduct = products?.find(p => p.id === form.selectedProductId);
