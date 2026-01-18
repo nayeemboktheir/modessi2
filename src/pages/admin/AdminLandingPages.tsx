@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Plus, Edit, Trash2, Eye, EyeOff, ExternalLink, Copy, Package, TrendingUp, ShoppingCart, Pencil, Search, CalendarIcon, X } from "lucide-react";
+import { Plus, Edit, Trash2, Eye, EyeOff, ExternalLink, Copy, Package, TrendingUp, ShoppingCart, Pencil, Search, CalendarIcon, X, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -472,6 +472,89 @@ const AdminLandingPages = () => {
               </TableBody>
             </Table>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Special Collection Landing Pages */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-rose-500" />
+            Special Collection Pages
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Custom landing pages for product collections
+          </p>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Collection Name</TableHead>
+                <TableHead>URL</TableHead>
+                <TableHead>Products</TableHead>
+                <TableHead>Sales</TableHead>
+                <TableHead>Revenue</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {/* Cotton Tarsel Collection */}
+              {(() => {
+                const collectionSlug = 'cotton-tarsel-collection';
+                const stats = salesBySlug[collectionSlug] || { orders: 0, revenue: 0 };
+                return (
+                  <TableRow>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-rose-100 to-pink-100 flex items-center justify-center">
+                          <Sparkles className="h-5 w-5 text-rose-500" />
+                        </div>
+                        <div>
+                          <p className="font-medium">Cotton Tarsel Collection</p>
+                          <p className="text-xs text-muted-foreground">Light Pink & Blue variants</p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <code className="text-sm bg-muted px-2 py-1 rounded">/cotton-tarsel</code>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">2 products</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="font-mono">
+                        {stats.orders} orders
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-semibold text-green-600">
+                        ৳{stats.revenue.toLocaleString()}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          asChild
+                          title="View page"
+                        >
+                          <a
+                            href="/cotton-tarsel"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })()}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 
