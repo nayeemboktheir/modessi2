@@ -402,7 +402,58 @@ const DeliverySection = memo(() => (
 ));
 DeliverySection.displayName = 'DeliverySection';
 
-// ====== Video Section ======
+// ====== Product Description Section ======
+const ProductDescriptionSection = memo(({ products }: { products: ProductData[] }) => {
+  // Combine descriptions from both products or use the first one with description
+  const product = products.find(p => p.long_description || p.description);
+  const description = product?.long_description || product?.description;
+  
+  if (!description || !description.trim()) return null;
+  
+  const lines = description.split('\n').filter(line => line.trim());
+  
+  return (
+    <section className="py-10 md:py-14 bg-gradient-to-b from-white to-gray-50">
+      <div className="container mx-auto px-4">
+        <div className="max-w-3xl mx-auto">
+          <div className="text-center mb-8">
+            <span className="inline-flex items-center gap-2 bg-rose-100 text-rose-600 px-4 py-1.5 rounded-full text-sm font-medium mb-3">
+              📋 বিস্তারিত
+            </span>
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-900">প্রোডাক্ট বিবরণ</h2>
+          </div>
+          
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+            <div className="bg-gradient-to-r from-rose-500 to-pink-500 p-4">
+              <h3 className="text-lg font-bold text-white">এই প্রোডাক্টের বৈশিষ্ট্য</h3>
+            </div>
+            
+            <div className="p-6">
+              <ul className="space-y-3">
+                {lines.map((line, idx) => {
+                  const cleanLine = line.replace(/^[-•*]\s*/, '').trim();
+                  if (!cleanLine) return null;
+                  
+                  return (
+                    <li key={idx} className="flex items-start gap-3">
+                      <span className="flex-shrink-0 w-6 h-6 bg-rose-100 rounded-full flex items-center justify-center mt-0.5">
+                        <Check className="h-4 w-4 text-rose-600" />
+                      </span>
+                      <span className="text-gray-700 leading-relaxed">{cleanLine}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+});
+ProductDescriptionSection.displayName = 'ProductDescriptionSection';
+
+// ====== Video Section (Compact) ======
 const VideoSection = memo(({ videoUrl }: { videoUrl?: string }) => {
   if (!videoUrl) return null;
 
@@ -411,32 +462,32 @@ const VideoSection = memo(({ videoUrl }: { videoUrl?: string }) => {
   // Check if it's raw HTML (iframe embed code)
   const isRawHtml = raw.startsWith("<");
   
-  // Extract aspect ratio info from iframe for proper sizing
-  const extractAspectInfo = (html: string) => {
-    const widthMatch = html.match(/width=["']?(\d+)/i);
-    const heightMatch = html.match(/height=["']?(\d+)/i);
-    const width = widthMatch ? parseInt(widthMatch[1]) : 16;
-    const height = heightMatch ? parseInt(heightMatch[1]) : 9;
-    return { aspectRatio: width / height, isPortrait: height > width };
+  // For Facebook embeds, we modify the URL to prevent redirect and keep it inline
+  const getInlineEmbedUrl = (url: string) => {
+    const embedUrl = getEmbedUrl(url);
+    // Add parameters to keep video inline and prevent expansion
+    if (embedUrl.includes("facebook.com/plugins/video.php")) {
+      const separator = embedUrl.includes("?") ? "&" : "?";
+      return `${embedUrl}${separator}show_text=false&lazy=true&autoplay=false`;
+    }
+    return embedUrl;
   };
 
-  const aspectInfo = isRawHtml ? extractAspectInfo(raw) : { aspectRatio: 16/9, isPortrait: false };
-
   return (
-    <section className="py-10 md:py-16 bg-gradient-to-b from-gray-800 to-gray-900">
+    <section className="py-8 md:py-10 bg-gray-100">
       <div className="container mx-auto px-4">
-        <div className="text-center mb-8">
-          <span className="inline-flex items-center gap-2 bg-rose-500/20 text-rose-300 px-4 py-1.5 rounded-full text-sm font-medium mb-3">
+        <div className="text-center mb-4">
+          <span className="inline-flex items-center gap-2 bg-rose-500 text-white px-4 py-1.5 rounded-full text-sm font-medium">
             <Play className="h-4 w-4" />
             ভিডিও দেখুন
           </span>
-          <h2 className="text-2xl md:text-3xl font-bold text-white">প্রোডাক্ট ভিডিও</h2>
         </div>
 
-        <div className={`max-w-3xl mx-auto ${aspectInfo.isPortrait ? "max-w-sm" : ""}`}>
+        {/* Compact video container - max width limited */}
+        <div className="max-w-xs mx-auto">
           <div
-            className="relative rounded-2xl overflow-hidden shadow-2xl bg-gray-900 ring-1 ring-white/10"
-            style={{ aspectRatio: aspectInfo.isPortrait ? "9/16" : "16/9" }}
+            className="relative rounded-xl overflow-hidden shadow-lg bg-gray-900"
+            style={{ aspectRatio: "9/16" }}
           >
             {isRawHtml ? (
               <div
@@ -447,18 +498,19 @@ const VideoSection = memo(({ videoUrl }: { videoUrl?: string }) => {
               <video
                 src={raw}
                 controls
-                className="absolute inset-0 w-full h-full object-contain"
+                className="absolute inset-0 w-full h-full object-cover"
                 preload="metadata"
                 playsInline
               />
             ) : (
               <iframe
-                src={getEmbedUrl(raw)}
+                src={getInlineEmbedUrl(raw)}
                 title="Video"
-                allowFullScreen
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen={false}
+                allow="autoplay; clipboard-write; encrypted-media; picture-in-picture"
                 referrerPolicy="no-referrer-when-downgrade"
-                className="absolute inset-0 w-full h-full border-0"
+                className="absolute inset-0 w-full h-full border-0 pointer-events-auto"
+                scrolling="no"
               />
             )}
           </div>
@@ -953,6 +1005,7 @@ const CottonTarselLandingPage = () => {
       />
       <FeaturesBanner />
       <ProductsGallery products={products} />
+      <ProductDescriptionSection products={products} />
       <VideoSection videoUrl={videoUrl} />
       <DeliverySection />
       <div ref={checkoutRef}>
