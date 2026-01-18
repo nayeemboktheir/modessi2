@@ -156,7 +156,7 @@ const HeroSection = memo(({ products, onBuyNow, selectedProductId, onProductSele
     : 0;
 
   return (
-    <section className="relative py-8 md:py-12 overflow-hidden bg-gradient-to-br from-rose-50 via-pink-50 to-amber-50">
+    <section className="relative py-6 sm:py-8 md:py-12 overflow-hidden bg-gradient-to-br from-rose-50 via-pink-50 to-amber-50">
       {/* Background decorations */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-10 left-10 w-40 h-40 bg-rose-200/30 rounded-full blur-3xl" />
@@ -164,7 +164,7 @@ const HeroSection = memo(({ products, onBuyNow, selectedProductId, onProductSele
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-amber-100/20 rounded-full blur-3xl" />
       </div>
 
-      <div className="container mx-auto px-4 relative z-10">
+      <div className="container mx-auto px-4 relative z-10 max-w-6xl">
         {/* Header Badge */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
@@ -210,8 +210,8 @@ const HeroSection = memo(({ products, onBuyNow, selectedProductId, onProductSele
           ))}
         </div>
 
-        {/* Main Image Display - Centered */}
-        <div className="max-w-md mx-auto">
+        {/* Main Image Display - Centered with responsive max-width */}
+        <div className="max-w-sm sm:max-w-md lg:max-w-lg mx-auto">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeProduct?.id}
@@ -339,35 +339,53 @@ const ProductsGallery = memo(({ products }: { products: ProductData[] }) => {
           <p className="text-gray-600 mt-2">আপনার পছন্দের কালার বেছে নিন</p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-          {products.map((product) => (
-            <motion.div
-              key={product.id}
-              whileHover={{ y: -5 }}
-              className="bg-gradient-to-br from-rose-50 to-pink-50 rounded-3xl p-6 shadow-lg border border-rose-100"
-            >
-              <div className="aspect-square rounded-2xl overflow-hidden mb-4 shadow-md">
-                <OptimizedImage 
-                  src={product.images?.[0] || ''} 
-                  alt={product.name} 
-                  className="w-full h-full"
-                />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 text-center">{product.name}</h3>
-              <p className="text-rose-600 font-bold text-2xl text-center mt-2">
-                ৳{product.price.toLocaleString()}
-              </p>
-              
-              {/* Mini gallery */}
-              <div className="flex gap-2 mt-4 justify-center">
-                {product.images?.slice(1, 4).map((img, idx) => (
-                  <div key={idx} className="w-16 h-16 rounded-lg overflow-hidden shadow-sm">
-                    <OptimizedImage src={img} alt="" className="w-full h-full" />
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          ))}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 lg:gap-8 max-w-5xl mx-auto">
+          {products.map((product) => {
+            const discount = product.original_price 
+              ? Math.round(((product.original_price - product.price) / product.original_price) * 100)
+              : 0;
+            
+            return (
+              <motion.div
+                key={product.id}
+                whileHover={{ y: -5 }}
+                className="bg-gradient-to-br from-rose-50 to-pink-50 rounded-3xl p-4 sm:p-6 shadow-lg border border-rose-100"
+              >
+                <div className="relative aspect-square rounded-2xl overflow-hidden mb-4 shadow-md">
+                  {discount > 0 && (
+                    <Badge className="absolute top-3 left-3 z-10 bg-red-500 text-white text-sm px-3 py-1.5 font-bold shadow-lg">
+                      -{discount}% ছাড়
+                    </Badge>
+                  )}
+                  <OptimizedImage 
+                    src={product.images?.[0] || ''} 
+                    alt={product.name} 
+                    className="w-full h-full"
+                  />
+                </div>
+                <h3 className="text-lg sm:text-xl font-bold text-gray-900 text-center">{product.name}</h3>
+                <div className="text-center mt-2">
+                  {product.original_price && product.original_price > product.price && (
+                    <span className="text-gray-400 line-through text-base mr-2">
+                      ৳{product.original_price.toLocaleString()}
+                    </span>
+                  )}
+                  <span className="text-rose-600 font-bold text-xl sm:text-2xl">
+                    ৳{product.price.toLocaleString()}
+                  </span>
+                </div>
+                
+                {/* Mini gallery */}
+                <div className="flex gap-2 mt-4 justify-center">
+                  {product.images?.slice(1, 4).map((img, idx) => (
+                    <div key={idx} className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden shadow-sm">
+                      <OptimizedImage src={img} alt="" className="w-full h-full" />
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
       </div>
     </section>
@@ -483,8 +501,8 @@ const VideoSection = memo(({ videoUrl }: { videoUrl?: string }) => {
           </span>
         </div>
 
-        {/* Compact video container - max width limited */}
-        <div className="max-w-xs mx-auto">
+        {/* Responsive video container - centered with max width */}
+        <div className="max-w-[280px] sm:max-w-xs mx-auto">
           <div
             className="relative rounded-xl overflow-hidden shadow-lg bg-gray-900"
             style={{ aspectRatio: "9/16" }}
