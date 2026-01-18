@@ -166,11 +166,15 @@ export default function AdminProducts() {
     }
 
     if (data && data.length > 0) {
-      // Deduplicate by id to prevent same variations appearing multiple times
-      const uniqueVariations = data.filter(
-        (v, index, self) => index === self.findIndex((t) => t.id === v.id)
+      // Deduplicate by normalized name (a product should not show same size multiple times)
+      const uniqueVariations = Array.from(
+        new Map(
+          data
+            .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+            .map((v) => [String(v.name).trim().toLowerCase(), v])
+        ).values()
       );
-      
+
       setVariations(
         uniqueVariations.map((v) => ({
           id: v.id,
@@ -351,11 +355,20 @@ export default function AdminProducts() {
     // Insert new variations
     if (hasVariations && variations.length > 0) {
       const validVariations = variations.filter((v) => v.name && v.price > 0);
-      if (validVariations.length > 0) {
+
+      // Dedupe by normalized name before saving (prevents accidental duplicates in UI)
+      const uniqueValidVariations = Array.from(
+        new Map(
+          validVariations
+            .map((v) => [String(v.name).trim().toLowerCase(), v])
+        ).values()
+      );
+
+      if (uniqueValidVariations.length > 0) {
         const { error } = await supabase
           .from('product_variations')
           .insert(
-            validVariations.map((v, idx) => ({
+            uniqueValidVariations.map((v, idx) => ({
               product_id: productId,
               name: v.name,
               price: v.price,

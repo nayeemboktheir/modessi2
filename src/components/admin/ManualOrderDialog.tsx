@@ -58,6 +58,10 @@ function normalizePhone(phone: string): string {
   return clean;
 }
 
+function normalizeVariationName(name: string): string {
+  return name.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
 // Parse pasted text to extract name, phone, address
 function parsePastedText(text: string): { phone?: string; name?: string; address?: string } {
   const converted = convertBengaliToEnglish(text);
@@ -308,24 +312,33 @@ export function ManualOrderDialog({ open, onOpenChange, onOrderCreated }: Manual
       // Fetch all variations
       const { data: variationsData, error: variationsError } = await supabase
         .from('product_variations')
-        .select('id, name, price, stock, product_id')
+        .select('id, name, price, stock, product_id, sort_order')
         .eq('is_active', true)
         .order('sort_order');
 
       if (variationsError) throw variationsError;
 
-      // Map variations to products
-      const productsWithVariations = (productsData || []).map(product => ({
-        ...product,
-        variations: (variationsData || [])
-          .filter(v => v.product_id === product.id)
-          .map(v => ({
+      // Map variations to products (dedupe by normalized name per product)
+      const productsWithVariations = (productsData || []).map((product) => {
+        const perProduct = (variationsData || []).filter((v) => v.product_id === product.id);
+        const uniqueByName = Array.from(
+          new Map(
+            perProduct
+              .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+              .map((v) => [normalizeVariationName(v.name), v])
+          ).values()
+        );
+
+        return {
+          ...product,
+          variations: uniqueByName.map((v) => ({
             id: v.id,
             name: v.name,
             price: v.price,
             stock: v.stock,
           })),
-      }));
+        };
+      });
 
       setProducts(productsWithVariations);
     } catch (error) {
@@ -1003,12 +1016,13 @@ export function ManualOrderDialog({ open, onOpenChange, onOrderCreated }: Manual
                       </Button>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {/* Dedupe variations by id to avoid duplicates */}
+                      {/* Dedupe variations by normalized name to avoid duplicates */}
                       {Array.from(
                         new Map(
-                          (selectedProductForSize.variations || []).map(v => [v.id, v])
+                          (selectedProductForSize.variations || [])
+                            .map((v) => [normalizeVariationName(v.name), v])
                         ).values()
-                      ).map(variation => (
+                      ).map((variation) => (
                         <Button
                           key={variation.id}
                           variant="outline"

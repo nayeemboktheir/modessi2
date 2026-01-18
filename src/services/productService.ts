@@ -120,20 +120,24 @@ const mapProductFromDB = (data: any): Product => {
   const price = Number(data.price);
   const discount = originalPrice ? Math.round(((originalPrice - price) / originalPrice) * 100) : undefined;
 
-  // Map variations
-  const variations: ProductVariation[] = (data.product_variations || [])
-    .filter((v: any) => v.is_active)
-    .sort((a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0))
-    .map((v: any) => ({
-      id: v.id,
-      product_id: v.product_id,
-      name: v.name,
-      price: Number(v.price),
-      original_price: v.original_price ? Number(v.original_price) : undefined,
-      stock: v.stock,
-      sort_order: v.sort_order || 0,
-      is_active: v.is_active ?? true,
-    }));
+  // Map variations (dedupe by normalized name)
+  const variations: ProductVariation[] = Array.from(
+    new Map(
+      (data.product_variations || [])
+        .filter((v: any) => v.is_active)
+        .sort((a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0))
+        .map((v: any) => [String(v.name).trim().toLowerCase(), v])
+    ).values()
+  ).map((v: any) => ({
+    id: v.id,
+    product_id: v.product_id,
+    name: v.name,
+    price: Number(v.price),
+    original_price: v.original_price ? Number(v.original_price) : undefined,
+    stock: v.stock,
+    sort_order: v.sort_order || 0,
+    is_active: v.is_active ?? true,
+  }));
 
   return {
     id: data.id,
