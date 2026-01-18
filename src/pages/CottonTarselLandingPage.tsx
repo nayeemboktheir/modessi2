@@ -403,6 +403,8 @@ FeaturesBanner.displayName = 'FeaturesBanner';
 
 // ====== All Products Gallery ======
 const ProductsGallery = memo(({ products }: { products: ProductData[] }) => {
+  const [imageIndices, setImageIndices] = useState<Record<string, number>>({});
+  
   return (
     <section className="py-12 md:py-16 bg-white">
       <div className="container mx-auto px-4">
@@ -419,6 +421,8 @@ const ProductsGallery = memo(({ products }: { products: ProductData[] }) => {
             const discount = product.original_price 
               ? Math.round(((product.original_price - product.price) / product.original_price) * 100)
               : 0;
+            const currentIdx = imageIndices[product.id] || 0;
+            const images = product.images || [];
             
             return (
               <motion.div
@@ -433,7 +437,7 @@ const ProductsGallery = memo(({ products }: { products: ProductData[] }) => {
                     </Badge>
                   )}
                   <OptimizedImage 
-                    src={product.images?.[0] || ''} 
+                    src={images[currentIdx] || images[0] || ''} 
                     alt={product.name} 
                     className="w-full h-full"
                   />
@@ -450,14 +454,24 @@ const ProductsGallery = memo(({ products }: { products: ProductData[] }) => {
                   </span>
                 </div>
                 
-                {/* Mini gallery */}
-                <div className="flex gap-2 mt-4 justify-center">
-                  {product.images?.slice(1, 4).map((img, idx) => (
-                    <div key={idx} className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden shadow-sm">
-                      <OptimizedImage src={img} alt="" className="w-full h-full" />
-                    </div>
-                  ))}
-                </div>
+                {/* Mini gallery - Click to change main image */}
+                {images.length > 1 && (
+                  <div className="flex gap-2 mt-4 justify-center">
+                    {images.slice(0, 4).map((img, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setImageIndices(prev => ({ ...prev, [product.id]: idx }))}
+                        className={`w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden shadow-sm border-2 transition-all ${
+                          currentIdx === idx 
+                            ? 'border-rose-500 scale-105' 
+                            : 'border-transparent opacity-70 hover:opacity-100'
+                        }`}
+                      >
+                        <OptimizedImage src={img} alt="" className="w-full h-full" />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </motion.div>
             );
           })}
