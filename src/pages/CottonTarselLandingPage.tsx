@@ -292,31 +292,19 @@ const HeroSection = memo(({ products, onBuyNow, selectedProductId, onProductSele
               </motion.div>
             </AnimatePresence>
 
-            {/* Price & CTA - Below Image on Mobile */}
+            {/* Price - Below Image on Mobile */}
             <div className="text-center mt-6 lg:hidden">
               {/* Price Section - Bigger & More Prominent */}
-              <div className="mb-5">
-                <div className="flex items-center justify-center gap-3 flex-wrap">
-                  {activeProduct?.original_price && activeProduct.original_price > activeProduct.price && (
-                    <span className="text-gray-400 line-through text-xl sm:text-2xl">
-                      ৳{activeProduct.original_price.toLocaleString()}
-                    </span>
-                  )}
-                  <span className="text-rose-600 font-bold text-4xl sm:text-5xl">
-                    ৳{activeProduct?.price?.toLocaleString()}
+              <div className="flex items-center justify-center gap-3 flex-wrap">
+                {activeProduct?.original_price && activeProduct.original_price > activeProduct.price && (
+                  <span className="text-gray-400 line-through text-xl sm:text-2xl">
+                    ৳{activeProduct.original_price.toLocaleString()}
                   </span>
-                </div>
+                )}
+                <span className="text-rose-600 font-bold text-4xl sm:text-5xl">
+                  ৳{activeProduct?.price?.toLocaleString()}
+                </span>
               </div>
-
-              {/* CTA Button - Full Width */}
-              <Button
-                onClick={onBuyNow}
-                size="lg"
-                className="w-full max-w-sm mx-auto h-14 text-lg font-bold bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white rounded-2xl shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02]"
-              >
-                <ShoppingBag className="mr-2 h-5 w-5" />
-                এখনই অর্ডার করুন
-              </Button>
             </div>
           </div>
 
