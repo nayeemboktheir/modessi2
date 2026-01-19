@@ -30,7 +30,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { Search, Eye, Package, Truck, CheckCircle, XCircle, Clock, Send, Printer, Globe, UserPlus, Plus, Check, Tag, RefreshCw, RotateCcw, Loader2, UserCheck, History, Trash2, Calendar } from 'lucide-react';
+import { Search, Eye, Package, Truck, CheckCircle, XCircle, Clock, Send, Printer, Globe, UserPlus, Plus, Check, Tag, RefreshCw, RotateCcw, Loader2, UserCheck, History, Trash2, Calendar, Edit } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { supabase } from '@/integrations/supabase/client';
@@ -51,6 +51,7 @@ import { CourierHistoryInline } from '@/components/admin/CourierHistoryInline';
 import { InvoicePrintDialog } from '@/components/admin/InvoicePrintDialog';
 import { StickerPrintDialog } from '@/components/admin/StickerPrintDialog';
 import { ManualOrderDialog } from '@/components/admin/ManualOrderDialog';
+import { OrderEditDialog } from '@/components/admin/OrderEditDialog';
 
 interface SteadfastStatus {
   tracking_code: string;
@@ -143,6 +144,8 @@ export default function AdminOrders() {
   const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
   const [isStickerDialogOpen, setIsStickerDialogOpen] = useState(false);
   const [isManualOrderOpen, setIsManualOrderOpen] = useState(false);
+  const [isEditOrderOpen, setIsEditOrderOpen] = useState(false);
+  const [orderToEdit, setOrderToEdit] = useState<Order | null>(null);
   const [steadfastStatuses, setSteadfastStatuses] = useState<Record<string, SteadfastStatus>>({});
   const [loadingStatuses, setLoadingStatuses] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
@@ -153,6 +156,11 @@ export default function AdminOrders() {
   const [invoiceNote, setInvoiceNote] = useState('');
   const [steadfastNote, setSteadfastNote] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
+
+  const openEditDialog = (order: Order) => {
+    setOrderToEdit(order);
+    setIsEditOrderOpen(true);
+  };
 
   useEffect(() => {
     loadOrders();
@@ -1281,6 +1289,17 @@ export default function AdminOrders() {
                 </div>
                 <div className="flex gap-2 mt-4">
                   <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsDetailOpen(false);
+                      openEditDialog(selectedOrder);
+                    }}
+                    className="gap-2"
+                  >
+                    <Edit className="h-4 w-4" />
+                    Edit Order
+                  </Button>
+                  <Button
                     onClick={() => handleSendToSteadfast(selectedOrder)}
                     disabled={sendingToSteadfast || !!selectedOrder.tracking_number}
                     className="flex-1"
@@ -1302,6 +1321,14 @@ export default function AdminOrders() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Order Edit Dialog */}
+      <OrderEditDialog
+        order={orderToEdit}
+        open={isEditOrderOpen}
+        onOpenChange={setIsEditOrderOpen}
+        onOrderUpdated={loadOrders}
+      />
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
