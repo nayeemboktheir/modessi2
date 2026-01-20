@@ -20,6 +20,17 @@ interface CourierStats {
 interface BDCourierResponse {
   status: number;
   data?: {
+    // New API format
+    status?: string;
+    courierData?: {
+      pathao?: CourierStats;
+      steadfast?: CourierStats;
+      redx?: CourierStats;
+      paperfly?: CourierStats;
+      parceldex?: CourierStats;
+      summary?: CourierStats;
+    };
+    // Legacy format
     pathao?: CourierStats;
     steadfast?: CourierStats;
     redx?: CourierStats;
@@ -216,8 +227,10 @@ serve(async (req) => {
       response.bd_courier = bdCourierResult.data;
       response.bd_courier_available = true;
 
-      // Calculate combined risk from BD Courier summary
-      const summary = bdCourierResult.data.summary;
+      // Handle both API response formats: courierData.summary or direct summary
+      const courierData = bdCourierResult.data.courierData || bdCourierResult.data;
+      const summary = courierData?.summary;
+      
       if (summary && summary.total_parcel > 0) {
         const bdRatio = summary.success_ratio;
         let bdRisk = "low";
