@@ -297,33 +297,6 @@ export function CombinedCourierHistoryInline({
               </div>
             )}
 
-            {/* Internal Store Orders - Show Last */}
-            <div className="space-y-1 border-t pt-2">
-              <div className="font-medium text-muted-foreground flex items-center gap-1">
-                <TrendingUp className="h-3 w-3" /> Your Store Orders
-              </div>
-              {hasInternal ? (
-                <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 pl-4">
-                  <span>Total Orders:</span>
-                  <span className="font-medium">{internal.total_orders}</span>
-                  <span className="text-emerald-600">Delivered:</span>
-                  <span className="font-medium text-emerald-600">{internal.delivered}</span>
-                  <span className="text-red-600">Cancelled:</span>
-                  <span className="font-medium text-red-600">{internal.cancelled}</span>
-                  <span className="text-amber-600">Pending:</span>
-                  <span className="font-medium text-amber-600">{internal.pending}</span>
-                  {internal.success_ratio !== null && (
-                    <>
-                      <span>Success Rate:</span>
-                      <span className="font-medium">{Math.round(internal.success_ratio)}%</span>
-                    </>
-                  )}
-                </div>
-              ) : (
-                <div className="pl-4 text-muted-foreground">First order</div>
-              )}
-            </div>
-
             {!bd_courier_available && (
               <div className="text-[10px] text-muted-foreground border-t pt-1">
                 BD Courier data unavailable (rate limited)
