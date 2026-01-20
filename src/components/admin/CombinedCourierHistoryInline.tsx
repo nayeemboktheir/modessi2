@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, AlertTriangle, CheckCircle, XCircle, Clock, TrendingUp } from "lucide-react";
+import { Loader2, AlertTriangle, CheckCircle, XCircle, Clock, TrendingUp, Truck } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -250,10 +250,57 @@ export function CombinedCourierHistoryInline({
           <div className="space-y-2 text-xs">
             <div className="font-semibold border-b pb-1 mb-2">Customer History</div>
             
-            {/* Internal Orders */}
-            <div className="space-y-1">
+            {/* BD Courier Steadfast History - Show First (Most Important) */}
+            {bd_courier_available && bdSteadfast && bdSteadfast.total_parcel > 0 && (
+              <div className="space-y-1">
+                <div className="font-medium text-blue-700 flex items-center gap-1">
+                  <Truck className="h-3 w-3" /> Steadfast History (BD Courier)
+                </div>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 pl-4">
+                  <span>Total Parcels:</span>
+                  <span className="font-medium">{bdSteadfast.total_parcel}</span>
+                  <span className="text-emerald-600">Delivered:</span>
+                  <span className="font-medium text-emerald-600">{bdSteadfast.success_parcel}</span>
+                  <span className="text-red-600">Cancelled:</span>
+                  <span className="font-medium text-red-600">{bdSteadfast.cancelled_parcel}</span>
+                  <span>Success Rate:</span>
+                  <span className="font-medium">{Math.round(bdSteadfast.success_ratio)}%</span>
+                </div>
+              </div>
+            )}
+
+            {/* Other BD Courier Services */}
+            {bd_courier_available && (bdPathao?.total_parcel > 0 || bdRedx?.total_parcel > 0) && (
+              <div className="space-y-1 border-t pt-2">
+                <div className="font-medium text-muted-foreground text-[10px]">Other Couriers</div>
+                <div className="text-[10px] text-muted-foreground pl-4 flex flex-wrap gap-2">
+                  {bdPathao && bdPathao.total_parcel > 0 && (
+                    <span className="bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded">
+                      Pathao: {bdPathao.success_parcel}/{bdPathao.total_parcel} ({Math.round(bdPathao.success_ratio)}%)
+                    </span>
+                  )}
+                  {bdRedx && bdRedx.total_parcel > 0 && (
+                    <span className="bg-red-50 text-red-700 px-1.5 py-0.5 rounded">
+                      RedX: {bdRedx.success_parcel}/{bdRedx.total_parcel} ({Math.round(bdRedx.success_ratio)}%)
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* BD Courier Summary */}
+            {bd_courier_available && bdSummary && bdSummary.total_parcel > 0 && (
+              <div className="space-y-1 border-t pt-2">
+                <div className="font-medium text-muted-foreground flex items-center gap-1 text-[10px]">
+                  All Couriers Combined: {bdSummary.success_parcel}/{bdSummary.total_parcel} ({Math.round(bdSummary.success_ratio)}%)
+                </div>
+              </div>
+            )}
+
+            {/* Internal Store Orders - Show Last */}
+            <div className="space-y-1 border-t pt-2">
               <div className="font-medium text-muted-foreground flex items-center gap-1">
-                <TrendingUp className="h-3 w-3" /> Your Store
+                <TrendingUp className="h-3 w-3" /> Your Store Orders
               </div>
               {hasInternal ? (
                 <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 pl-4">
@@ -276,36 +323,6 @@ export function CombinedCourierHistoryInline({
                 <div className="pl-4 text-muted-foreground">First order</div>
               )}
             </div>
-
-            {/* BD Courier Data */}
-            {bd_courier_available && bdSummary && (
-              <div className="space-y-1 border-t pt-2">
-                <div className="font-medium text-muted-foreground">BD Courier (All Couriers)</div>
-                <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 pl-4">
-                  <span>Total Parcels:</span>
-                  <span className="font-medium">{bdSummary.total_parcel}</span>
-                  <span className="text-emerald-600">Successful:</span>
-                  <span className="font-medium text-emerald-600">{bdSummary.success_parcel}</span>
-                  <span className="text-red-600">Cancelled:</span>
-                  <span className="font-medium text-red-600">{bdSummary.cancelled_parcel}</span>
-                  <span>Success Rate:</span>
-                  <span className="font-medium">{Math.round(bdSummary.success_ratio)}%</span>
-                </div>
-
-                {/* Individual couriers */}
-                <div className="text-[10px] text-muted-foreground mt-1 pl-4">
-                  {bdSteadfast && bdSteadfast.total_parcel > 0 && (
-                    <span className="mr-2">Steadfast: {bdSteadfast.success_parcel}/{bdSteadfast.total_parcel}</span>
-                  )}
-                  {bdPathao && bdPathao.total_parcel > 0 && (
-                    <span className="mr-2">Pathao: {bdPathao.success_parcel}/{bdPathao.total_parcel}</span>
-                  )}
-                  {bdRedx && bdRedx.total_parcel > 0 && (
-                    <span className="mr-2">RedX: {bdRedx.success_parcel}/{bdRedx.total_parcel}</span>
-                  )}
-                </div>
-              </div>
-            )}
 
             {!bd_courier_available && (
               <div className="text-[10px] text-muted-foreground border-t pt-1">
