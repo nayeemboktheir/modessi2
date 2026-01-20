@@ -539,7 +539,9 @@ const VideoSection = memo(({ videoUrl }: { videoUrl?: string }) => {
   if (!videoUrl) return null;
 
   const raw = (videoUrl || "").trim();
-  const isRawHtml = raw.startsWith("<");
+  
+  // Check if it's raw HTML (iframe embed code)
+  const isRawHtml = raw.startsWith("<") || raw.includes("<iframe");
   
   const getInlineEmbedUrl = (url: string) => {
     const embedUrl = getEmbedUrl(url);
@@ -548,6 +550,15 @@ const VideoSection = memo(({ videoUrl }: { videoUrl?: string }) => {
       return `${embedUrl}${separator}show_text=false&lazy=true&autoplay=false`;
     }
     return embedUrl;
+  };
+
+  // Process iframe HTML to remove fixed dimensions and make responsive
+  const processIframeHtml = (html: string): string => {
+    // Remove width and height attributes, add responsive styles
+    return html
+      .replace(/width=["'][^"']*["']/gi, '')
+      .replace(/height=["'][^"']*["']/gi, '')
+      .replace(/style=["'][^"']*["']/gi, 'style="position:absolute;inset:0;width:100%;height:100%;border:none;overflow:hidden"');
   };
 
   return (
@@ -567,8 +578,8 @@ const VideoSection = memo(({ videoUrl }: { videoUrl?: string }) => {
           >
             {isRawHtml ? (
               <div
-                className="absolute inset-0 [&>iframe]:!absolute [&>iframe]:!inset-0 [&>iframe]:!w-full [&>iframe]:!h-full [&>iframe]:!border-0"
-                dangerouslySetInnerHTML={{ __html: raw }}
+                className="absolute inset-0"
+                dangerouslySetInnerHTML={{ __html: processIframeHtml(raw) }}
               />
             ) : raw.match(/\.(mp4|webm|ogg)$/i) ? (
               <video
