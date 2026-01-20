@@ -21,16 +21,28 @@ interface InternalStats {
   risk_level: string;
 }
 
+interface BDCourierData {
+  status?: string;
+  courierData?: {
+    pathao?: CourierStats & { name?: string; logo?: string };
+    steadfast?: CourierStats & { name?: string; logo?: string };
+    redx?: CourierStats & { name?: string; logo?: string };
+    paperfly?: CourierStats & { name?: string; logo?: string };
+    parceldex?: CourierStats & { name?: string; logo?: string };
+    summary?: CourierStats;
+  };
+  // Legacy format support
+  pathao?: CourierStats;
+  steadfast?: CourierStats;
+  redx?: CourierStats;
+  paperfly?: CourierStats;
+  summary?: CourierStats;
+}
+
 interface CombinedResponse {
   phone: string;
   internal: InternalStats;
-  bd_courier: {
-    pathao?: CourierStats;
-    steadfast?: CourierStats;
-    redx?: CourierStats;
-    paperfly?: CourierStats;
-    summary?: CourierStats;
-  } | null;
+  bd_courier: BDCourierData | null;
   bd_courier_available: boolean;
   combined_risk_level: string;
 }
@@ -190,7 +202,13 @@ export function CombinedCourierHistoryInline({
   }
 
   const { internal, bd_courier, bd_courier_available, combined_risk_level } = data;
-  const bdSummary = bd_courier?.summary;
+  
+  // Handle both new format (courierData.summary) and legacy format (summary directly)
+  const bdCourierData = bd_courier?.courierData || bd_courier;
+  const bdSummary = bdCourierData?.summary;
+  const bdPathao = bdCourierData?.pathao;
+  const bdSteadfast = bdCourierData?.steadfast;
+  const bdRedx = bdCourierData?.redx;
 
   // Calculate display values
   const hasInternal = internal.total_orders > 0;
@@ -267,14 +285,14 @@ export function CombinedCourierHistoryInline({
 
                 {/* Individual couriers */}
                 <div className="text-[10px] text-muted-foreground mt-1 pl-4">
-                  {bd_courier?.steadfast && bd_courier.steadfast.total_parcel > 0 && (
-                    <span className="mr-2">Steadfast: {bd_courier.steadfast.success_parcel}/{bd_courier.steadfast.total_parcel}</span>
+                  {bdSteadfast && bdSteadfast.total_parcel > 0 && (
+                    <span className="mr-2">Steadfast: {bdSteadfast.success_parcel}/{bdSteadfast.total_parcel}</span>
                   )}
-                  {bd_courier?.pathao && bd_courier.pathao.total_parcel > 0 && (
-                    <span className="mr-2">Pathao: {bd_courier.pathao.success_parcel}/{bd_courier.pathao.total_parcel}</span>
+                  {bdPathao && bdPathao.total_parcel > 0 && (
+                    <span className="mr-2">Pathao: {bdPathao.success_parcel}/{bdPathao.total_parcel}</span>
                   )}
-                  {bd_courier?.redx && bd_courier.redx.total_parcel > 0 && (
-                    <span className="mr-2">RedX: {bd_courier.redx.success_parcel}/{bd_courier.redx.total_parcel}</span>
+                  {bdRedx && bdRedx.total_parcel > 0 && (
+                    <span className="mr-2">RedX: {bdRedx.success_parcel}/{bdRedx.total_parcel}</span>
                   )}
                 </div>
               </div>
