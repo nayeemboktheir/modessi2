@@ -587,41 +587,60 @@ const AdminLandingPages = () => {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setCottonTarselVideoUrl(cottonTarselVideoSetting || "");
-                            setCottonTarselVideoOpen(true);
-                          }}
-                        >
-                          <Edit className="h-4 w-4 mr-1" />
-                          Edit
+                        <Button variant="outline" size="sm" onClick={() => { setCottonTarselVideoUrl(cottonTarselVideoSetting || ""); setCottonTarselVideoOpen(true); }}>
+                          <Edit className="h-4 w-4 mr-1" />Edit
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          asChild
-                        >
-                          <a
-                            href="/cotton-tarsel"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <ExternalLink className="h-4 w-4 mr-1" />
-                            View
-                          </a>
+                        <Button variant="outline" size="sm" asChild>
+                          <a href="/cotton-tarsel" target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4 mr-1" />View</a>
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            navigator.clipboard.writeText(`${window.location.origin}/cotton-tarsel`);
-                            toast.success("URL copied to clipboard!");
-                          }}
-                        >
-                          <Copy className="h-4 w-4 mr-1" />
-                          Copy URL
+                        <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/cotton-tarsel`); toast.success("URL copied!"); }}>
+                          <Copy className="h-4 w-4 mr-1" />Copy
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })()}
+              {/* Digital Tarsel Collection */}
+              {(() => {
+                const collectionSlug = 'digital-tarsel-collection';
+                const stats = salesBySlug[collectionSlug] || { orders: 0, revenue: 0 };
+                return (
+                  <TableRow>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-slate-100 to-gray-200 flex items-center justify-center">
+                          <Sparkles className="h-5 w-5 text-slate-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium">Digital Tarsel Collection</p>
+                          <p className="text-xs text-muted-foreground">Surma & Black variants</p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <code className="text-sm bg-muted px-2 py-1 rounded">/digital-tarsel</code>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">2 products</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="font-mono">
+                        {stats.orders} orders
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-semibold text-green-600">
+                        ৳{stats.revenue.toLocaleString()}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button variant="outline" size="sm" asChild>
+                          <a href="/digital-tarsel" target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4 mr-1" />View</a>
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/digital-tarsel`); toast.success("URL copied!"); }}>
+                          <Copy className="h-4 w-4 mr-1" />Copy
                         </Button>
                       </div>
                     </TableCell>
