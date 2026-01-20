@@ -52,7 +52,16 @@ const cache = new Map<string, { data: CombinedResponse; timestamp: number }>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 function normalizePhone(phone: string): string {
-  return phone.replace(/[^0-9]/g, "").slice(-10);
+  let cleaned = phone.replace(/[^0-9]/g, "");
+  // Align with backend normalization rules
+  if (cleaned.startsWith("880")) {
+    cleaned = "0" + cleaned.slice(3);
+  }
+  if (!cleaned.startsWith("0") && cleaned.length === 10) {
+    cleaned = "0" + cleaned;
+  }
+  // Keep the last 11 digits (e.g., 01XXXXXXXXX)
+  return cleaned.slice(-11);
 }
 
 // Progress ring component
@@ -153,7 +162,7 @@ export function CombinedCourierHistoryInline({
   const normalizedPhone = useMemo(() => normalizePhone(phone), [phone]);
 
   useEffect(() => {
-    if (!normalizedPhone || normalizedPhone.length < 10) {
+    if (!normalizedPhone || normalizedPhone.length < 11) {
       setLoading(false);
       return;
     }
