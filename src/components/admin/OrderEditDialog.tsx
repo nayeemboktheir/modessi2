@@ -168,14 +168,6 @@ export function OrderEditDialog({ order, open, onOpenChange, onOrderUpdated }: O
       toast.error('Address is required');
       return;
     }
-    if (!shippingDistrict.trim()) {
-      toast.error('District is required');
-      return;
-    }
-    if (!shippingCity.trim()) {
-      toast.error('City is required');
-      return;
-    }
     if (items.length === 0) {
       toast.error('Order must have at least one item');
       return;
@@ -290,7 +282,7 @@ export function OrderEditDialog({ order, open, onOpenChange, onOrderUpdated }: O
             </div>
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label>District *</Label>
+                <Label>District</Label>
                 <Input
                   value={shippingDistrict}
                   onChange={(e) => setShippingDistrict(e.target.value)}
@@ -298,7 +290,7 @@ export function OrderEditDialog({ order, open, onOpenChange, onOrderUpdated }: O
                 />
               </div>
               <div className="space-y-2">
-                <Label>City *</Label>
+                <Label>City</Label>
                 <Input
                   value={shippingCity}
                   onChange={(e) => setShippingCity(e.target.value)}
