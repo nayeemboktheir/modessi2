@@ -86,6 +86,10 @@ const AdminLandingPages = () => {
   // Cotton Tarsel video edit states
   const [cottonTarselVideoOpen, setCottonTarselVideoOpen] = useState(false);
   const [cottonTarselVideoUrl, setCottonTarselVideoUrl] = useState("");
+  
+  // Digital Tarsel video edit states
+  const [digitalTarselVideoOpen, setDigitalTarselVideoOpen] = useState(false);
+  const [digitalTarselVideoUrl, setDigitalTarselVideoUrl] = useState("");
 
   const { data: landingPages, isLoading } = useQuery({
     queryKey: ["admin-landing-pages"],
@@ -137,6 +141,21 @@ const AdminLandingPages = () => {
         .from("admin_settings")
         .select("value")
         .eq("key", "cotton_tarsel_video_url")
+        .maybeSingle();
+
+      if (error) throw error;
+      return data?.value || "";
+    },
+  });
+
+  // Fetch Digital Tarsel video URL from admin_settings
+  const { data: digitalTarselVideoSetting } = useQuery({
+    queryKey: ["digital-tarsel-video-setting"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("admin_settings")
+        .select("value")
+        .eq("key", "digital_tarsel_video_url")
         .maybeSingle();
 
       if (error) throw error;
@@ -220,6 +239,39 @@ const AdminLandingPages = () => {
       queryClient.invalidateQueries({ queryKey: ["cotton-tarsel-video-setting"] });
       toast.success("ভিডিও লিংক সেভ হয়েছে");
       setCottonTarselVideoOpen(false);
+    },
+    onError: (error) => {
+      toast.error("ভিডিও লিংক সেভ করতে সমস্যা হয়েছে");
+      console.error(error);
+    },
+  });
+
+  // Save Digital Tarsel video URL mutation
+  const saveDigitalTarselVideoMutation = useMutation({
+    mutationFn: async (videoUrl: string) => {
+      const { data: existing } = await supabase
+        .from("admin_settings")
+        .select("id")
+        .eq("key", "digital_tarsel_video_url")
+        .maybeSingle();
+
+      if (existing) {
+        const { error } = await supabase
+          .from("admin_settings")
+          .update({ value: videoUrl })
+          .eq("key", "digital_tarsel_video_url");
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("admin_settings")
+          .insert({ key: "digital_tarsel_video_url", value: videoUrl });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["digital-tarsel-video-setting"] });
+      toast.success("ভিডিও লিংক সেভ হয়েছে");
+      setDigitalTarselVideoOpen(false);
     },
     onError: (error) => {
       toast.error("ভিডিও লিংক সেভ করতে সমস্যা হয়েছে");
@@ -636,6 +688,9 @@ const AdminLandingPages = () => {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
+                        <Button variant="outline" size="sm" onClick={() => { setDigitalTarselVideoUrl(digitalTarselVideoSetting || ""); setDigitalTarselVideoOpen(true); }}>
+                          <Edit className="h-4 w-4 mr-1" />Edit
+                        </Button>
                         <Button variant="outline" size="sm" asChild>
                           <a href="/digital-tarsel" target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4 mr-1" />View</a>
                         </Button>
@@ -987,6 +1042,53 @@ https://www.facebook.com/watch/?v=123456789"
               className="bg-rose-500 hover:bg-rose-600"
             >
               {saveCottonTarselVideoMutation.isPending ? "সেভ হচ্ছে..." : "সেভ করুন"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Digital Tarsel Video Edit Dialog */}
+      <Dialog open={digitalTarselVideoOpen} onOpenChange={setDigitalTarselVideoOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Video className="h-5 w-5 text-slate-600" />
+              Digital Tarsel ভিডিও এডিট
+            </DialogTitle>
+            <DialogDescription>
+              Facebook এম্বেড কোড বা ভিডিও লিংক দিন। ল্যান্ডিং পেইজে এই ভিডিও দেখানো হবে।
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-3">
+              <Label htmlFor="digital-tarsel-video">ভিডিও Embed কোড / লিংক</Label>
+              <Textarea
+                id="digital-tarsel-video"
+                value={digitalTarselVideoUrl}
+                onChange={(e) => setDigitalTarselVideoUrl(e.target.value)}
+                placeholder="<iframe src='https://www.facebook.com/plugins/video.php?...' ...></iframe>
+
+অথবা
+
+https://www.facebook.com/watch/?v=123456789"
+                rows={6}
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                ফেসবুক ভিডিও থেকে "Embed" অপশন থেকে কোড কপি করুন অথবা সরাসরি ভিডিও লিংক দিন।
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDigitalTarselVideoOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => saveDigitalTarselVideoMutation.mutate(digitalTarselVideoUrl)}
+              disabled={saveDigitalTarselVideoMutation.isPending}
+              className="bg-slate-600 hover:bg-slate-700"
+            >
+              {saveDigitalTarselVideoMutation.isPending ? "সেভ হচ্ছে..." : "সেভ করুন"}
             </Button>
           </DialogFooter>
         </DialogContent>
