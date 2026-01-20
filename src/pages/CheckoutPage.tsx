@@ -161,6 +161,7 @@ const CheckoutPage = () => {
   }, [cartItems, authLoading, navigate]);
 
   // Track InitiateCheckout event once (both client and server side with same event ID)
+  // Also send user data if form is filled for better match quality
   useEffect(() => {
     if (isReady && cartItems.length > 0 && !hasTrackedCheckout.current) {
       console.log('Firing InitiateCheckout event (client + server) with shared event_id');
@@ -170,6 +171,20 @@ const CheckoutPage = () => {
       
       // Generate shared event ID for deduplication
       const eventId = `InitiateCheckout_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      
+      // Extract user data from form if available
+      const nameParts = shippingForm.name.trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      
+      // Update client-side pixel with user data if available
+      if (shippingForm.phone || firstName) {
+        setUserData?.({
+          phone: shippingForm.phone,
+          firstName,
+          lastName,
+        });
+      }
       
       // Client-side tracking with event ID
       if (window.fbq) {
@@ -181,13 +196,18 @@ const CheckoutPage = () => {
         }, { eventID: eventId });
       }
       
-      // Server-side tracking via CAPI with same event ID
+      // Server-side tracking via CAPI with same event ID and user data
       trackServerCheckout({
         contentIds,
         value: cartTotal,
         numItems,
         currency: 'BDT',
-        eventId, // Pass the same event ID for deduplication
+        eventId,
+        userData: shippingForm.phone || firstName ? {
+          phone: shippingForm.phone || undefined,
+          firstName: firstName || undefined,
+          lastName: lastName || undefined,
+        } : undefined,
       }).then(result => {
         console.log('[CAPI] InitiateCheckout result:', result);
       }).catch(err => {
@@ -196,7 +216,32 @@ const CheckoutPage = () => {
       
       hasTrackedCheckout.current = true;
     }
-  }, [isReady, cartItems, cartTotal, trackServerCheckout]);
+  }, [isReady, cartItems, cartTotal, shippingForm, setUserData, trackServerCheckout]);
+
+  // Track user data update when phone is entered (for better match quality)
+  const hasTrackedPhoneUpdate = useRef(false);
+  useEffect(() => {
+    // Only track once when phone is filled with a valid number
+    if (!hasTrackedPhoneUpdate.current && 
+        shippingForm.phone && 
+        /^(\+?880)?01[3-9]\d{8}$/.test(shippingForm.phone.replace(/\s/g, '')) &&
+        cartItems.length > 0) {
+      
+      const nameParts = shippingForm.name.trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      
+      // Update client-side pixel with user data
+      setUserData?.({
+        phone: shippingForm.phone,
+        firstName,
+        lastName,
+      });
+      
+      console.log('Updated Facebook Pixel with user data for better matching');
+      hasTrackedPhoneUpdate.current = true;
+    }
+  }, [shippingForm.phone, shippingForm.name, cartItems.length, setUserData]);
 
   // Save draft order when form changes
   const saveDraftOrder = useCallback(async () => {
