@@ -72,8 +72,8 @@ serve(async (req) => {
 
     console.log('Checking courier history for phone:', cleanPhone);
 
-    // BD Courier API endpoint
-    const apiUrl = `https://bdcourier.com/api/courier-check?phone=${cleanPhone}`;
+    // BD Courier PAID API endpoint (api.bdcourier.com)
+    const apiUrl = `https://api.bdcourier.com/courier-check?phone=${encodeURIComponent(cleanPhone)}`;
     
     console.log('Calling BD Courier API:', apiUrl);
 
