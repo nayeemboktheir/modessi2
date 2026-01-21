@@ -8,7 +8,11 @@ const corsHeaders = {
 
 // In-memory cache with TTL
 const cache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes cache
+const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes cache to reduce API calls
+
+// Rate limiting: track last request time
+let lastRequestTime = 0;
+const MIN_REQUEST_INTERVAL_MS = 2000; // 2 seconds between requests to avoid rate limiting
 
 interface CourierStats {
   total_parcel: number;
@@ -67,11 +71,26 @@ function cleanPhone(phone: string): string {
   return cleaned;
 }
 
-// Fetch from BD Courier API
+// Wait for rate limit
+async function waitForRateLimit(): Promise<void> {
+  const now = Date.now();
+  const timeSinceLastRequest = now - lastRequestTime;
+  if (timeSinceLastRequest < MIN_REQUEST_INTERVAL_MS) {
+    const waitTime = MIN_REQUEST_INTERVAL_MS - timeSinceLastRequest;
+    console.log(`Rate limiting: waiting ${waitTime}ms before next request`);
+    await new Promise(resolve => setTimeout(resolve, waitTime));
+  }
+  lastRequestTime = Date.now();
+}
+
+// Fetch from BD Courier API with rate limiting
 async function fetchBDCourier(phone: string, apiKey: string): Promise<BDCourierResponse | null> {
   try {
+    // Apply rate limiting
+    await waitForRateLimit();
+
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
+    const timeout = setTimeout(() => controller.abort(), 15000);
 
     console.log(`Calling BD Courier API for phone: ${phone}`);
 
@@ -93,7 +112,9 @@ async function fetchBDCourier(phone: string, apiKey: string): Promise<BDCourierR
     console.log(`BD Courier API response status: ${response.status}`);
 
     if (response.status === 429) {
-      console.log("BD Courier rate limited");
+      console.log("BD Courier rate limited - waiting longer for next request");
+      // Increase wait time on rate limit
+      lastRequestTime = Date.now() + 5000; // Add extra 5 seconds
       return null;
     }
 
@@ -232,7 +253,7 @@ serve(async (req) => {
   }
 
   try {
-    const { phone } = await req.json();
+    const { phone, skipBdCourier } = await req.json();
 
     if (!phone) {
       return new Response(
@@ -244,11 +265,11 @@ serve(async (req) => {
     const cleanedPhone = cleanPhone(phone);
     const cacheKey = `combined_${cleanedPhone}`;
 
-    // Check cache
+    // Check cache first - this is critical for reducing API calls
     const cached = cache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
       console.log("Returning cached result for:", cleanedPhone);
-      return new Response(JSON.stringify(cached.data), {
+      return new Response(JSON.stringify({ ...cached.data, cached: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -264,11 +285,14 @@ serve(async (req) => {
       console.log("BDCOURIER_API_KEY not configured");
     }
 
-    // Fetch both sources in parallel
-    const [bdCourierResult, internalResult] = await Promise.all([
-      bdCourierApiKey ? fetchBDCourier(cleanedPhone, bdCourierApiKey) : Promise.resolve(null),
-      fetchInternalHistory(supabase, cleanedPhone),
-    ]);
+    // Fetch internal history first (always)
+    const internalResult = await fetchInternalHistory(supabase, cleanedPhone);
+
+    // Only fetch BD Courier if not explicitly skipped and API key exists
+    let bdCourierResult: BDCourierResponse | null = null;
+    if (!skipBdCourier && bdCourierApiKey) {
+      bdCourierResult = await fetchBDCourier(cleanedPhone, bdCourierApiKey);
+    }
 
     // Extract courier data from response
     const courierData = extractCourierData(bdCourierResult);

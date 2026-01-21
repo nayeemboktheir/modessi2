@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, AlertTriangle, CheckCircle, XCircle, Clock, TrendingUp, Truck } from "lucide-react";
+import { Loader2, AlertTriangle, CheckCircle, XCircle, Clock, TrendingUp, Truck, RefreshCw } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -45,11 +45,16 @@ interface CombinedResponse {
   bd_courier: BDCourierData | null;
   bd_courier_available: boolean;
   combined_risk_level: string;
+  cached?: boolean;
 }
 
-// Cache for API results
+// Global cache for API results - shared across all instances
 const cache = new Map<string, { data: CombinedResponse; timestamp: number }>();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
+// Global request queue to prevent parallel requests
+const requestQueue: string[] = [];
+let isProcessingQueue = false;
 
 function normalizePhone(phone: string): string {
   let cleaned = phone.replace(/[^0-9]/g, "");
@@ -158,16 +163,18 @@ export function CombinedCourierHistoryInline({
 }) {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<CombinedResponse | null>(null);
+  const [fetchingBdCourier, setFetchingBdCourier] = useState(false);
 
   const normalizedPhone = useMemo(() => normalizePhone(phone), [phone]);
 
+  // Initial fetch - skip BD Courier to avoid rate limiting
   useEffect(() => {
     if (!normalizedPhone || normalizedPhone.length < 11) {
       setLoading(false);
       return;
     }
 
-    // Check cache
+    // Check cache first
     const cached = cache.get(normalizedPhone);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
       setData(cached.data);
@@ -177,9 +184,10 @@ export function CombinedCourierHistoryInline({
 
     const fetchData = async () => {
       try {
+        // Initially fetch with skipBdCourier to get internal data quickly
         const { data: result, error } = await supabase.functions.invoke(
           "combined-courier-history",
-          { body: { phone: normalizedPhone } }
+          { body: { phone: normalizedPhone, skipBdCourier: true } }
         );
 
         if (error) throw error;
@@ -197,6 +205,30 @@ export function CombinedCourierHistoryInline({
 
     fetchData();
   }, [normalizedPhone]);
+
+  // Function to fetch BD Courier data on demand
+  const fetchBdCourierData = useCallback(async () => {
+    if (fetchingBdCourier || !normalizedPhone || data?.bd_courier_available) return;
+
+    setFetchingBdCourier(true);
+    try {
+      const { data: result, error } = await supabase.functions.invoke(
+        "combined-courier-history",
+        { body: { phone: normalizedPhone } }
+      );
+
+      if (error) throw error;
+
+      if (result) {
+        cache.set(normalizedPhone, { data: result, timestamp: Date.now() });
+        setData(result);
+      }
+    } catch (err) {
+      console.error("Error fetching BD Courier data:", err);
+    } finally {
+      setFetchingBdCourier(false);
+    }
+  }, [normalizedPhone, fetchingBdCourier, data?.bd_courier_available]);
 
   if (loading) {
     return (
@@ -232,7 +264,10 @@ export function CombinedCourierHistoryInline({
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <div className={cn("flex items-center gap-1.5 cursor-help", className)}>
+          <div 
+            className={cn("flex items-center gap-1.5 cursor-help", className)}
+            onMouseEnter={fetchBdCourierData}
+          >
             {(hasInternal || hasBDCourier) ? (
               <>
                 <ProgressRing 
@@ -244,11 +279,24 @@ export function CombinedCourierHistoryInline({
             ) : (
               <RiskBadge level="new" />
             )}
+            {fetchingBdCourier && (
+              <Loader2 className="h-2.5 w-2.5 animate-spin text-muted-foreground" />
+            )}
           </div>
         </TooltipTrigger>
         <TooltipContent side="left" className="max-w-xs p-3">
           <div className="space-y-2 text-xs">
-            <div className="font-semibold border-b pb-1 mb-2">Customer History</div>
+            <div className="font-semibold border-b pb-1 mb-2 flex items-center justify-between">
+              <span>Customer History</span>
+              {!bd_courier_available && !fetchingBdCourier && (
+                <button 
+                  onClick={(e) => { e.stopPropagation(); fetchBdCourierData(); }}
+                  className="text-[10px] text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                >
+                  <RefreshCw className="h-2.5 w-2.5" /> Load BD Courier
+                </button>
+              )}
+            </div>
             
             {/* BD Courier Steadfast History - Show First (Most Important) */}
             {bd_courier_available && bdSteadfast && bdSteadfast.total_parcel > 0 && (
@@ -299,7 +347,13 @@ export function CombinedCourierHistoryInline({
 
             {!bd_courier_available && (
               <div className="text-[10px] text-muted-foreground border-t pt-1">
-                BD Courier data unavailable (rate limited)
+                {fetchingBdCourier ? (
+                  <span className="flex items-center gap-1">
+                    <Loader2 className="h-2.5 w-2.5 animate-spin" /> Loading BD Courier data...
+                  </span>
+                ) : (
+                  "Hover to load BD Courier data"
+                )}
               </div>
             )}
           </div>
