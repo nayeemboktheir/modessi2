@@ -8,7 +8,7 @@ const corsHeaders = {
 
 // Simple in-memory cache to reduce API calls
 const cache = new Map<string, { data: unknown; timestamp: number }>();
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes cache
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes cache
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -59,7 +59,7 @@ serve(async (req) => {
       );
     }
 
-    // Get API key from Supabase secrets
+    // Get API key from environment
     const BDCOURIER_API_KEY = Deno.env.get('BDCOURIER_API_KEY');
     
     if (!BDCOURIER_API_KEY) {
@@ -78,7 +78,7 @@ serve(async (req) => {
     console.log('Calling BD Courier API:', apiUrl);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
     const response = await fetch(apiUrl, {
       method: 'GET',
@@ -92,7 +92,7 @@ serve(async (req) => {
 
     const responseText = await response.text();
     console.log('BD Courier API response status:', response.status);
-    console.log('BD Courier API response:', responseText);
+    console.log('BD Courier API response:', responseText.substring(0, 500));
 
     // Handle rate limiting (429)
     if (response.status === 429) {
@@ -102,6 +102,19 @@ serve(async (req) => {
           success: false,
           rateLimited: true,
           message: 'BD Courier API rate limit reached. Please wait a few minutes and try again.'
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Handle unauthorized
+    if (response.status === 401) {
+      console.error('BD Courier API unauthorized - check API key');
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          unauthorized: true,
+          message: 'BD Courier API key is invalid or expired.'
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -124,7 +137,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: 'Failed to fetch courier history',
-          details: responseText 
+          details: responseText.substring(0, 200)
         }),
         { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -141,13 +154,49 @@ serve(async (req) => {
       );
     }
 
-    console.log('Parsed courier data:', JSON.stringify(data));
+    console.log('Parsed courier data structure:', Object.keys(data));
+
+    // Normalize the response to a consistent format
+    // Handle multiple response formats:
+    // Format 1: { status: "success", data: { courierData: { pathao, steadfast, ... } } }
+    // Format 2: { status: 200, data: { pathao, steadfast, ... } }
+    // Format 3: { pathao, steadfast, ... } (direct format)
+    
+    let normalizedData = data;
+    
+    if (data.data?.courierData) {
+      // New format with nested courierData
+      normalizedData = {
+        ...data,
+        courierData: data.data.courierData
+      };
+    } else if (data.data && (data.data.summary || data.data.pathao || data.data.steadfast)) {
+      // Legacy format with data wrapper
+      normalizedData = {
+        ...data,
+        courierData: data.data
+      };
+    } else if (data.summary || data.pathao || data.steadfast) {
+      // Direct format (no wrapper)
+      normalizedData = {
+        courierData: {
+          pathao: data.pathao,
+          steadfast: data.steadfast,
+          redx: data.redx,
+          paperfly: data.paperfly,
+          parceldex: data.parceldex,
+          summary: data.summary
+        }
+      };
+    }
+
+    console.log('Normalized courier data:', JSON.stringify(normalizedData).substring(0, 300));
 
     // Cache the result
-    cache.set(cleanPhone, { data, timestamp: Date.now() });
+    cache.set(cleanPhone, { data: normalizedData, timestamp: Date.now() });
 
     return new Response(
-      JSON.stringify({ success: true, data }),
+      JSON.stringify({ success: true, data: normalizedData }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

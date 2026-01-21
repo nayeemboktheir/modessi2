@@ -18,9 +18,9 @@ interface CourierStats {
 }
 
 interface BDCourierResponse {
-  status: number;
+  status?: number | string;
+  message?: string;
   data?: {
-    // New API format
     status?: string;
     courierData?: {
       pathao?: CourierStats;
@@ -37,6 +37,12 @@ interface BDCourierResponse {
     paperfly?: CourierStats;
     summary?: CourierStats;
   };
+  // Direct legacy format
+  pathao?: CourierStats;
+  steadfast?: CourierStats;
+  redx?: CourierStats;
+  paperfly?: CourierStats;
+  summary?: CourierStats;
 }
 
 interface InternalStats {
@@ -65,7 +71,9 @@ function cleanPhone(phone: string): string {
 async function fetchBDCourier(phone: string, apiKey: string): Promise<BDCourierResponse | null> {
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
+    console.log(`Calling BD Courier API for phone: ${phone}`);
 
     const response = await fetch(
       `https://bdcourier.com/api/courier-check?phone=${encodeURIComponent(phone)}`,
@@ -74,6 +82,7 @@ async function fetchBDCourier(phone: string, apiKey: string): Promise<BDCourierR
         headers: {
           Authorization: `Bearer ${apiKey}`,
           Accept: "application/json",
+          "Content-Type": "application/json",
         },
         signal: controller.signal,
       }
@@ -81,25 +90,40 @@ async function fetchBDCourier(phone: string, apiKey: string): Promise<BDCourierR
 
     clearTimeout(timeout);
 
+    console.log(`BD Courier API response status: ${response.status}`);
+
     if (response.status === 429) {
       console.log("BD Courier rate limited");
       return null;
     }
 
     if (response.status === 403) {
-      console.log("BD Courier blocked (Cloudflare)");
+      const text = await response.text();
+      console.log("BD Courier blocked:", text.substring(0, 200));
+      return null;
+    }
+
+    if (response.status === 401) {
+      console.log("BD Courier unauthorized - check API key");
       return null;
     }
 
     if (!response.ok) {
-      console.log(`BD Courier error: ${response.status}`);
+      const text = await response.text();
+      console.log(`BD Courier error ${response.status}:`, text.substring(0, 200));
       return null;
     }
 
     const data = await response.json();
-    return { status: 200, data };
+    console.log("BD Courier API response:", JSON.stringify(data).substring(0, 500));
+    
+    return data;
   } catch (error) {
-    console.error("BD Courier fetch error:", error);
+    if (error instanceof DOMException && error.name === "AbortError") {
+      console.log("BD Courier API timeout");
+    } else {
+      console.error("BD Courier fetch error:", error);
+    }
     return null;
   }
 }
@@ -174,6 +198,34 @@ async function fetchInternalHistory(
   };
 }
 
+// Extract courier data from various response formats
+function extractCourierData(response: BDCourierResponse | null): any {
+  if (!response) return null;
+
+  // Format 1: response.data.courierData (new format)
+  if (response.data?.courierData) {
+    return response.data.courierData;
+  }
+
+  // Format 2: response.data (legacy with direct properties)
+  if (response.data && (response.data.summary || response.data.pathao || response.data.steadfast)) {
+    return response.data;
+  }
+
+  // Format 3: response directly has courier properties (legacy)
+  if (response.summary || response.pathao || response.steadfast) {
+    return {
+      pathao: response.pathao,
+      steadfast: response.steadfast,
+      redx: response.redx,
+      paperfly: response.paperfly,
+      summary: response.summary,
+    };
+  }
+
+  return null;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -195,7 +247,7 @@ serve(async (req) => {
     // Check cache
     const cached = cache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-      console.log("Returning cached result");
+      console.log("Returning cached result for:", cleanedPhone);
       return new Response(JSON.stringify(cached.data), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -208,28 +260,30 @@ serve(async (req) => {
     // Get BD Courier API key
     const bdCourierApiKey = Deno.env.get("BDCOURIER_API_KEY") || "";
 
+    if (!bdCourierApiKey) {
+      console.log("BDCOURIER_API_KEY not configured");
+    }
+
     // Fetch both sources in parallel
     const [bdCourierResult, internalResult] = await Promise.all([
       bdCourierApiKey ? fetchBDCourier(cleanedPhone, bdCourierApiKey) : Promise.resolve(null),
       fetchInternalHistory(supabase, cleanedPhone),
     ]);
 
+    // Extract courier data from response
+    const courierData = extractCourierData(bdCourierResult);
+
     // Build combined response
     const response: any = {
       phone: cleanedPhone,
       internal: internalResult,
-      bd_courier: null,
-      bd_courier_available: false,
+      bd_courier: courierData ? { courierData } : null,
+      bd_courier_available: courierData !== null,
       combined_risk_level: internalResult.risk_level,
     };
 
-    if (bdCourierResult?.data) {
-      response.bd_courier = bdCourierResult.data;
-      response.bd_courier_available = true;
-
-      // Handle both API response formats: courierData.summary or direct summary
-      const courierData = bdCourierResult.data.courierData || bdCourierResult.data;
-      const summary = courierData?.summary;
+    if (courierData) {
+      const summary = courierData.summary;
       
       if (summary && summary.total_parcel > 0) {
         const bdRatio = summary.success_ratio;
