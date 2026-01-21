@@ -92,10 +92,12 @@ async function fetchBDCourier(phone: string, apiKey: string): Promise<BDCourierR
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
 
-    console.log(`Calling BD Courier API for phone: ${phone}`);
+    // Use the paid API endpoint: api.bdcourier.com
+    const apiUrl = `https://api.bdcourier.com/courier-check?phone=${encodeURIComponent(phone)}`;
+    console.log(`Calling BD Courier API: ${apiUrl}`);
 
     const response = await fetch(
-      `https://bdcourier.com/api/courier-check?phone=${encodeURIComponent(phone)}`,
+      apiUrl,
       {
         method: "GET",
         headers: {
