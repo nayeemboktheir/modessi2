@@ -8,7 +8,7 @@ const corsHeaders = {
 
 // In-memory cache with TTL
 const cache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes cache to reduce API calls
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours cache to reduce API calls
 
 // Rate limiting: track last request time
 let lastRequestTime = 0;

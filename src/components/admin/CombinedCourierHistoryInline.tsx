@@ -50,7 +50,7 @@ interface CombinedResponse {
 
 // Global cache for API results - shared across all instances
 const cache = new Map<string, { data: CombinedResponse; timestamp: number }>();
-const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 // Global request queue to prevent parallel requests
 const requestQueue: string[] = [];
