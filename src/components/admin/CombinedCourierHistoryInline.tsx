@@ -167,16 +167,16 @@ export function CombinedCourierHistoryInline({
 
   const normalizedPhone = useMemo(() => normalizePhone(phone), [phone]);
 
-  // Initial fetch - skip BD Courier to avoid rate limiting
+  // Initial fetch - now fetch BD Courier by default (server handles rate limiting)
   useEffect(() => {
     if (!normalizedPhone || normalizedPhone.length < 11) {
       setLoading(false);
       return;
     }
 
-    // Check cache first
+    // Check cache first - only use if it has BD Courier data
     const cached = cache.get(normalizedPhone);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL && cached.data.bd_courier_available) {
       setData(cached.data);
       setLoading(false);
       return;
@@ -184,10 +184,10 @@ export function CombinedCourierHistoryInline({
 
     const fetchData = async () => {
       try {
-        // Initially fetch with skipBdCourier to get internal data quickly
+        // Fetch with BD Courier data by default (no skipBdCourier)
         const { data: result, error } = await supabase.functions.invoke(
           "combined-courier-history",
-          { body: { phone: normalizedPhone, skipBdCourier: true } }
+          { body: { phone: normalizedPhone, skipBdCourier: false } }
         );
 
         if (error) throw error;
@@ -255,10 +255,14 @@ export function CombinedCourierHistoryInline({
   const hasInternal = internal.total_orders > 0;
   const hasBDCourier = bd_courier_available && bdSummary && bdSummary.total_parcel > 0;
 
-  // Use BD Courier ratio if available, otherwise internal
+  // Use BD Courier ratio if available, otherwise internal (only if there's internal data)
+  // If neither data source has data, we'll show "New" badge instead of 0%
   const displayRatio = hasBDCourier 
     ? bdSummary!.success_ratio 
-    : (internal.success_ratio ?? 0);
+    : (hasInternal ? (internal.success_ratio ?? 0) : 0);
+  
+  // Only show progress ring if we have actual data from either source
+  const hasAnyData = hasInternal || hasBDCourier;
 
   return (
     <TooltipProvider>
@@ -268,7 +272,7 @@ export function CombinedCourierHistoryInline({
             className={cn("flex items-center gap-1.5 cursor-help", className)}
             onMouseEnter={fetchBdCourierData}
           >
-            {(hasInternal || hasBDCourier) ? (
+            {hasAnyData ? (
               <>
                 <ProgressRing 
                   percentage={displayRatio} 
