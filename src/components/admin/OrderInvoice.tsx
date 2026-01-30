@@ -153,8 +153,8 @@ export const OrderInvoice = forwardRef<HTMLDivElement, OrderInvoiceProps>(
               <span style={{ fontWeight: '600' }}>Delivery:</span> Steadfast
             </p>
             <p style={{ margin: '4px 0' }}>
-              <span style={{ fontWeight: '600' }}>Tracking:</span>{' '}
-              {order.tracking_number || 'Pending'}
+              <span style={{ fontWeight: '600' }}>Steadfast ID:</span>{' '}
+              {order.steadfast_note?.match(/Consignment ID: (\d+)/)?.[1] || order.tracking_number || 'Pending'}
             </p>
           </div>
         </div>
