@@ -118,24 +118,29 @@ Deno.serve(async (req) => {
     if (body.orders && Array.isArray(body.orders)) {
       console.log(`Processing bulk order: ${body.orders.length} orders`);
       
-      const results: { orderId: string; success: boolean; tracking_code?: string; error?: string }[] = [];
+      const results: { orderId: string; success: boolean; tracking_code?: string; consignment_id?: string; error?: string }[] = [];
       
       for (const order of body.orders as SteadfastOrderRequest[]) {
         const result = await sendToSteadfast(order, apiKey, secretKey);
         
         if (result.success && result.data) {
           const consignmentData = result.data as { consignment?: { consignment_id?: string; tracking_code?: string } };
-          const trackingCode = consignmentData.consignment?.tracking_code || consignmentData.consignment?.consignment_id;
+          const consignmentId = consignmentData.consignment?.consignment_id;
+          const trackingCode = consignmentData.consignment?.tracking_code || consignmentId;
           
-          // Update order with tracking
+          // Update order with tracking and consignment ID
           if (order.orderId) {
             await supabase
               .from('orders')
-              .update({ tracking_number: trackingCode, status: 'processing' })
+              .update({ 
+                tracking_number: trackingCode, 
+                steadfast_consignment_id: consignmentId,
+                status: 'processing' 
+              })
               .eq('id', order.orderId);
           }
           
-          results.push({ orderId: order.orderId, success: true, tracking_code: trackingCode });
+          results.push({ orderId: order.orderId, success: true, tracking_code: trackingCode, consignment_id: consignmentId });
         } else {
           results.push({ orderId: order.orderId, success: false, error: result.error });
         }
@@ -182,7 +187,11 @@ Deno.serve(async (req) => {
     if ((consignmentId || trackingCode) && order.orderId) {
       await supabase
         .from('orders')
-        .update({ tracking_number: trackingCode || consignmentId, status: 'processing' })
+        .update({ 
+          tracking_number: trackingCode || consignmentId, 
+          steadfast_consignment_id: consignmentId,
+          status: 'processing' 
+        })
         .eq('id', order.orderId);
     }
 
