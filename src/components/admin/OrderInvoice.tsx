@@ -28,6 +28,7 @@ interface Order {
   shipping_district: string;
   shipping_postal_code: string | null;
   tracking_number: string | null;
+  steadfast_consignment_id?: string | null;
   notes: string | null;
   invoice_note?: string | null;
   steadfast_note?: string | null;
@@ -154,7 +155,7 @@ export const OrderInvoice = forwardRef<HTMLDivElement, OrderInvoiceProps>(
             </p>
             <p style={{ margin: '4px 0' }}>
               <span style={{ fontWeight: '600' }}>Steadfast ID:</span>{' '}
-              {order.steadfast_note?.match(/Consignment ID: (\d+)/)?.[1] || order.tracking_number || 'Pending'}
+              {order.steadfast_consignment_id || 'Pending'}
             </p>
           </div>
         </div>

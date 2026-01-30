@@ -565,6 +565,7 @@ export type Database = {
           shipping_postal_code: string | null
           shipping_street: string
           status: string
+          steadfast_consignment_id: string | null
           steadfast_note: string | null
           subtotal: number
           total: number
@@ -591,6 +592,7 @@ export type Database = {
           shipping_postal_code?: string | null
           shipping_street: string
           status?: string
+          steadfast_consignment_id?: string | null
           steadfast_note?: string | null
           subtotal: number
           total: number
@@ -617,6 +619,7 @@ export type Database = {
           shipping_postal_code?: string | null
           shipping_street?: string
           status?: string
+          steadfast_consignment_id?: string | null
           steadfast_note?: string | null
           subtotal?: number
           total?: number
