@@ -20,6 +20,9 @@ const AdminLandingVideoSettings = () => {
   const [productName, setProductName] = useState('Tulshi Plus & Lungs Guard Capsole');
   const [productPrice, setProductPrice] = useState('1550');
   const [originalPrice, setOriginalPrice] = useState('2300');
+  const [cottonTarselVideo, setCottonTarselVideo] = useState('');
+  const [digitalTarselVideo, setDigitalTarselVideo] = useState('');
+  const [reyonCottonVideo, setReyonCottonVideo] = useState('');
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -36,7 +39,7 @@ const AdminLandingVideoSettings = () => {
       const { data, error } = await supabase
         .from('admin_settings')
         .select('key, value')
-        .in('key', ['landing_product_video', 'landing_review_videos', 'landing_product_name', 'landing_product_price', 'landing_product_original_price']);
+        .in('key', ['landing_product_video', 'landing_review_videos', 'landing_product_name', 'landing_product_price', 'landing_product_original_price', 'cotton_tarsel_video_url', 'digital_tarsel_video_url', 'reyon_cotton_video_url']);
 
       if (error) throw error;
 
@@ -45,6 +48,9 @@ const AdminLandingVideoSettings = () => {
         if (item.key === 'landing_product_name') setProductName(item.value);
         if (item.key === 'landing_product_price') setProductPrice(item.value);
         if (item.key === 'landing_product_original_price') setOriginalPrice(item.value);
+        if (item.key === 'cotton_tarsel_video_url') setCottonTarselVideo(item.value);
+        if (item.key === 'digital_tarsel_video_url') setDigitalTarselVideo(item.value);
+        if (item.key === 'reyon_cotton_video_url') setReyonCottonVideo(item.value);
         if (item.key === 'landing_review_videos') {
           try {
             const videos = JSON.parse(item.value);
@@ -73,6 +79,9 @@ const AdminLandingVideoSettings = () => {
         { key: 'landing_product_name', value: productName },
         { key: 'landing_product_price', value: productPrice },
         { key: 'landing_product_original_price', value: originalPrice },
+        { key: 'cotton_tarsel_video_url', value: cottonTarselVideo },
+        { key: 'digital_tarsel_video_url', value: digitalTarselVideo },
+        { key: 'reyon_cotton_video_url', value: reyonCottonVideo },
       ];
 
       for (const update of updates) {
@@ -285,6 +294,49 @@ const AdminLandingVideoSettings = () => {
                 )}
               </div>
             ))}
+          </CardContent>
+        </Card>
+
+        {/* Special Collections Videos */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Video className="h-5 w-5" />
+              স্পেশাল কালেকশন ভিডিও
+            </CardTitle>
+            <CardDescription>বিশেষ কালেকশন ল্যান্ডিং পেজের ভিডিও লিংক</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Cotton Tarsel */}
+            <div className="space-y-2">
+              <Label>কটন টারসেল কালেকশন ভিডিও</Label>
+              <p className="text-xs text-muted-foreground">URL: /cotton-tarsel-collection</p>
+              <Input
+                value={cottonTarselVideo}
+                onChange={(e) => setCottonTarselVideo(e.target.value)}
+                placeholder="ভিডিও লিংক বা iframe embed কোড..."
+              />
+            </div>
+            {/* Digital Tarsel */}
+            <div className="space-y-2">
+              <Label>ডিজিটাল টারসেল কালেকশন ভিডিও</Label>
+              <p className="text-xs text-muted-foreground">URL: /digital-tarsel-collection</p>
+              <Input
+                value={digitalTarselVideo}
+                onChange={(e) => setDigitalTarselVideo(e.target.value)}
+                placeholder="ভিডিও লিংক বা iframe embed কোড..."
+              />
+            </div>
+            {/* Reyon Cotton */}
+            <div className="space-y-2">
+              <Label>রেয়ন কটন কালেকশন ভিডিও</Label>
+              <p className="text-xs text-muted-foreground">URL: /reyon-cotton-collection</p>
+              <Input
+                value={reyonCottonVideo}
+                onChange={(e) => setReyonCottonVideo(e.target.value)}
+                placeholder="ভিডিও লিংক বা iframe embed কোড..."
+              />
+            </div>
           </CardContent>
         </Card>
       </div>
