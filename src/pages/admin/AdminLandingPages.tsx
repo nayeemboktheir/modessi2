@@ -91,6 +91,10 @@ const AdminLandingPages = () => {
   const [digitalTarselVideoOpen, setDigitalTarselVideoOpen] = useState(false);
   const [digitalTarselVideoUrl, setDigitalTarselVideoUrl] = useState("");
 
+  // Reyon Cotton video edit states
+  const [reyonCottonVideoOpen, setReyonCottonVideoOpen] = useState(false);
+  const [reyonCottonVideoUrl, setReyonCottonVideoUrl] = useState("");
+
   const { data: landingPages, isLoading } = useQuery({
     queryKey: ["admin-landing-pages"],
     queryFn: async () => {
@@ -156,6 +160,21 @@ const AdminLandingPages = () => {
         .from("admin_settings")
         .select("value")
         .eq("key", "digital_tarsel_video_url")
+        .maybeSingle();
+
+      if (error) throw error;
+      return data?.value || "";
+    },
+  });
+
+  // Fetch Reyon Cotton video URL from admin_settings
+  const { data: reyonCottonVideoSetting } = useQuery({
+    queryKey: ["reyon-cotton-video-setting"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("admin_settings")
+        .select("value")
+        .eq("key", "reyon_cotton_video_url")
         .maybeSingle();
 
       if (error) throw error;
@@ -272,6 +291,39 @@ const AdminLandingPages = () => {
       queryClient.invalidateQueries({ queryKey: ["digital-tarsel-video-setting"] });
       toast.success("ভিডিও লিংক সেভ হয়েছে");
       setDigitalTarselVideoOpen(false);
+    },
+    onError: (error) => {
+      toast.error("ভিডিও লিংক সেভ করতে সমস্যা হয়েছে");
+      console.error(error);
+    },
+  });
+
+  // Save Reyon Cotton video URL mutation
+  const saveReyonCottonVideoMutation = useMutation({
+    mutationFn: async (videoUrl: string) => {
+      const { data: existing } = await supabase
+        .from("admin_settings")
+        .select("id")
+        .eq("key", "reyon_cotton_video_url")
+        .maybeSingle();
+
+      if (existing) {
+        const { error } = await supabase
+          .from("admin_settings")
+          .update({ value: videoUrl })
+          .eq("key", "reyon_cotton_video_url");
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("admin_settings")
+          .insert({ key: "reyon_cotton_video_url", value: videoUrl });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reyon-cotton-video-setting"] });
+      toast.success("ভিডিও লিংক সেভ হয়েছে");
+      setReyonCottonVideoOpen(false);
     },
     onError: (error) => {
       toast.error("ভিডিও লিংক সেভ করতে সমস্যা হয়েছে");
@@ -737,6 +789,9 @@ const AdminLandingPages = () => {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
+                        <Button variant="outline" size="sm" onClick={() => { setReyonCottonVideoUrl(reyonCottonVideoSetting || ""); setReyonCottonVideoOpen(true); }}>
+                          <Edit className="h-4 w-4 mr-1" />Edit
+                        </Button>
                         <Button variant="outline" size="sm" asChild>
                           <a href="/reyon-cotton" target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4 mr-1" />View</a>
                         </Button>
@@ -1135,6 +1190,53 @@ https://www.facebook.com/watch/?v=123456789"
               className="bg-slate-600 hover:bg-slate-700"
             >
               {saveDigitalTarselVideoMutation.isPending ? "সেভ হচ্ছে..." : "সেভ করুন"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reyon Cotton Video Edit Dialog */}
+      <Dialog open={reyonCottonVideoOpen} onOpenChange={setReyonCottonVideoOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Video className="h-5 w-5 text-purple-600" />
+              Reyon Cotton ভিডিও এডিট
+            </DialogTitle>
+            <DialogDescription>
+              Facebook এম্বেড কোড বা ভিডিও লিংক দিন। ল্যান্ডিং পেইজে এই ভিডিও দেখানো হবে।
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-3">
+              <Label htmlFor="reyon-cotton-video">ভিডিও Embed কোড / লিংক</Label>
+              <Textarea
+                id="reyon-cotton-video"
+                value={reyonCottonVideoUrl}
+                onChange={(e) => setReyonCottonVideoUrl(e.target.value)}
+                placeholder="<iframe src='https://www.facebook.com/plugins/video.php?...' ...></iframe>
+
+অথবা
+
+https://www.facebook.com/watch/?v=123456789"
+                rows={6}
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                ফেসবুক ভিডিও থেকে "Embed" অপশন থেকে কোড কপি করুন অথবা সরাসরি ভিডিও লিংক দিন।
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReyonCottonVideoOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => saveReyonCottonVideoMutation.mutate(reyonCottonVideoUrl)}
+              disabled={saveReyonCottonVideoMutation.isPending}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              {saveReyonCottonVideoMutation.isPending ? "সেভ হচ্ছে..." : "সেভ করুন"}
             </Button>
           </DialogFooter>
         </DialogContent>
