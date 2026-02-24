@@ -52,6 +52,7 @@ import AdminSocialMedia from '@/pages/admin/AdminSocialMedia';
 import AdminReports from '@/pages/admin/AdminReports';
 import AdminHomePageEdit from '@/pages/admin/AdminHomePageEdit';
 import AdminLandingVideoSettings from '@/pages/admin/AdminLandingVideoSettings';
+import AdminBotBhai from '@/pages/admin/AdminBotBhai';
 
 const queryClient = new QueryClient();
 
@@ -115,6 +116,7 @@ const App = () => (
               <Route path="/admin/site-settings" element={<AdminLayout><AdminSiteSettings /></AdminLayout>} />
               <Route path="/admin/home-page-edit" element={<AdminLayout><AdminHomePageEdit /></AdminLayout>} />
               <Route path="/admin/landing-video-settings" element={<AdminLandingVideoSettings />} />
+              <Route path="/admin/botbhai" element={<AdminLayout><AdminBotBhai /></AdminLayout>} />
 
               {/* Catch all - redirect to main page */}
               <Route path="*" element={<FashionHomePage />} />
