@@ -429,10 +429,13 @@ export default function AdminProducts() {
         id: productId,
         name: productData.name,
         price: productData.price,
+        original_price: productData.original_price,
         stock: productData.stock,
-        image: productData.images?.[0] || '',
+        images: productData.images,
         category: categoryName,
-        active: productData.is_active ?? true,
+        tags: productData.tags,
+        description: productData.description,
+        is_active: productData.is_active ?? true,
       }).catch(() => {});
 
       // Save variations
@@ -455,7 +458,7 @@ export default function AdminProducts() {
       await supabase.from('product_variations').delete().eq('product_id', id);
       await deleteProduct(id);
       // Sync deletion to BotBhai
-      syncProductToBotBhai({ id, name: '', price: 0, stock: 0, active: false }).catch(() => {});
+      syncProductToBotBhai({ id, name: '', price: 0, stock: 0, is_active: false }).catch(() => {});
       toast.success('Product deleted successfully');
       loadData();
     } catch (error) {
