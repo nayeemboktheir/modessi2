@@ -94,7 +94,11 @@ export const createOrder = async (orderData: CreateOrderData): Promise<Order> =>
   syncOrderToBotBhai({
     id: data.orderId,
     total: Number(data.total),
+    subtotal: Number(data.subtotal),
+    shipping_cost: Number(data.shippingCost),
     status: 'pending',
+    payment_method: 'cod',
+    payment_status: 'unpaid',
     customer: {
       name: orderData.shippingAddress.name,
       phone: orderData.shippingAddress.phone,
