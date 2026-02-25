@@ -110,9 +110,90 @@ export const deleteOrderFromBotBhai = async (orderId: string) => {
   }
 };
 
-export const syncAllToBotBhai = async () => {
+/**
+ * Sync all products in batches of 5 with 15s delay between batches.
+ * Calls onProgress(synced, total) after each batch.
+ */
+export const syncAllProductsToBotBhai = async (
+  onProgress?: (synced: number, total: number) => void
+) => {
+  // Fetch all active products
+  const { data: products, error } = await supabase
+    .from('products')
+    .select('*, categories(name)')
+    .eq('is_active', true);
+
+  if (error) throw error;
+  if (!products || products.length === 0) {
+    return { message: 'No active products found.' };
+  }
+
+  const BATCH_SIZE = 5;
+  const DELAY_MS = 15000;
+  let synced = 0;
+  const total = products.length;
+  const errors: string[] = [];
+
+  for (let i = 0; i < total; i += BATCH_SIZE) {
+    const chunk = products.slice(i, i + BATCH_SIZE);
+
+    await Promise.all(
+      chunk.map(async (p) => {
+        const stock = p.stock ?? 0;
+        const payload = {
+          product_id: p.id,
+          product_name: p.name,
+          image_url: p.images?.[0] || null,
+          images: p.images || null,
+          category: (p.categories as any)?.name || null,
+          subcategory: null,
+          tags: p.tags || null,
+          color: null,
+          size: null,
+          stock,
+          stock_status: getStockStatus(stock),
+          base_price: p.original_price ?? p.price ?? 0,
+          selling_price: p.price ?? 0,
+          discount_price: p.original_price && p.original_price > p.price ? p.price : null,
+          wholesale_price: null,
+          description: p.description || null,
+          features: null,
+          is_available: p.is_active ?? true,
+          status: p.is_active === false ? 'inactive' : 'active',
+        };
+
+        try {
+          const { error: fnErr } = await supabase.functions.invoke('botbhai-sync', {
+            body: { action: 'sync_product', data: payload },
+          });
+          if (fnErr) errors.push(`Product ${p.id}: ${fnErr.message}`);
+        } catch (e: any) {
+          errors.push(`Product ${p.id}: ${e.message || e}`);
+        }
+      })
+    );
+
+    synced += chunk.length;
+    onProgress?.(synced, total);
+
+    // Wait 15s between batches (skip after last batch)
+    if (i + BATCH_SIZE < total) {
+      await new Promise((r) => setTimeout(r, DELAY_MS));
+    }
+  }
+
+  return {
+    message: `Synced ${synced} products.${errors.length ? ` ${errors.length} errors.` : ''}`,
+    errors: errors.length > 0 ? errors : undefined,
+  };
+};
+
+/**
+ * Sync all orders via the edge function (no batching needed).
+ */
+export const syncAllOrdersToBotBhai = async () => {
   const { data, error } = await supabase.functions.invoke('botbhai-sync', {
-    body: { action: 'sync_all' },
+    body: { action: 'sync_all_orders' },
   });
   if (error) throw error;
   return data;

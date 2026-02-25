@@ -19,7 +19,6 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
-    // Fetch BotBhai API key
     const { data: settingRow, error: settingErr } = await supabase
       .from('admin_settings')
       .select('value')
@@ -35,16 +34,11 @@ Deno.serve(async (req) => {
 
     const apiKey = settingRow.value
     const headers = { 'Content-Type': 'application/json', 'x-api-key': apiKey }
-
     const { action, data } = await req.json()
 
     // ---------- sync_product ----------
     if (action === 'sync_product') {
-      const res = await fetch(BOTBHAI_PRODUCTS_URL, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(data),
-      })
+      const res = await fetch(BOTBHAI_PRODUCTS_URL, { method: 'POST', headers, body: JSON.stringify(data) })
       const body = await res.text()
       return new Response(JSON.stringify({ ok: res.ok, status: res.status, body }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -53,11 +47,7 @@ Deno.serve(async (req) => {
 
     // ---------- delete_product ----------
     if (action === 'delete_product') {
-      const res = await fetch(BOTBHAI_PRODUCTS_URL, {
-        method: 'DELETE',
-        headers,
-        body: JSON.stringify({ id: data.id }),
-      })
+      const res = await fetch(BOTBHAI_PRODUCTS_URL, { method: 'DELETE', headers, body: JSON.stringify({ id: data.id }) })
       const body = await res.text()
       return new Response(JSON.stringify({ ok: res.ok, status: res.status, body }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -66,11 +56,7 @@ Deno.serve(async (req) => {
 
     // ---------- sync_order ----------
     if (action === 'sync_order') {
-      const res = await fetch(BOTBHAI_ORDERS_URL, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(data),
-      })
+      const res = await fetch(BOTBHAI_ORDERS_URL, { method: 'POST', headers, body: JSON.stringify(data) })
       const body = await res.text()
       return new Response(JSON.stringify({ ok: res.ok, status: res.status, body }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -79,66 +65,18 @@ Deno.serve(async (req) => {
 
     // ---------- delete_order ----------
     if (action === 'delete_order') {
-      const res = await fetch(BOTBHAI_ORDERS_URL, {
-        method: 'DELETE',
-        headers,
-        body: JSON.stringify({ id: data.id }),
-      })
+      const res = await fetch(BOTBHAI_ORDERS_URL, { method: 'DELETE', headers, body: JSON.stringify({ id: data.id }) })
       const body = await res.text()
       return new Response(JSON.stringify({ ok: res.ok, status: res.status, body }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    // ---------- sync_all ----------
-    if (action === 'sync_all') {
-      let productsSynced = 0
+    // ---------- sync_all_orders ----------
+    if (action === 'sync_all_orders') {
       let ordersSynced = 0
       const errors: string[] = []
 
-      // Sync all active products
-      const { data: products, error: pErr } = await supabase
-        .from('products')
-        .select('*, categories(name)')
-        .eq('is_active', true)
-
-      if (pErr) {
-        errors.push(`Product fetch error: ${pErr.message}`)
-      } else if (products) {
-        for (const p of products) {
-          const stock = p.stock ?? 0
-          const payload = {
-            product_id: p.id,
-            product_name: p.name,
-            image_url: p.images?.[0] || null,
-            images: p.images || null,
-            category: (p.categories as any)?.name || null,
-            subcategory: null,
-            tags: p.tags || null,
-            color: null,
-            size: null,
-            stock,
-            stock_status: stock <= 0 ? 'out_of_stock' : stock < 10 ? 'low_stock' : 'in_stock',
-            base_price: p.original_price ?? p.price ?? 0,
-            selling_price: p.price ?? 0,
-            discount_price: p.original_price && p.original_price > p.price ? p.price : null,
-            wholesale_price: null,
-            description: p.description || null,
-            features: null,
-            is_available: p.is_active ?? true,
-            status: p.is_active === false ? 'inactive' : 'active',
-          }
-          try {
-            const res = await fetch(BOTBHAI_PRODUCTS_URL, { method: 'POST', headers, body: JSON.stringify(payload) })
-            if (res.ok) productsSynced++
-            else errors.push(`Product ${p.id}: ${res.status}`)
-          } catch (e) {
-            errors.push(`Product ${p.id}: ${e}`)
-          }
-        }
-      }
-
-      // Sync all orders
       const { data: ordersData, error: oErr } = await supabase
         .from('orders')
         .select('*, order_items(*)')
@@ -181,7 +119,7 @@ Deno.serve(async (req) => {
 
       return new Response(JSON.stringify({
         ok: true,
-        message: `Synced ${productsSynced} products and ${ordersSynced} orders`,
+        message: `Synced ${ordersSynced} orders`,
         errors: errors.length > 0 ? errors : undefined,
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
