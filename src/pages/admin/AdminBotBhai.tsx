@@ -6,13 +6,15 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff, Save, Bot } from 'lucide-react';
+import { Eye, EyeOff, Save, Bot, RefreshCw, Loader2 } from 'lucide-react';
+import { syncAllToBotBhai } from '@/services/botbhaiService';
 
 export default function AdminBotBhai() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [apiKey, setApiKey] = useState('');
   const [showKey, setShowKey] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const { isLoading } = useQuery({
     queryKey: ['botbhai-api-key'],
@@ -58,6 +60,25 @@ export default function AdminBotBhai() {
       toast({ title: 'Error', description: 'API Key সেভ করতে সমস্যা হয়েছে।', variant: 'destructive' });
     },
   });
+
+  const handleSyncAll = async () => {
+    setSyncing(true);
+    try {
+      const result = await syncAllToBotBhai();
+      toast({
+        title: 'সিঙ্ক সফল!',
+        description: result?.message || 'All data synced successfully!',
+      });
+    } catch (err) {
+      toast({
+        title: 'সিঙ্ক ব্যর্থ',
+        description: 'ডাটা সিঙ্ক করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।',
+        variant: 'destructive',
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -113,10 +134,41 @@ export default function AdminBotBhai() {
             <p className="font-medium text-foreground">কিভাবে কাজ করে:</p>
             <ul className="list-disc list-inside space-y-1">
               <li>প্রোডাক্ট তৈরি, আপডেট বা ডিলিট করলে স্বয়ংক্রিয়ভাবে BotBhai-তে সিঙ্ক হবে।</li>
-              <li>নতুন অর্ডার আসলে স্বয়ংক্রিয়ভাবে BotBhai-তে পাঠানো হবে।</li>
+              <li>নতুন অর্ডার আসলে বা স্ট্যাটাস পরিবর্তন হলে BotBhai-তে পাঠানো হবে।</li>
               <li>API Key ছাড়া কোনো সিঙ্ক হবে না।</li>
             </ul>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <RefreshCw className="h-5 w-5" />
+            Manual Sync
+          </CardTitle>
+          <CardDescription>
+            সব প্রোডাক্ট ও অর্ডার একসাথে BotBhai-তে সিঙ্ক করুন। এটি বড় ডাটাসেটের জন্য কিছু সময় নিতে পারে।
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            onClick={handleSyncAll}
+            disabled={syncing || !apiKey.trim()}
+            size="lg"
+          >
+            {syncing ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Syncing... Please wait
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Sync All Current Data
+              </>
+            )}
+          </Button>
         </CardContent>
       </Card>
     </div>

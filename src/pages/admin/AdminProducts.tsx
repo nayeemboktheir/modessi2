@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { syncProductToBotBhai } from '@/services/botbhaiService';
+import { syncProductToBotBhai, deleteProductFromBotBhai } from '@/services/botbhaiService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -458,7 +458,7 @@ export default function AdminProducts() {
       await supabase.from('product_variations').delete().eq('product_id', id);
       await deleteProduct(id);
       // Sync deletion to BotBhai
-      syncProductToBotBhai({ id, name: '', price: 0, stock: 0, is_active: false }).catch(() => {});
+      deleteProductFromBotBhai(id).catch(() => {});
       toast.success('Product deleted successfully');
       loadData();
     } catch (error) {

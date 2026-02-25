@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { syncOrderToBotBhai } from '@/services/botbhaiService';
+import { syncOrderToBotBhai, deleteOrderFromBotBhai } from '@/services/botbhaiService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -603,6 +603,7 @@ export default function AdminOrders() {
     setDeleting(true);
     try {
       await deleteOrder(orderToDelete.id);
+      deleteOrderFromBotBhai(orderToDelete.id).catch(() => {});
       toast.success(`Order ${orderToDelete.order_number} deleted successfully`);
       setIsDeleteDialogOpen(false);
       setOrderToDelete(null);
