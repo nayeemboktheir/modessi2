@@ -6,15 +6,16 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff, Save, Bot, RefreshCw, Loader2 } from 'lucide-react';
-import { syncAllToBotBhai } from '@/services/botbhaiService';
+import { Eye, EyeOff, Save, Bot, RefreshCw, Loader2, Package, ShoppingCart } from 'lucide-react';
+import { syncAllProductsToBotBhai, syncAllOrdersToBotBhai } from '@/services/botbhaiService';
 
 export default function AdminBotBhai() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [apiKey, setApiKey] = useState('');
   const [showKey, setShowKey] = useState(false);
-  const [syncing, setSyncing] = useState(false);
+  const [syncingProducts, setSyncingProducts] = useState(false);
+  const [syncingOrders, setSyncingOrders] = useState(false);
 
   const { isLoading } = useQuery({
     queryKey: ['botbhai-api-key'],
@@ -61,22 +62,46 @@ export default function AdminBotBhai() {
     },
   });
 
-  const handleSyncAll = async () => {
-    setSyncing(true);
+  const handleSyncProducts = async () => {
+    setSyncingProducts(true);
     try {
-      const result = await syncAllToBotBhai();
+      const result = await syncAllProductsToBotBhai((synced, total) => {
+        toast({
+          title: 'প্রোডাক্ট সিঙ্ক হচ্ছে...',
+          description: `Synced ${synced}/${total} products...`,
+        });
+      });
       toast({
-        title: 'সিঙ্ক সফল!',
-        description: result?.message || 'All data synced successfully!',
+        title: 'প্রোডাক্ট সিঙ্ক সফল!',
+        description: result.message,
       });
     } catch (err) {
       toast({
         title: 'সিঙ্ক ব্যর্থ',
-        description: 'ডাটা সিঙ্ক করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।',
+        description: 'প্রোডাক্ট সিঙ্ক করতে সমস্যা হয়েছে।',
         variant: 'destructive',
       });
     } finally {
-      setSyncing(false);
+      setSyncingProducts(false);
+    }
+  };
+
+  const handleSyncOrders = async () => {
+    setSyncingOrders(true);
+    try {
+      const result = await syncAllOrdersToBotBhai();
+      toast({
+        title: 'অর্ডার সিঙ্ক সফল!',
+        description: result?.message || 'All orders synced successfully!',
+      });
+    } catch (err) {
+      toast({
+        title: 'সিঙ্ক ব্যর্থ',
+        description: 'অর্ডার সিঙ্ক করতে সমস্যা হয়েছে।',
+        variant: 'destructive',
+      });
+    } finally {
+      setSyncingOrders(false);
     }
   };
 
@@ -148,24 +173,43 @@ export default function AdminBotBhai() {
             Manual Sync
           </CardTitle>
           <CardDescription>
-            সব প্রোডাক্ট ও অর্ডার একসাথে BotBhai-তে সিঙ্ক করুন। এটি বড় ডাটাসেটের জন্য কিছু সময় নিতে পারে।
+            প্রোডাক্ট ও অর্ডার আলাদাভাবে BotBhai-তে সিঙ্ক করুন। প্রোডাক্ট সিঙ্ক ব্যাচে হবে (৫টি করে, ১৫ সেকেন্ড বিরতি)।
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col sm:flex-row gap-4">
           <Button
-            onClick={handleSyncAll}
-            disabled={syncing || !apiKey.trim()}
+            onClick={handleSyncProducts}
+            disabled={syncingProducts || syncingOrders || !apiKey.trim()}
             size="lg"
           >
-            {syncing ? (
+            {syncingProducts ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Syncing... Please wait
+                Syncing Products...
               </>
             ) : (
               <>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Sync All Current Data
+                <Package className="h-4 w-4 mr-2" />
+                Sync All Products
+              </>
+            )}
+          </Button>
+
+          <Button
+            onClick={handleSyncOrders}
+            disabled={syncingProducts || syncingOrders || !apiKey.trim()}
+            size="lg"
+            variant="outline"
+          >
+            {syncingOrders ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Syncing Orders...
+              </>
+            ) : (
+              <>
+                <ShoppingCart className="h-4 w-4 mr-2" />
+                Sync All Orders
               </>
             )}
           </Button>
