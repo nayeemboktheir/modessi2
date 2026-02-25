@@ -2,3 +2,6 @@ project_id = "kphkbmwycreriandedis"
 
 [functions.tiktok-events-api]
 verify_jwt = false
+
+[functions.botbhai-sync]
+verify_jwt = false
