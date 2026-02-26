@@ -38,7 +38,7 @@ export const syncProductToBotBhai = async (product: {
       discount_price: product.original_price && product.original_price > product.price ? product.price : null,
       wholesale_price: null,
       description: product.short_description || product.description || null,
-      features: product.long_description || null,
+      features: product.long_description ? [product.long_description] : null,
       is_available: product.is_active ?? true,
       status: product.is_active === false ? 'inactive' : 'active',
     };
@@ -159,7 +159,7 @@ export const syncAllProductsToBotBhai = async (
           discount_price: p.original_price && p.original_price > p.price ? p.price : null,
           wholesale_price: null,
           description: p.short_description || p.description || null,
-          features: p.long_description || null,
+          features: p.long_description ? [p.long_description] : null,
           is_available: p.is_active ?? true,
           status: p.is_active === false ? 'inactive' : 'active',
         };
