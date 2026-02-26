@@ -63,6 +63,7 @@ export const deleteProductFromBotBhai = async (productId: string) => {
 
 export const syncOrderToBotBhai = async (order: {
   id: string;
+  order_number?: string;
   total: number;
   subtotal?: number;
   shipping_cost?: number;
@@ -76,7 +77,7 @@ export const syncOrderToBotBhai = async (order: {
 }) => {
   try {
     const payload = {
-      order_id: order.id,
+      order_id: order.order_number || order.id,
       customer_id: order.customer.phone || order.customer.email || order.id,
       customer_name: order.customer.name || null,
       customer_phone: order.customer.phone || null,
