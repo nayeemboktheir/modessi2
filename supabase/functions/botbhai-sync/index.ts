@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
       } else if (ordersData) {
         for (const o of ordersData) {
           const payload = {
-            order_id: o.id,
+            order_id: o.order_number || o.id,
             customer_id: o.shipping_phone || o.id,
             customer_name: o.shipping_name || null,
             customer_phone: o.shipping_phone || null,
