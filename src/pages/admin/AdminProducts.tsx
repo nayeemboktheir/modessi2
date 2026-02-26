@@ -435,6 +435,8 @@ export default function AdminProducts() {
         category: categoryName,
         tags: productData.tags,
         description: productData.description,
+        short_description: productData.short_description,
+        long_description: productData.long_description,
         is_active: productData.is_active ?? true,
       }).catch(() => {});
 
