@@ -16,6 +16,8 @@ export const syncProductToBotBhai = async (product: {
   category?: string;
   tags?: string[] | null;
   description?: string | null;
+  short_description?: string | null;
+  long_description?: string | null;
   is_active?: boolean;
 }) => {
   try {
@@ -35,8 +37,8 @@ export const syncProductToBotBhai = async (product: {
       selling_price: product.price ?? 0,
       discount_price: product.original_price && product.original_price > product.price ? product.price : null,
       wholesale_price: null,
-      description: product.description || null,
-      features: null,
+      description: product.short_description || product.description || null,
+      features: product.long_description || null,
       is_available: product.is_active ?? true,
       status: product.is_active === false ? 'inactive' : 'active',
     };
@@ -156,8 +158,8 @@ export const syncAllProductsToBotBhai = async (
           selling_price: p.price ?? 0,
           discount_price: p.original_price && p.original_price > p.price ? p.price : null,
           wholesale_price: null,
-          description: p.description || null,
-          features: null,
+          description: p.short_description || p.description || null,
+          features: p.long_description || null,
           is_available: p.is_active ?? true,
           status: p.is_active === false ? 'inactive' : 'active',
         };
