@@ -359,12 +359,20 @@ export default function AdminOrders() {
       await updateOrderStatus(orderId, newStatus, trackingNumber || undefined);
       toast.success('Order status updated');
       
-      // Send SMS notification for status change
+      // Update local state instantly
+      const updatedOrders = orders.map(o => 
+        o.id === orderId ? { ...o, status: newStatus, tracking_number: trackingNumber || o.tracking_number } : o
+      );
+      setOrders(updatedOrders);
+      
+      if (selectedOrder && selectedOrder.id === orderId) {
+        setSelectedOrder({ ...selectedOrder, status: newStatus, tracking_number: trackingNumber || selectedOrder.tracking_number });
+      }
+      
+      // Background tasks - don't block UI
       const order = orders.find(o => o.id === orderId);
       if (order) {
         sendStatusSms(order, newStatus);
-
-        // Sync status change to BotBhai in background
         syncOrderToBotBhai({
           id: order.id,
           total: Number(order.total),
@@ -386,12 +394,6 @@ export default function AdminOrders() {
             price: Number(item.price),
           })),
         }).catch(() => {});
-      }
-      
-      loadOrders();
-      
-      if (selectedOrder && selectedOrder.id === orderId) {
-        setSelectedOrder({ ...selectedOrder, status: newStatus, tracking_number: trackingNumber });
       }
     } catch (error) {
       toast.error('Failed to update order status');
@@ -487,8 +489,14 @@ export default function AdminOrders() {
       toast.success('Order sent to Steadfast successfully!');
       if (data?.tracking_code) {
         setTrackingNumber(data.tracking_code);
+        // Update local state with tracking info
+        setOrders(prev => prev.map(o => 
+          o.id === order.id ? { ...o, tracking_number: data.tracking_code, steadfast_consignment_id: data.consignment_id } : o
+        ));
+        if (selectedOrder?.id === order.id) {
+          setSelectedOrder(prev => prev ? { ...prev, tracking_number: data.tracking_code } : prev);
+        }
       }
-      loadOrders();
     } catch (error) {
       console.error('Failed to send to Steadfast:', error);
       toast.error('Failed to send order to Steadfast');
@@ -562,7 +570,19 @@ export default function AdminOrders() {
       }
 
       setSelectedOrderIds(new Set());
-      loadOrders();
+      // Update local state with tracking codes from results
+      if (data?.results) {
+        setOrders(prev => {
+          const updated = [...prev];
+          data.results.forEach((r: any) => {
+            if (r.success && r.tracking_code) {
+              const idx = updated.findIndex(o => o.id === r.orderId);
+              if (idx !== -1) updated[idx] = { ...updated[idx], tracking_number: r.tracking_code };
+            }
+          });
+          return updated;
+        });
+      }
     } catch (error) {
       console.error('Failed to bulk send to Steadfast:', error);
       toast.error('Failed to send orders to Steadfast');
@@ -601,7 +621,10 @@ export default function AdminOrders() {
       }
 
       setSelectedOrderIds(new Set());
-      loadOrders();
+      // Update local state instantly
+      setOrders(prev => prev.map(o => 
+        selectedOrderIds.has(o.id) ? { ...o, status: newStatus } : o
+      ));
     } catch (error) {
       console.error('Failed to bulk update status:', error);
       toast.error('Failed to update order statuses');
@@ -618,10 +641,11 @@ export default function AdminOrders() {
       await deleteOrder(orderToDelete.id);
       deleteOrderFromBotBhai(orderToDelete.id).catch(() => {});
       toast.success(`Order ${orderToDelete.order_number} deleted successfully`);
+      // Remove from local state instantly
+      setOrders(prev => prev.filter(o => o.id !== orderToDelete.id));
       setIsDeleteDialogOpen(false);
       setOrderToDelete(null);
       setIsDetailOpen(false);
-      loadOrders();
     } catch (error) {
       console.error('Failed to delete order:', error);
       toast.error('Failed to delete order');
