@@ -241,7 +241,11 @@ Deno.serve(async (req) => {
         .single();
 
       if (templateError || !templateData) {
-        throw new Error(`Template '${template_key}' not found`);
+        console.log(`Template '${template_key}' not found, skipping SMS`);
+        return new Response(
+          JSON.stringify({ success: false, message: `Template '${template_key}' not found` }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
 
       if (!templateData.is_active) {
