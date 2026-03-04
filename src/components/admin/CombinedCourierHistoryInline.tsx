@@ -167,16 +167,16 @@ export function CombinedCourierHistoryInline({
 
   const normalizedPhone = useMemo(() => normalizePhone(phone), [phone]);
 
-  // Initial fetch - now fetch BD Courier by default (server handles rate limiting)
+  // Initial fetch - skip BD Courier to avoid rate limiting, only fetch internal data
   useEffect(() => {
     if (!normalizedPhone || normalizedPhone.length < 11) {
       setLoading(false);
       return;
     }
 
-    // Check cache first - only use if it has BD Courier data
+    // Check cache first
     const cached = cache.get(normalizedPhone);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL && cached.data.bd_courier_available) {
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
       setData(cached.data);
       setLoading(false);
       return;
@@ -184,10 +184,10 @@ export function CombinedCourierHistoryInline({
 
     const fetchData = async () => {
       try {
-        // Fetch with BD Courier data by default (no skipBdCourier)
+        // Skip BD Courier on initial load to prevent API flooding
         const { data: result, error } = await supabase.functions.invoke(
           "combined-courier-history",
-          { body: { phone: normalizedPhone, skipBdCourier: false } }
+          { body: { phone: normalizedPhone, skipBdCourier: true } }
         );
 
         if (error) throw error;

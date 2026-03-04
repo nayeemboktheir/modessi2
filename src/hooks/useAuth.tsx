@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext } from 'react';
+import { useState, useEffect, useRef, createContext, useContext } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -14,54 +14,80 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Cache admin check to avoid redundant queries
+const adminCache = new Map<string, { isAdmin: boolean; timestamp: number }>();
+const ADMIN_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const initializedRef = useRef(false);
+  const adminCheckRef = useRef<string | null>(null);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setIsLoading(false);
+    // Get initial session first
+    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      setSession(initialSession);
+      setUser(initialSession?.user ?? null);
+      
+      if (initialSession?.user) {
+        checkAdminRole(initialSession.user.id);
+      }
+      
+      setIsLoading(false);
+      initializedRef.current = true;
+    });
 
-        // Check admin role after auth state change
-        if (session?.user) {
-          setTimeout(() => {
-            checkAdminRole(session.user.id);
-          }, 0);
+    // Then listen for changes (login, logout, token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, newSession) => {
+        // Skip if this is the initial event before getSession resolves
+        if (!initializedRef.current) return;
+        
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+
+        if (newSession?.user) {
+          // Only re-check admin if user changed
+          if (adminCheckRef.current !== newSession.user.id) {
+            checkAdminRole(newSession.user.id);
+          }
         } else {
           setIsAdmin(false);
+          adminCheckRef.current = null;
         }
       }
     );
-
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setIsLoading(false);
-
-      if (session?.user) {
-        checkAdminRole(session.user.id);
-      }
-    });
 
     return () => subscription.unsubscribe();
   }, []);
 
   const checkAdminRole = async (userId: string) => {
-    const { data } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId)
-      .eq('role', 'admin')
-      .maybeSingle();
-    
-    setIsAdmin(!!data);
+    // Check cache first
+    const cached = adminCache.get(userId);
+    if (cached && Date.now() - cached.timestamp < ADMIN_CACHE_TTL) {
+      setIsAdmin(cached.isAdmin);
+      adminCheckRef.current = userId;
+      return;
+    }
+
+    try {
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .eq('role', 'admin')
+        .maybeSingle();
+      
+      const result = !!data;
+      adminCache.set(userId, { isAdmin: result, timestamp: Date.now() });
+      adminCheckRef.current = userId;
+      setIsAdmin(result);
+    } catch (err) {
+      console.error('Error checking admin role:', err);
+    }
   };
 
   const signUp = async (email: string, password: string, fullName: string, phone?: string) => {
