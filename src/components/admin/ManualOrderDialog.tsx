@@ -67,45 +67,82 @@ function normalizeVariationName(name: string): string {
 // Parse pasted text to extract name, phone, address
 function parsePastedText(text: string): { phone?: string; name?: string; address?: string } {
   const converted = convertBengaliToEnglish(text);
-  const lines = converted.split(/[\n,]+/).map(l => l.trim()).filter(Boolean);
   
   let phone: string | undefined;
   let name: string | undefined;
   let address: string | undefined;
   
-  // Find phone number (11 digits starting with 01)
-  const phoneRegex = /(?:^|\s|:)(01[3-9][0-9]{8})(?:\s|$|,)/;
-  const phoneMatch = converted.match(phoneRegex);
-  if (phoneMatch) {
-    phone = phoneMatch[1];
+  // Find phone number - support +88, 88, or plain 01x formats
+  const phoneWithCountryCode = converted.match(/\+?88\s*(01[0-9]{9})/);
+  if (phoneWithCountryCode) {
+    phone = phoneWithCountryCode[1];
   } else {
-    // Try to find any 11-digit number
-    const anyPhone = converted.match(/\b(01[0-9]{9})\b/);
-    if (anyPhone) phone = anyPhone[1];
-  }
-  
-  // Process remaining parts
-  const remainingParts: string[] = [];
-  for (const line of lines) {
-    const cleanLine = line.replace(/01[0-9]{9}/g, '').trim();
-    if (cleanLine.length > 0) {
-      remainingParts.push(cleanLine);
-    }
-  }
-  
-  // First non-phone part is usually name, rest is address
-  if (remainingParts.length >= 1) {
-    // If first part looks like a name (short, no numbers)
-    const firstPart = remainingParts[0];
-    if (firstPart.length <= 50 && !/\d/.test(firstPart)) {
-      name = firstPart;
-      if (remainingParts.length > 1) {
-        address = remainingParts.slice(1).join(', ');
-      }
+    const phoneRegex = converted.match(/(?:^|\s|:|,)(01[3-9][0-9]{8})(?:\s|$|,|\.)/);
+    if (phoneRegex) {
+      phone = phoneRegex[1];
     } else {
-      // Might all be address
-      address = remainingParts.join(', ');
+      const anyPhone = converted.match(/(01[0-9]{9})/);
+      if (anyPhone) phone = anyPhone[1];
     }
+  }
+  
+  // Check if text has labeled format (Name:, Address:, Number:, Phone:, etc.)
+  const hasLabels = /(?:name|নাম)\s*:/i.test(converted) || 
+                    /(?:address|ঠিকানা)\s*:/i.test(converted) || 
+                    /(?:number|phone|নম্বর|ফোন)\s*:/i.test(converted);
+  
+  if (hasLabels) {
+    // Extract labeled fields
+    const nameMatch = converted.match(/(?:name|নাম)\s*:\s*(.+?)(?:\n|$)/i);
+    if (nameMatch) name = nameMatch[1].trim();
+    
+    // For address, grab everything after "Address:" label until next label or end
+    const addressMatch = converted.match(/(?:address|ঠিকানা)\s*:\s*([\s\S]*?)(?=(?:name|নাম|number|phone|নম্বর|ফোন)\s*:|$)/i);
+    if (addressMatch) {
+      address = addressMatch[1].replace(/[\n\r]+/g, ', ').replace(/,\s*,/g, ',').replace(/,\s*$/, '').trim();
+    }
+    
+    // If no name found from label, try first non-empty line that isn't a label
+    if (!name) {
+      const lines = converted.split(/\n/).map(l => l.trim()).filter(Boolean);
+      for (const line of lines) {
+        const cleanLine = line.replace(/^(name|address|number|phone|নাম|ঠিকানা|নম্বর|ফোন)\s*:\s*/i, '').trim();
+        if (cleanLine && cleanLine.length <= 50 && !/\d/.test(cleanLine) && !/(address|number|phone|ঠিকানা|নম্বর|ফোন)/i.test(line)) {
+          name = cleanLine;
+          break;
+        }
+      }
+    }
+  } else {
+    // Non-labeled format - original logic
+    const lines = converted.split(/[\n]+/).map(l => l.trim()).filter(Boolean);
+    
+    const remainingParts: string[] = [];
+    for (const line of lines) {
+      const cleanLine = line.replace(/\+?88\s*01[0-9]{9}/g, '').replace(/01[0-9]{9}/g, '').trim();
+      if (cleanLine.length > 0) {
+        remainingParts.push(cleanLine);
+      }
+    }
+    
+    if (remainingParts.length >= 1) {
+      const firstPart = remainingParts[0];
+      if (firstPart.length <= 50 && !/\d/.test(firstPart)) {
+        name = firstPart;
+        if (remainingParts.length > 1) {
+          address = remainingParts.slice(1).join(', ');
+        }
+      } else {
+        address = remainingParts.join(', ');
+      }
+    }
+  }
+  
+  // Clean up address - remove phone numbers and labels from it
+  if (address) {
+    address = address.replace(/\+?88\s*01[0-9]{9}/g, '').replace(/01[0-9]{9}/g, '')
+      .replace(/(?:number|phone|নম্বর|ফোন)\s*:\s*/gi, '')
+      .replace(/,\s*,/g, ',').replace(/,\s*$/, '').replace(/^\s*,/, '').trim();
   }
   
   return { phone, name, address };
