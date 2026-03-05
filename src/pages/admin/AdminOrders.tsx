@@ -118,7 +118,8 @@ const normalizePhoneForLookup = (phone: string): string => phone.replace(/\D/g, 
 
 const ORDERS_CACHE_KEY = 'admin_orders_cache_v2';
 const ORDERS_CACHE_TTL = 3 * 60 * 1000; // 3 minutes
-const ORDERS_PAGE_SIZE = 50;
+const ORDERS_PAGE_SIZE = 40;
+const AUTO_COURIER_FETCH_ROWS = 10;
 
 // Debounce hook for search
 function useDebouncedValue<T>(value: T, delay: number): T {
@@ -225,11 +226,26 @@ export default function AdminOrders() {
     if (showLoader) setLoading(true);
 
     try {
-      const data = await getAllOrders();
-      const nextOrders = data || [];
-      setOrders(nextOrders);
-      sessionStorage.setItem(ORDERS_CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data: nextOrders }));
+      let lastError: unknown = null;
+
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const data = await getAllOrders();
+          const nextOrders = data || [];
+          setOrders(nextOrders);
+          sessionStorage.setItem(ORDERS_CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data: nextOrders }));
+          return;
+        } catch (error) {
+          lastError = error;
+          if (attempt === 0) {
+            await new Promise((resolve) => setTimeout(resolve, 300));
+          }
+        }
+      }
+
+      throw lastError;
     } catch (error) {
+      console.error('Failed to load orders:', error);
       toast.error('Failed to load orders');
     } finally {
       if (showLoader) setLoading(false);
@@ -392,23 +408,36 @@ export default function AdminOrders() {
 
   const hasMoreOrders = displayedOrders.length < filteredOrders.length;
 
-  // Count for Steadfast filters
-  const getSteadfastCount = (filterType: string) => {
-    return orders.filter(order => {
-      if (!order.tracking_number) return false;
+  // Count for Steadfast filters (memoized)
+  const steadfastCounts = useMemo(() => {
+    const counts = {
+      returned: 0,
+      delivered: 0,
+      in_transit: 0,
+    };
+
+    for (const order of orders) {
+      if (!order.tracking_number) continue;
       const sfStatus = steadfastStatuses[order.tracking_number];
       const deliveryStatus = sfStatus?.delivery_status?.toLowerCase() || sfStatus?.current_status?.toLowerCase() || '';
-      
-      if (filterType === 'returned') {
-        return deliveryStatus.includes('return') || deliveryStatus.includes('cancelled');
-      } else if (filterType === 'delivered') {
-        return deliveryStatus.includes('delivered');
-      } else if (filterType === 'in_transit') {
-        return deliveryStatus.includes('transit') || deliveryStatus.includes('picked') || deliveryStatus.includes('hub');
+
+      if (deliveryStatus.includes('return') || deliveryStatus.includes('cancelled')) {
+        counts.returned += 1;
       }
-      return false;
-    }).length;
-  };
+      if (deliveryStatus.includes('delivered')) {
+        counts.delivered += 1;
+      }
+      if (deliveryStatus.includes('transit') || deliveryStatus.includes('picked') || deliveryStatus.includes('hub')) {
+        counts.in_transit += 1;
+      }
+    }
+
+    return counts;
+  }, [orders, steadfastStatuses]);
+
+  const getSteadfastCount = useCallback((filterType: 'returned' | 'delivered' | 'in_transit') => {
+    return steadfastCounts[filterType] || 0;
+  }, [steadfastCounts]);
 
 
   const getSourceBadge = (source: string) => {
@@ -1118,7 +1147,7 @@ export default function AdminOrders() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {displayedOrders.map((order) => (
+              {displayedOrders.map((order, index) => (
                 <TableRow key={order.id}>
                   <TableCell>
                     <Checkbox
@@ -1151,7 +1180,7 @@ export default function AdminOrders() {
                           )}
                         </div>
                         <div className="text-sm text-muted-foreground">{order.shipping_phone}</div>
-                        <CourierHistoryInline phone={order.shipping_phone} />
+                        <CourierHistoryInline phone={order.shipping_phone} autoFetch={index < AUTO_COURIER_FETCH_ROWS} />
                       </div>
                       <div className="shrink-0 pt-1">
                         <CourierHistoryDialog phone={order.shipping_phone} customerName={order.shipping_name} />

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -99,6 +99,11 @@ export default function AdminDashboard() {
   }, [selectedRange, customStartDate, customEndDate]);
 
   const loadStats = async () => {
+    if (selectedRange === 'custom' && (!customStartDate || !customEndDate)) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const params: DateRangeParams = {
@@ -131,17 +136,23 @@ export default function AdminDashboard() {
   };
 
   // Process chart data
-  const chartData = stats?.recentOrders.reduce((acc: { date: string; orders: number; revenue: number }[], order) => {
-    const date = new Date(order.created_at).toLocaleDateString('en-US', { weekday: 'short' });
-    const existing = acc.find(item => item.date === date);
-    if (existing) {
-      existing.orders += 1;
-      existing.revenue += Number(order.total);
-    } else {
-      acc.push({ date, orders: 1, revenue: Number(order.total) });
+  const chartData = useMemo(() => {
+    if (!stats?.recentOrders) return [];
+
+    const byDate = new Map<string, { date: string; orders: number; revenue: number }>();
+    for (const order of stats.recentOrders) {
+      const date = new Date(order.created_at).toLocaleDateString('en-US', { weekday: 'short' });
+      const existing = byDate.get(date);
+      if (existing) {
+        existing.orders += 1;
+        existing.revenue += Number(order.total);
+      } else {
+        byDate.set(date, { date, orders: 1, revenue: Number(order.total) });
+      }
     }
-    return acc;
-  }, []) || [];
+
+    return Array.from(byDate.values());
+  }, [stats?.recentOrders]);
 
   if (loading) {
     return (

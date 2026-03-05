@@ -242,13 +242,34 @@ export const getAllOrders = async (_limit?: number) => {
   let offset = 0;
 
   while (true) {
-    const { data, error } = await supabase
-      .from('orders')
-      .select(ORDER_SELECT)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + BATCH - 1);
+    let data: any[] | null = null;
+    let batchError: unknown = null;
 
-    if (error) throw error;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const { data: batchData, error } = await supabase
+        .from('orders')
+        .select(ORDER_SELECT)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + BATCH - 1);
+
+      if (!error) {
+        data = batchData;
+        batchError = null;
+        break;
+      }
+
+      batchError = error;
+      if (attempt === 0) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+    }
+
+    if (batchError) {
+      // Return what we already have instead of failing the whole page.
+      if (allData.length > 0) return allData;
+      throw batchError;
+    }
+
     if (!data || data.length === 0) break;
 
     allData.push(...data);

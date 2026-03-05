@@ -24,9 +24,11 @@ type CourierHistoryApiResponse = {
 // ─── 48-hour persistent cache (localStorage) ────────────────────────
 const CACHE_KEY = "courier_history_cache_v2";
 const CACHE_TTL_MS = 48 * 60 * 60 * 1000; // 48 hours
+const ERROR_COOLDOWN_MS = 5 * 60 * 1000; // retry failed numbers after 5 mins
 
-// In-memory mirror so we don't JSON.parse on every render
+// In-memory mirrors so we don't JSON.parse on every render
 let memCache: Record<string, { summary?: Summary; fetchedAt: number }> = {};
+let errorCooldown: Record<string, number> = {};
 let cacheLoaded = false;
 
 function loadCache() {
@@ -37,7 +39,6 @@ function loadCache() {
     if (raw) {
       const parsed = JSON.parse(raw);
       const now = Date.now();
-      // Prune expired entries on load
       for (const key in parsed) {
         if (now - parsed[key].fetchedAt < CACHE_TTL_MS) {
           memCache[key] = parsed[key];
@@ -63,8 +64,21 @@ function getCached(phone: string): { summary?: Summary; fetchedAt: number } | un
 function setCache(phone: string, summary?: Summary) {
   loadCache();
   memCache[phone] = { summary, fetchedAt: Date.now() };
-  // Debounced persist to localStorage
   schedulePersist();
+}
+
+function markError(phone: string) {
+  errorCooldown[phone] = Date.now();
+}
+
+function isInErrorCooldown(phone: string) {
+  const failedAt = errorCooldown[phone];
+  if (!failedAt) return false;
+  if (Date.now() - failedAt >= ERROR_COOLDOWN_MS) {
+    delete errorCooldown[phone];
+    return false;
+  }
+  return true;
 }
 
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
@@ -74,7 +88,9 @@ function schedulePersist() {
     persistTimer = null;
     try {
       localStorage.setItem(CACHE_KEY, JSON.stringify(memCache));
-    } catch { /* quota exceeded — ignore */ }
+    } catch {
+      /* quota exceeded — ignore */
+    }
   }, 1000);
 }
 
@@ -82,10 +98,10 @@ function schedulePersist() {
 type QueueItem = {
   phone: string;
   resolve: (s?: Summary) => void;
-  reject: (e: unknown) => void;
 };
 
 const queue: QueueItem[] = [];
+const inFlight = new Map<string, Promise<Summary | undefined>>();
 let processing = false;
 
 async function processQueue() {
@@ -96,15 +112,18 @@ async function processQueue() {
     while (queue.length > 0) {
       const item = queue.shift()!;
 
-      // Double-check cache (might have been fetched while queued)
       const cached = getCached(item.phone);
       if (cached) {
         item.resolve(cached.summary);
         continue;
       }
 
+      if (isInErrorCooldown(item.phone)) {
+        item.resolve(undefined);
+        continue;
+      }
+
       try {
-        console.log('[CourierHistory] Fetching:', item.phone);
         const { data, error } = await supabase.functions.invoke("courier-history", {
           body: { phone: item.phone },
         });
@@ -117,47 +136,47 @@ async function processQueue() {
           item.resolve(undefined);
           continue;
         }
+
         if (response?.error) throw new Error(response.error);
 
-        const s = response?.data?.courierData?.summary;
-        setCache(item.phone, s);
-        console.log('[CourierHistory] Got:', item.phone, s);
-        item.resolve(s);
-      } catch (err) {
-        console.warn('[CourierHistory] Error for', item.phone, err);
-        setCache(item.phone, undefined);
-        item.resolve(undefined); // resolve instead of reject to not break UI
+        const summary = response?.data?.courierData?.summary;
+        setCache(item.phone, summary);
+        item.resolve(summary);
+      } catch {
+        markError(item.phone);
+        item.resolve(undefined);
       }
 
-      // Small delay between requests to avoid rate limiting
-      await new Promise((r) => setTimeout(r, 300));
+      await new Promise((r) => setTimeout(r, 180));
     }
   } finally {
     processing = false;
-    // If new items were added while we were in the finally block, restart
     if (queue.length > 0) {
-      setTimeout(processQueue, 50);
+      setTimeout(processQueue, 40);
     }
   }
 }
 
 function enqueueFetch(phone: string): Promise<Summary | undefined> {
-  // If already queued for this phone, don't add again
-  const existing = queue.find((q) => q.phone === phone);
-  if (existing) {
-    return new Promise((resolve, reject) => {
-      const orig = existing;
-      const origResolve = orig.resolve;
-      const origReject = orig.reject;
-      orig.resolve = (s) => { origResolve(s); resolve(s); };
-      orig.reject = (e) => { origReject(e); reject(e); };
-    });
+  const cached = getCached(phone);
+  if (cached) return Promise.resolve(cached.summary);
+
+  if (isInErrorCooldown(phone)) {
+    return Promise.resolve(undefined);
   }
 
-  return new Promise((resolve, reject) => {
-    queue.push({ phone, resolve, reject });
+  const existingInFlight = inFlight.get(phone);
+  if (existingInFlight) return existingInFlight;
+
+  const promise = new Promise<Summary | undefined>((resolve) => {
+    queue.push({ phone, resolve });
     processQueue();
+  }).finally(() => {
+    inFlight.delete(phone);
   });
+
+  inFlight.set(phone, promise);
+  return promise;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────
@@ -225,19 +244,26 @@ function ProgressRing({ value, className }: { value: number; className?: string 
 export function CourierHistoryInline({
   phone,
   className,
+  autoFetch = true,
 }: {
   phone: string;
   className?: string;
+  autoFetch?: boolean;
 }) {
   const normalized = useMemo(() => normalizePhone(phone), [phone]);
   const cached = useMemo(() => getCached(normalized), [normalized]);
-  const [loading, setLoading] = useState(!cached);
+  const [loading, setLoading] = useState(autoFetch && !cached);
   const [summary, setSummary] = useState<Summary | undefined>(cached?.summary);
 
   useEffect(() => {
-    // Already have fresh cache — don't fetch
-    if (getCached(normalized)) {
-      setSummary(getCached(normalized)?.summary);
+    const freshCache = getCached(normalized);
+    if (freshCache) {
+      setSummary(freshCache.summary);
+      setLoading(false);
+      return;
+    }
+
+    if (!autoFetch || isInErrorCooldown(normalized)) {
       setLoading(false);
       return;
     }
@@ -246,11 +272,20 @@ export function CourierHistoryInline({
     setLoading(true);
 
     enqueueFetch(normalized)
-      .then((s) => { if (mounted) { setSummary(s); setLoading(false); } })
-      .catch(() => { if (mounted) setLoading(false); });
+      .then((s) => {
+        if (!mounted) return;
+        setSummary(s);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setLoading(false);
+      });
 
-    return () => { mounted = false; };
-  }, [normalized]);
+    return () => {
+      mounted = false;
+    };
+  }, [normalized, autoFetch]);
 
   const success = summary?.success_ratio;
   const delivered = summary?.success_parcel ?? 0;
@@ -274,7 +309,9 @@ export function CourierHistoryInline({
             </div>
           </div>
         </>
-      ) : null}
+      ) : (
+        <span className="text-xs text-muted-foreground">—</span>
+      )}
     </div>
   );
 }
