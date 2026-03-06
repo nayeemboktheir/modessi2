@@ -35,7 +35,7 @@ import { Search, Eye, Package, Truck, CheckCircle, XCircle, Clock, Send, Printer
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { supabase } from '@/integrations/supabase/client';
-import { getAllOrders, getOrderById, updateOrderStatus, deleteOrder } from '@/services/adminService';
+import { getOrderById, updateOrderStatus, deleteOrder } from '@/services/adminService';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -116,19 +116,29 @@ const statusOptions = [
 
 const normalizePhoneForLookup = (phone: string): string => phone.replace(/\D/g, '').slice(-11);
 
-const ORDERS_CACHE_KEY = 'admin_orders_cache_v2';
+const ORDERS_CACHE_KEY = 'admin_orders_cache_v3';
 const ORDERS_CACHE_TTL = 3 * 60 * 1000; // 3 minutes
-const ORDERS_PAGE_SIZE = 40;
-const AUTO_COURIER_FETCH_ROWS = 10;
-const LOAD_TIMEOUT_MS = 9000;
-const FAST_FALLBACK_LIMIT = 200;
+const ORDERS_PAGE_SIZE = 30;
+const AUTO_COURIER_FETCH_ROWS = 3;
+const ORDER_FETCH_LIMIT = 120;
 
-const FAST_ORDER_SELECT = `
+const ORDER_SELECT = `
   id, order_number, status, payment_status, payment_method, total, subtotal, shipping_cost, discount,
   shipping_name, shipping_phone, shipping_street, shipping_city, shipping_district, shipping_postal_code,
-  tracking_number, notes, invoice_note, steadfast_note, steadfast_consignment_id, created_at, order_source, is_printed,
-  order_items (id, order_id, product_id, product_name, product_image, quantity, price, variation_name)
+  tracking_number, notes, invoice_note, steadfast_note, steadfast_consignment_id, created_at, order_source, is_printed
 `;
+
+const ORDER_ITEM_SELECT = `
+  id, order_id, product_id, product_name, product_image, quantity, price, variation_name
+`;
+
+const persistOrdersCache = (orders: Order[]) => {
+  try {
+    sessionStorage.setItem(ORDERS_CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data: orders }));
+  } catch {
+    // ignore cache write errors (quota, private mode)
+  }
+};
 
 // Debounce hook for search
 function useDebouncedValue<T>(value: T, delay: number): T {
@@ -138,15 +148,6 @@ function useDebouncedValue<T>(value: T, delay: number): T {
     return () => clearTimeout(timer);
   }, [value, delay]);
   return debouncedValue;
-}
-
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) => {
-      setTimeout(() => reject(new Error(`${label} timeout after ${ms}ms`)), ms);
-    }),
-  ]);
 }
 
 export default function AdminOrders() {
