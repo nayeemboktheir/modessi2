@@ -35,7 +35,7 @@ import { Search, Eye, Package, Truck, CheckCircle, XCircle, Clock, Send, Printer
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { supabase } from '@/integrations/supabase/client';
-import { getAllOrders, getOrderById, updateOrderStatus, deleteOrder } from '@/services/adminService';
+import { getOrderById, updateOrderStatus, deleteOrder } from '@/services/adminService';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -116,19 +116,29 @@ const statusOptions = [
 
 const normalizePhoneForLookup = (phone: string): string => phone.replace(/\D/g, '').slice(-11);
 
-const ORDERS_CACHE_KEY = 'admin_orders_cache_v2';
+const ORDERS_CACHE_KEY = 'admin_orders_cache_v3';
 const ORDERS_CACHE_TTL = 3 * 60 * 1000; // 3 minutes
-const ORDERS_PAGE_SIZE = 40;
-const AUTO_COURIER_FETCH_ROWS = 10;
-const LOAD_TIMEOUT_MS = 9000;
-const FAST_FALLBACK_LIMIT = 200;
+const ORDERS_PAGE_SIZE = 30;
+const AUTO_COURIER_FETCH_ROWS = 3;
+const ORDER_FETCH_LIMIT = 120;
 
-const FAST_ORDER_SELECT = `
+const ORDER_SELECT = `
   id, order_number, status, payment_status, payment_method, total, subtotal, shipping_cost, discount,
   shipping_name, shipping_phone, shipping_street, shipping_city, shipping_district, shipping_postal_code,
-  tracking_number, notes, invoice_note, steadfast_note, steadfast_consignment_id, created_at, order_source, is_printed,
-  order_items (id, order_id, product_id, product_name, product_image, quantity, price, variation_name)
+  tracking_number, notes, invoice_note, steadfast_note, steadfast_consignment_id, created_at, order_source, is_printed
 `;
+
+const ORDER_ITEM_SELECT = `
+  id, order_id, product_id, product_name, product_image, quantity, price, variation_name
+`;
+
+const persistOrdersCache = (orders: Order[]) => {
+  try {
+    sessionStorage.setItem(ORDERS_CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data: orders }));
+  } catch {
+    // ignore cache write errors (quota, private mode)
+  }
+};
 
 // Debounce hook for search
 function useDebouncedValue<T>(value: T, delay: number): T {
@@ -138,15 +148,6 @@ function useDebouncedValue<T>(value: T, delay: number): T {
     return () => clearTimeout(timer);
   }, [value, delay]);
   return debouncedValue;
-}
-
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) => {
-      setTimeout(() => reject(new Error(`${label} timeout after ${ms}ms`)), ms);
-    }),
-  ]);
 }
 
 export default function AdminOrders() {
@@ -244,18 +245,50 @@ export default function AdminOrders() {
     if (showLoader) setLoading(true);
 
     try {
-      // Direct single query — fast and reliable
-      const { data, error } = await supabase
+      const { data: orderRows, error: ordersError } = await supabase
         .from('orders')
-        .select(FAST_ORDER_SELECT)
+        .select(ORDER_SELECT)
         .order('created_at', { ascending: false })
-        .limit(500);
+        .limit(ORDER_FETCH_LIMIT);
 
-      if (error) throw error;
+      if (ordersError) throw ordersError;
 
-      const nextOrders = (data || []) as unknown as Order[];
+      const baseOrders = (orderRows || []) as Omit<Order, 'order_items'>[];
+      const orderIds = baseOrders.map((o) => o.id);
+
+      let itemsByOrderId: Record<string, OrderItem[]> = {};
+
+      if (orderIds.length > 0) {
+        const { data: itemRows, error: itemsError } = await supabase
+          .from('order_items')
+          .select(ORDER_ITEM_SELECT)
+          .in('order_id', orderIds)
+          .order('created_at', { ascending: true });
+
+        if (!itemsError && itemRows) {
+          itemsByOrderId = itemRows.reduce<Record<string, OrderItem[]>>((acc, item) => {
+            const orderId = item.order_id;
+            if (!acc[orderId]) acc[orderId] = [];
+            acc[orderId].push({
+              id: item.id,
+              product_name: item.product_name,
+              product_image: item.product_image,
+              quantity: item.quantity,
+              price: Number(item.price),
+              variation_name: item.variation_name,
+            });
+            return acc;
+          }, {});
+        }
+      }
+
+      const nextOrders: Order[] = baseOrders.map((order) => ({
+        ...order,
+        order_items: itemsByOrderId[order.id] || [],
+      }));
+
       setOrders(nextOrders);
-      sessionStorage.setItem(ORDERS_CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data: nextOrders }));
+      persistOrdersCache(nextOrders);
     } catch (error) {
       console.error('Failed to load orders:', error);
       toast.error('Failed to load orders');
@@ -278,7 +311,7 @@ export default function AdminOrders() {
           ? prev.map((order) => (order.id === createdOrder.id ? createdOrder : order))
           : [createdOrder, ...prev];
 
-        sessionStorage.setItem(ORDERS_CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data: next }));
+        persistOrdersCache(next as Order[]);
         return next;
       });
     } catch {
@@ -1211,6 +1244,8 @@ export default function AdminOrders() {
                             <img
                               src={item.product_image}
                               alt={item.product_name}
+                              loading="lazy"
+                              decoding="async"
                               className="w-full h-full object-cover"
                             />
                           ) : (
