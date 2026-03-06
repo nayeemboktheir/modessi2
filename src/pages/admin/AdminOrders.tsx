@@ -311,7 +311,7 @@ export default function AdminOrders() {
           ? prev.map((order) => (order.id === createdOrder.id ? createdOrder : order))
           : [createdOrder, ...prev];
 
-        sessionStorage.setItem(ORDERS_CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data: next }));
+        persistOrdersCache(next as Order[]);
         return next;
       });
     } catch {
