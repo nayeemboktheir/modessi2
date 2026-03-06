@@ -1244,6 +1244,8 @@ export default function AdminOrders() {
                             <img
                               src={item.product_image}
                               alt={item.product_name}
+                              loading="lazy"
+                              decoding="async"
                               className="w-full h-full object-cover"
                             />
                           ) : (
