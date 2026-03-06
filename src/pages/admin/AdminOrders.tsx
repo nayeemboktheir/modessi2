@@ -245,18 +245,50 @@ export default function AdminOrders() {
     if (showLoader) setLoading(true);
 
     try {
-      // Direct single query — fast and reliable
-      const { data, error } = await supabase
+      const { data: orderRows, error: ordersError } = await supabase
         .from('orders')
-        .select(FAST_ORDER_SELECT)
+        .select(ORDER_SELECT)
         .order('created_at', { ascending: false })
-        .limit(500);
+        .limit(ORDER_FETCH_LIMIT);
 
-      if (error) throw error;
+      if (ordersError) throw ordersError;
 
-      const nextOrders = (data || []) as unknown as Order[];
+      const baseOrders = (orderRows || []) as Omit<Order, 'order_items'>[];
+      const orderIds = baseOrders.map((o) => o.id);
+
+      let itemsByOrderId: Record<string, OrderItem[]> = {};
+
+      if (orderIds.length > 0) {
+        const { data: itemRows, error: itemsError } = await supabase
+          .from('order_items')
+          .select(ORDER_ITEM_SELECT)
+          .in('order_id', orderIds)
+          .order('created_at', { ascending: true });
+
+        if (!itemsError && itemRows) {
+          itemsByOrderId = itemRows.reduce<Record<string, OrderItem[]>>((acc, item) => {
+            const orderId = item.order_id;
+            if (!acc[orderId]) acc[orderId] = [];
+            acc[orderId].push({
+              id: item.id,
+              product_name: item.product_name,
+              product_image: item.product_image,
+              quantity: item.quantity,
+              price: Number(item.price),
+              variation_name: item.variation_name,
+            });
+            return acc;
+          }, {});
+        }
+      }
+
+      const nextOrders: Order[] = baseOrders.map((order) => ({
+        ...order,
+        order_items: itemsByOrderId[order.id] || [],
+      }));
+
       setOrders(nextOrders);
-      sessionStorage.setItem(ORDERS_CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data: nextOrders }));
+      persistOrdersCache(nextOrders);
     } catch (error) {
       console.error('Failed to load orders:', error);
       toast.error('Failed to load orders');
