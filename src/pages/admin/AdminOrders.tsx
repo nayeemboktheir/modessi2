@@ -244,38 +244,18 @@ export default function AdminOrders() {
     if (showLoader) setLoading(true);
 
     try {
-      let lastError: unknown = null;
-
-      for (let attempt = 0; attempt < 2; attempt++) {
-        try {
-          const data = await withTimeout(getAllOrders(), LOAD_TIMEOUT_MS, 'orders_fetch');
-          const nextOrders = data || [];
-          setOrders(nextOrders);
-          sessionStorage.setItem(ORDERS_CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data: nextOrders }));
-          return;
-        } catch (error) {
-          lastError = error;
-          if (attempt === 0) {
-            await new Promise((resolve) => setTimeout(resolve, 300));
-          }
-        }
-      }
-
-      // Fast fallback: load recent orders so UI never stays stuck on skeleton
-      const { data: quickData, error: quickError } = await supabase
+      // Direct single query — fast and reliable
+      const { data, error } = await supabase
         .from('orders')
         .select(FAST_ORDER_SELECT)
         .order('created_at', { ascending: false })
-        .limit(FAST_FALLBACK_LIMIT);
+        .limit(500);
 
-      if (!quickError && Array.isArray(quickData) && quickData.length > 0) {
-        setOrders(quickData as unknown as Order[]);
-        sessionStorage.setItem(ORDERS_CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data: quickData }));
-        toast.warning('Quick mode: showing recent orders');
-        return;
-      }
+      if (error) throw error;
 
-      throw lastError;
+      const nextOrders = (data || []) as unknown as Order[];
+      setOrders(nextOrders);
+      sessionStorage.setItem(ORDERS_CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data: nextOrders }));
     } catch (error) {
       console.error('Failed to load orders:', error);
       toast.error('Failed to load orders');
