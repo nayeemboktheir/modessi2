@@ -121,6 +121,8 @@ const ORDERS_CACHE_TTL = 3 * 60 * 1000; // 3 minutes
 const ORDERS_PAGE_SIZE = 30;
 const AUTO_COURIER_FETCH_ROWS = 3;
 const ORDER_FETCH_LIMIT = 120;
+const ORDERS_QUERY_TIMEOUT_MS = 9000;
+const ORDER_ITEMS_QUERY_TIMEOUT_MS = 7000;
 
 const ORDER_SELECT = `
   id, order_number, status, payment_status, payment_method, total, subtotal, shipping_cost, discount,
@@ -138,6 +140,42 @@ const persistOrdersCache = (orders: Order[]) => {
   } catch {
     // ignore cache write errors (quota, private mode)
   }
+};
+
+const readOrdersCache = (allowStale = false): Order[] => {
+  try {
+    const raw = sessionStorage.getItem(ORDERS_CACHE_KEY);
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw) as { timestamp: number; data: Order[] };
+    const isFresh = Date.now() - parsed.timestamp < ORDERS_CACHE_TTL;
+
+    if (Array.isArray(parsed.data) && parsed.data.length > 0 && (allowStale || isFresh)) {
+      return parsed.data;
+    }
+  } catch {
+    // ignore cache parse errors
+  }
+
+  return [];
+};
+
+const withTimeout = <T,>(promise: PromiseLike<T>, timeoutMs: number, label: string): Promise<T> => {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => {
+      reject(new Error(`${label} query timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+
+    Promise.resolve(promise)
+      .then((result) => {
+        window.clearTimeout(timeoutId);
+        resolve(result);
+      })
+      .catch((error) => {
+        window.clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
 };
 
 // Debounce hook for search
