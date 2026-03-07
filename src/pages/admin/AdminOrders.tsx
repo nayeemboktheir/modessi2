@@ -181,6 +181,44 @@ const withTimeout = <T,>(promise: PromiseLike<T>, timeoutMs: number, label: stri
   });
 };
 
+const wait = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+
+const fetchOrderRows = async ({
+  limit,
+  timeoutMs,
+  retries = 1,
+}: {
+  limit: number;
+  timeoutMs: number;
+  retries?: number;
+}): Promise<BaseOrderRow[]> => {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      const { data, error } = await withTimeout(
+        supabase
+          .from('orders')
+          .select(ORDER_SELECT)
+          .order('created_at', { ascending: false })
+          .limit(limit),
+        timeoutMs,
+        `orders_fetch_${limit}_attempt_${attempt + 1}`
+      );
+
+      if (error) throw error;
+      return (data || []) as BaseOrderRow[];
+    } catch (error) {
+      lastError = error;
+      if (attempt < retries) {
+        await wait(250);
+      }
+    }
+  }
+
+  throw (lastError instanceof Error ? lastError : new Error('Failed to fetch orders'));
+};
+
 // Debounce hook for search
 function useDebouncedValue<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState(value);
