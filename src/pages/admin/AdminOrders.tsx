@@ -121,6 +121,7 @@ const ORDERS_CACHE_TTL = 3 * 60 * 1000; // 3 minutes
 const ORDERS_PAGE_SIZE = 30;
 const AUTO_COURIER_FETCH_ROWS = 3;
 const ORDER_FETCH_LIMIT = 120;
+const QUICK_ORDER_FETCH_LIMIT = 40;
 const ORDERS_QUERY_TIMEOUT_MS = 9000;
 const ORDER_ITEMS_QUERY_TIMEOUT_MS = 7000;
 
@@ -133,6 +134,8 @@ const ORDER_SELECT = `
 const ORDER_ITEM_SELECT = `
   id, order_id, product_id, product_name, product_image, quantity, price, variation_name
 `;
+
+type BaseOrderRow = Omit<Order, 'order_items'>;
 
 const persistOrdersCache = (orders: Order[]) => {
   try {
@@ -176,6 +179,44 @@ const withTimeout = <T,>(promise: PromiseLike<T>, timeoutMs: number, label: stri
         reject(error);
       });
   });
+};
+
+const wait = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+
+const fetchOrderRows = async ({
+  limit,
+  timeoutMs,
+  retries = 1,
+}: {
+  limit: number;
+  timeoutMs: number;
+  retries?: number;
+}): Promise<BaseOrderRow[]> => {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      const { data, error } = await withTimeout(
+        supabase
+          .from('orders')
+          .select(ORDER_SELECT)
+          .order('created_at', { ascending: false })
+          .limit(limit),
+        timeoutMs,
+        `orders_fetch_${limit}_attempt_${attempt + 1}`
+      );
+
+      if (error) throw error;
+      return (data || []) as BaseOrderRow[];
+    } catch (error) {
+      lastError = error;
+      if (attempt < retries) {
+        await wait(250);
+      }
+    }
+  }
+
+  throw (lastError instanceof Error ? lastError : new Error('Failed to fetch orders'));
 };
 
 // Debounce hook for search
@@ -280,20 +321,24 @@ export default function AdminOrders() {
     if (showLoader) setLoading(true);
 
     try {
-      const { data: orderRows, error: ordersError } = await withTimeout(
-        supabase
-          .from('orders')
-          .select(ORDER_SELECT)
-          .order('created_at', { ascending: false })
-          .limit(ORDER_FETCH_LIMIT),
-        ORDERS_QUERY_TIMEOUT_MS,
-        'orders'
-      );
+      let baseOrders: BaseOrderRow[] = [];
+      let usedQuickFallback = false;
 
-      if (ordersError) throw ordersError;
-
-      const baseOrders = (orderRows || []) as Omit<Order, 'order_items'>[];
-      const orderIds = baseOrders.map((o) => o.id);
+      try {
+        baseOrders = await fetchOrderRows({
+          limit: ORDER_FETCH_LIMIT,
+          timeoutMs: ORDERS_QUERY_TIMEOUT_MS,
+          retries: 1,
+        });
+      } catch (primaryError) {
+        console.warn('Primary order fetch was slow, switching to quick mode:', primaryError);
+        baseOrders = await fetchOrderRows({
+          limit: QUICK_ORDER_FETCH_LIMIT,
+          timeoutMs: ORDERS_QUERY_TIMEOUT_MS + 4000,
+          retries: 0,
+        });
+        usedQuickFallback = true;
+      }
 
       const optimisticOrders: Order[] = baseOrders.map((order) => ({
         ...order,
@@ -303,45 +348,54 @@ export default function AdminOrders() {
       setOrders(optimisticOrders);
       persistOrdersCache(optimisticOrders);
 
+      if (usedQuickFallback) {
+        toast.warning('Live sync is slow. Showing latest orders first.');
+      }
+
+      const orderIds = baseOrders.map((o) => o.id);
       if (orderIds.length === 0) {
         return;
       }
 
-      const { data: itemRows, error: itemsError } = await withTimeout(
-        supabase
-          .from('order_items')
-          .select(ORDER_ITEM_SELECT)
-          .in('order_id', orderIds)
-          .order('created_at', { ascending: true }),
-        ORDER_ITEMS_QUERY_TIMEOUT_MS,
-        'order_items'
-      );
+      try {
+        const { data: itemRows, error: itemsError } = await withTimeout(
+          supabase
+            .from('order_items')
+            .select(ORDER_ITEM_SELECT)
+            .in('order_id', orderIds)
+            .order('created_at', { ascending: true }),
+          ORDER_ITEMS_QUERY_TIMEOUT_MS,
+          'order_items'
+        );
 
-      if (itemsError) {
-        throw itemsError;
+        if (itemsError) {
+          throw itemsError;
+        }
+
+        const itemsByOrderId = (itemRows || []).reduce<Record<string, OrderItem[]>>((acc, item) => {
+          const orderId = item.order_id;
+          if (!acc[orderId]) acc[orderId] = [];
+          acc[orderId].push({
+            id: item.id,
+            product_name: item.product_name,
+            product_image: item.product_image,
+            quantity: item.quantity,
+            price: Number(item.price),
+            variation_name: item.variation_name,
+          });
+          return acc;
+        }, {});
+
+        const nextOrders: Order[] = baseOrders.map((order) => ({
+          ...order,
+          order_items: itemsByOrderId[order.id] || [],
+        }));
+
+        setOrders(nextOrders);
+        persistOrdersCache(nextOrders);
+      } catch (itemsError) {
+        console.warn('Orders loaded, but order items are still slow:', itemsError);
       }
-
-      const itemsByOrderId = (itemRows || []).reduce<Record<string, OrderItem[]>>((acc, item) => {
-        const orderId = item.order_id;
-        if (!acc[orderId]) acc[orderId] = [];
-        acc[orderId].push({
-          id: item.id,
-          product_name: item.product_name,
-          product_image: item.product_image,
-          quantity: item.quantity,
-          price: Number(item.price),
-          variation_name: item.variation_name,
-        });
-        return acc;
-      }, {});
-
-      const nextOrders: Order[] = baseOrders.map((order) => ({
-        ...order,
-        order_items: itemsByOrderId[order.id] || [],
-      }));
-
-      setOrders(nextOrders);
-      persistOrdersCache(nextOrders);
     } catch (error) {
       console.error('Failed to load orders:', error);
 
