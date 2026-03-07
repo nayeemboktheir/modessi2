@@ -121,6 +121,7 @@ const ORDERS_CACHE_TTL = 3 * 60 * 1000; // 3 minutes
 const ORDERS_PAGE_SIZE = 30;
 const AUTO_COURIER_FETCH_ROWS = 3;
 const ORDER_FETCH_LIMIT = 120;
+const QUICK_ORDER_FETCH_LIMIT = 40;
 const ORDERS_QUERY_TIMEOUT_MS = 9000;
 const ORDER_ITEMS_QUERY_TIMEOUT_MS = 7000;
 
@@ -133,6 +134,8 @@ const ORDER_SELECT = `
 const ORDER_ITEM_SELECT = `
   id, order_id, product_id, product_name, product_image, quantity, price, variation_name
 `;
+
+type BaseOrderRow = Omit<Order, 'order_items'>;
 
 const persistOrdersCache = (orders: Order[]) => {
   try {
