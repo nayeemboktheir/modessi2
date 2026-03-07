@@ -38,6 +38,95 @@ interface DashboardStats {
   dateRange?: { start: Date; end: Date };
 }
 
+type CachedDashboardStats = Omit<DashboardStats, 'dateRange'> & {
+  dateRange?: { start: string; end: string };
+};
+
+const DASHBOARD_CACHE_KEY = 'admin_dashboard_stats_cache_v1';
+const DASHBOARD_CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+const DASHBOARD_QUERY_TIMEOUT_MS = 9000;
+
+const getDashboardParamsKey = (params: DateRangeParams) => {
+  const start = params.startDate ? params.startDate.toISOString().slice(0, 10) : '';
+  const end = params.endDate ? params.endDate.toISOString().slice(0, 10) : '';
+  return `${params.range}:${start}:${end}`;
+};
+
+const serializeDashboardStats = (stats: DashboardStats): CachedDashboardStats => ({
+  ...stats,
+  dateRange: stats.dateRange
+    ? {
+        start: stats.dateRange.start.toISOString(),
+        end: stats.dateRange.end.toISOString(),
+      }
+    : undefined,
+});
+
+const deserializeDashboardStats = (stats: CachedDashboardStats): DashboardStats => ({
+  ...stats,
+  dateRange: stats.dateRange
+    ? {
+        start: new Date(stats.dateRange.start),
+        end: new Date(stats.dateRange.end),
+      }
+    : undefined,
+});
+
+const readDashboardCache = (paramsKey: string, allowStale = false): DashboardStats | null => {
+  try {
+    const raw = sessionStorage.getItem(DASHBOARD_CACHE_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as {
+      timestamp: number;
+      paramsKey: string;
+      data: CachedDashboardStats;
+    };
+
+    if (parsed.paramsKey !== paramsKey) return null;
+
+    const isFresh = Date.now() - parsed.timestamp < DASHBOARD_CACHE_TTL;
+    if (!allowStale && !isFresh) return null;
+
+    return deserializeDashboardStats(parsed.data);
+  } catch {
+    return null;
+  }
+};
+
+const persistDashboardCache = (paramsKey: string, stats: DashboardStats) => {
+  try {
+    sessionStorage.setItem(
+      DASHBOARD_CACHE_KEY,
+      JSON.stringify({
+        timestamp: Date.now(),
+        paramsKey,
+        data: serializeDashboardStats(stats),
+      })
+    );
+  } catch {
+    // ignore cache write errors
+  }
+};
+
+const withDashboardTimeout = <T,>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> => {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => {
+      reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+
+    promise
+      .then((result) => {
+        window.clearTimeout(timeoutId);
+        resolve(result);
+      })
+      .catch((error) => {
+        window.clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
+};
+
 function StatCard({ 
   title, 
   value, 
