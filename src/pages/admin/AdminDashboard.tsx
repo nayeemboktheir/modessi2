@@ -193,17 +193,39 @@ export default function AdminDashboard() {
       return;
     }
 
-    try {
+    const params: DateRangeParams = {
+      range: selectedRange,
+      startDate: customStartDate,
+      endDate: customEndDate,
+    };
+
+    const paramsKey = getDashboardParamsKey(params);
+    const freshCachedStats = readDashboardCache(paramsKey, false);
+
+    if (freshCachedStats) {
+      setStats(freshCachedStats);
+      setLoading(false);
+    } else {
       setLoading(true);
-      const params: DateRangeParams = {
-        range: selectedRange,
-        startDate: customStartDate,
-        endDate: customEndDate,
-      };
-      const data = await getDashboardStats(params);
+    }
+
+    try {
+      const data = await withDashboardTimeout(
+        getDashboardStats(params),
+        DASHBOARD_QUERY_TIMEOUT_MS,
+        'Dashboard stats request'
+      );
       setStats(data);
+      persistDashboardCache(paramsKey, data);
     } catch (error) {
       console.error('Error loading dashboard stats:', error);
+
+      if (!freshCachedStats) {
+        const staleCachedStats = readDashboardCache(paramsKey, true);
+        if (staleCachedStats) {
+          setStats(staleCachedStats);
+        }
+      }
     } finally {
       setLoading(false);
     }
