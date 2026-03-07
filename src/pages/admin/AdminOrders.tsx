@@ -121,6 +121,8 @@ const ORDERS_CACHE_TTL = 3 * 60 * 1000; // 3 minutes
 const ORDERS_PAGE_SIZE = 30;
 const AUTO_COURIER_FETCH_ROWS = 3;
 const ORDER_FETCH_LIMIT = 120;
+const ORDERS_QUERY_TIMEOUT_MS = 9000;
+const ORDER_ITEMS_QUERY_TIMEOUT_MS = 7000;
 
 const ORDER_SELECT = `
   id, order_number, status, payment_status, payment_method, total, subtotal, shipping_cost, discount,
@@ -138,6 +140,42 @@ const persistOrdersCache = (orders: Order[]) => {
   } catch {
     // ignore cache write errors (quota, private mode)
   }
+};
+
+const readOrdersCache = (allowStale = false): Order[] => {
+  try {
+    const raw = sessionStorage.getItem(ORDERS_CACHE_KEY);
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw) as { timestamp: number; data: Order[] };
+    const isFresh = Date.now() - parsed.timestamp < ORDERS_CACHE_TTL;
+
+    if (Array.isArray(parsed.data) && parsed.data.length > 0 && (allowStale || isFresh)) {
+      return parsed.data;
+    }
+  } catch {
+    // ignore cache parse errors
+  }
+
+  return [];
+};
+
+const withTimeout = <T,>(promise: PromiseLike<T>, timeoutMs: number, label: string): Promise<T> => {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => {
+      reject(new Error(`${label} query timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+
+    Promise.resolve(promise)
+      .then((result) => {
+        window.clearTimeout(timeoutId);
+        resolve(result);
+      })
+      .catch((error) => {
+        window.clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
 };
 
 // Debounce hook for search
@@ -221,66 +259,81 @@ export default function AdminOrders() {
   };
 
   useEffect(() => {
-    let cachedLoaded = false;
+    const freshCachedOrders = readOrdersCache(false);
+    const hasFreshCache = freshCachedOrders.length > 0;
 
-    try {
-      const raw = sessionStorage.getItem(ORDERS_CACHE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as { timestamp: number; data: Order[] };
-        const isFresh = Date.now() - parsed.timestamp < ORDERS_CACHE_TTL;
-        if (isFresh && Array.isArray(parsed.data) && parsed.data.length > 0) {
-          setOrders(parsed.data);
-          setLoading(false);
-          cachedLoaded = true;
-        }
-      }
-    } catch {
-      // ignore cache parse errors
+    if (hasFreshCache) {
+      setOrders(freshCachedOrders);
+      setLoading(false);
     }
 
-    void loadOrders(!cachedLoaded);
+    void loadOrders({ showLoader: !hasFreshCache, allowStaleFallback: true });
   }, []);
 
-  const loadOrders = async (showLoader = true) => {
+  const loadOrders = async ({
+    showLoader = true,
+    allowStaleFallback = true,
+  }: {
+    showLoader?: boolean;
+    allowStaleFallback?: boolean;
+  } = {}) => {
     if (showLoader) setLoading(true);
 
     try {
-      const { data: orderRows, error: ordersError } = await supabase
-        .from('orders')
-        .select(ORDER_SELECT)
-        .order('created_at', { ascending: false })
-        .limit(ORDER_FETCH_LIMIT);
+      const { data: orderRows, error: ordersError } = await withTimeout(
+        supabase
+          .from('orders')
+          .select(ORDER_SELECT)
+          .order('created_at', { ascending: false })
+          .limit(ORDER_FETCH_LIMIT),
+        ORDERS_QUERY_TIMEOUT_MS,
+        'orders'
+      );
 
       if (ordersError) throw ordersError;
 
       const baseOrders = (orderRows || []) as Omit<Order, 'order_items'>[];
       const orderIds = baseOrders.map((o) => o.id);
 
-      let itemsByOrderId: Record<string, OrderItem[]> = {};
+      const optimisticOrders: Order[] = baseOrders.map((order) => ({
+        ...order,
+        order_items: [],
+      }));
 
-      if (orderIds.length > 0) {
-        const { data: itemRows, error: itemsError } = await supabase
+      setOrders(optimisticOrders);
+      persistOrdersCache(optimisticOrders);
+
+      if (orderIds.length === 0) {
+        return;
+      }
+
+      const { data: itemRows, error: itemsError } = await withTimeout(
+        supabase
           .from('order_items')
           .select(ORDER_ITEM_SELECT)
           .in('order_id', orderIds)
-          .order('created_at', { ascending: true });
+          .order('created_at', { ascending: true }),
+        ORDER_ITEMS_QUERY_TIMEOUT_MS,
+        'order_items'
+      );
 
-        if (!itemsError && itemRows) {
-          itemsByOrderId = itemRows.reduce<Record<string, OrderItem[]>>((acc, item) => {
-            const orderId = item.order_id;
-            if (!acc[orderId]) acc[orderId] = [];
-            acc[orderId].push({
-              id: item.id,
-              product_name: item.product_name,
-              product_image: item.product_image,
-              quantity: item.quantity,
-              price: Number(item.price),
-              variation_name: item.variation_name,
-            });
-            return acc;
-          }, {});
-        }
+      if (itemsError) {
+        throw itemsError;
       }
+
+      const itemsByOrderId = (itemRows || []).reduce<Record<string, OrderItem[]>>((acc, item) => {
+        const orderId = item.order_id;
+        if (!acc[orderId]) acc[orderId] = [];
+        acc[orderId].push({
+          id: item.id,
+          product_name: item.product_name,
+          product_image: item.product_image,
+          quantity: item.quantity,
+          price: Number(item.price),
+          variation_name: item.variation_name,
+        });
+        return acc;
+      }, {});
 
       const nextOrders: Order[] = baseOrders.map((order) => ({
         ...order,
@@ -291,6 +344,16 @@ export default function AdminOrders() {
       persistOrdersCache(nextOrders);
     } catch (error) {
       console.error('Failed to load orders:', error);
+
+      if (allowStaleFallback) {
+        const staleCachedOrders = readOrdersCache(true);
+        if (staleCachedOrders.length > 0) {
+          setOrders(staleCachedOrders);
+          toast.warning('Live order sync is slow. Showing cached orders.');
+          return;
+        }
+      }
+
       toast.error('Failed to load orders');
     } finally {
       if (showLoader) setLoading(false);
@@ -299,7 +362,7 @@ export default function AdminOrders() {
 
   const handleManualOrderCreated = async (orderId?: string) => {
     if (!orderId) {
-      void loadOrders(false);
+      void loadOrders({ showLoader: false });
       return;
     }
 
@@ -315,7 +378,7 @@ export default function AdminOrders() {
         return next;
       });
     } catch {
-      void loadOrders(false);
+      void loadOrders({ showLoader: false });
     }
   };
 
