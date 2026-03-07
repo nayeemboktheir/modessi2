@@ -362,7 +362,7 @@ export default function AdminOrders() {
 
   const handleManualOrderCreated = async (orderId?: string) => {
     if (!orderId) {
-      void loadOrders(false);
+      void loadOrders({ showLoader: false });
       return;
     }
 
@@ -378,7 +378,7 @@ export default function AdminOrders() {
         return next;
       });
     } catch {
-      void loadOrders(false);
+      void loadOrders({ showLoader: false });
     }
   };
 
