@@ -229,6 +229,16 @@ const HeroSection = memo(({ product, currentImage, setCurrentImage, onBuyNow }: 
               এখনই অর্ডার করুন
             </Button>
 
+            {/* CTA */}
+            <Button
+              onClick={onBuyNow}
+              size="lg"
+              className="w-full md:w-auto px-12 py-7 text-xl font-bold bg-gradient-to-r from-accent to-yellow-500 hover:from-yellow-500 hover:to-accent text-foreground rounded-2xl shadow-cta hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <ShoppingBag className="mr-2 h-6 w-6" />
+              এখনই অর্ডার করুন
+            </Button>
+
             {/* Trust Badges */}
             <div className="grid grid-cols-3 gap-3 pt-3">
               {[
