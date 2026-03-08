@@ -194,7 +194,7 @@ const HeroSection = memo(({ product, currentImage, setCurrentImage, onBuyNow }: 
           </div>
 
           {/* Product Info */}
-          <div className="text-primary-foreground space-y-5 text-center md:text-left">
+          <div className="text-primary-foreground space-y-5 text-center">
             <div>
               <span className="inline-block bg-accent/20 text-accent px-3 py-1 rounded-full text-sm font-medium mb-3">
                 🔥 হট সেলিং প্রোডাক্ট
@@ -207,7 +207,7 @@ const HeroSection = memo(({ product, currentImage, setCurrentImage, onBuyNow }: 
             )}
 
             {/* Price */}
-            <div className="flex items-baseline gap-4 flex-wrap py-3 px-5 bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 justify-center md:justify-start">
+            <div className="flex items-baseline gap-4 flex-wrap py-3 px-5 bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 justify-center">
               <span className="text-4xl md:text-5xl font-bold text-accent">৳{product.price.toLocaleString()}</span>
               {product.original_price && product.original_price > product.price && (
                 <span className="text-xl text-primary-foreground/50 line-through">৳{product.original_price.toLocaleString()}</span>
@@ -228,6 +228,7 @@ const HeroSection = memo(({ product, currentImage, setCurrentImage, onBuyNow }: 
               <ShoppingBag className="mr-2 h-6 w-6" />
               এখনই অর্ডার করুন
             </Button>
+
 
             {/* Trust Badges */}
             <div className="grid grid-cols-3 gap-3 pt-3">
