@@ -409,8 +409,7 @@ const SectionRenderer = ({ section, theme, slug }: SectionRendererProps) => {
 
           {settings.badges?.length > 0 && (
             <div
-              className="flex flex-wrap gap-6 mt-8"
-              style={{ justifyContent: isCenter ? "center" : "flex-start" }}
+              className="flex flex-wrap gap-6 mt-8 justify-center"
             >
               {settings.badges.map((badge, idx) => (
                 <div key={idx} className="text-center">
