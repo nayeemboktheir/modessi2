@@ -362,7 +362,7 @@ const SectionRenderer = ({ section, theme, slug }: SectionRendererProps) => {
       );
 
       const textSection = (
-        <div className={`space-y-6 ${isCenter ? "text-center" : ""}`}>
+        <div className={`space-y-6 text-center`}>
           <h1 className="text-3xl md:text-5xl font-bold" style={{ color: settings.textColor }}>
             {settings.title}
           </h1>
@@ -372,8 +372,7 @@ const SectionRenderer = ({ section, theme, slug }: SectionRendererProps) => {
             </p>
           )}
           <div
-            className="flex items-baseline gap-3"
-            style={{ justifyContent: isCenter ? "center" : "flex-start" }}
+            className="flex items-baseline gap-3 justify-center"
           >
             <span className="text-xl" style={{ color: theme.accentColor }}>
               দাম
