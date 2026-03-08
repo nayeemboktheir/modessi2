@@ -194,7 +194,7 @@ const HeroSection = memo(({ product, currentImage, setCurrentImage, onBuyNow }: 
           </div>
 
           {/* Product Info */}
-          <div className="text-primary-foreground space-y-5 text-center md:text-left">
+          <div className="text-primary-foreground space-y-5 text-center">
             <div>
               <span className="inline-block bg-accent/20 text-accent px-3 py-1 rounded-full text-sm font-medium mb-3">
                 🔥 হট সেলিং প্রোডাক্ট
