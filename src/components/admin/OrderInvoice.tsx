@@ -150,13 +150,22 @@ export const OrderInvoice = forwardRef<HTMLDivElement, OrderInvoiceProps>(
 
           {/* Delivery Info */}
           <div style={{ fontSize: '14px' }}>
-            <p style={{ margin: '4px 0' }}>
-              <span style={{ fontWeight: '600' }}>Delivery:</span> Steadfast
-            </p>
-            <p style={{ margin: '4px 0' }}>
-              <span style={{ fontWeight: '600' }}>Steadfast ID:</span>{' '}
-              {order.steadfast_consignment_id || 'Pending'}
-            </p>
+            {(() => {
+              const consignmentId = order.steadfast_consignment_id || '';
+              const isCarrybee = consignmentId && !/^\d+$/.test(consignmentId);
+              const courierName = isCarrybee ? 'Carrybee' : 'Steadfast';
+              return (
+                <>
+                  <p style={{ margin: '4px 0' }}>
+                    <span style={{ fontWeight: '600' }}>Delivery:</span> {courierName}
+                  </p>
+                  <p style={{ margin: '4px 0' }}>
+                    <span style={{ fontWeight: '600' }}>{courierName} ID:</span>{' '}
+                    {consignmentId || 'Pending'}
+                  </p>
+                </>
+              );
+            })()}
           </div>
         </div>
 
