@@ -1345,8 +1345,7 @@ export default function AdminOrders() {
           </Button>
         </div>
       </div>
-
-
+      <Card>
         <CardHeader>
         <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex items-center gap-2 flex-1">
