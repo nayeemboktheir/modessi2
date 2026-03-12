@@ -592,7 +592,7 @@ export default function AdminOrders() {
   useEffect(() => {
     setVisibleRows(ORDERS_PAGE_SIZE);
     setSelectedOrderIds(new Set());
-  }, [debouncedSearch, statusFilter, sourceFilter, steadfastFilter, dateFrom, dateTo]);
+  }, [debouncedSearch, statusFilter, sourceFilter, steadfastFilter, locationFilter, dateFrom, dateTo]);
 
   const displayedOrders = useMemo(
     () => filteredOrders.slice(0, visibleRows),
