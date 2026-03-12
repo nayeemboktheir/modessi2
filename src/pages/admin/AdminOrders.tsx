@@ -558,7 +558,7 @@ export default function AdminOrders() {
 
       return true;
     });
-  }, [orders, debouncedSearch, statusFilter, sourceFilter, steadfastFilter, dateFrom, dateTo, steadfastStatuses]);
+  }, [orders, debouncedSearch, statusFilter, sourceFilter, steadfastFilter, locationFilter, dateFrom, dateTo, steadfastStatuses]);
 
   // Pre-computed counts — O(n) single pass instead of O(n * statuses)
   const { statusCounts, sourceCounts, totalBySource } = useMemo(() => {
