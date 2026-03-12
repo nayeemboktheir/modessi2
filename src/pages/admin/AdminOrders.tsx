@@ -259,6 +259,7 @@ export default function AdminOrders() {
   const [statusFilter, setStatusFilter] = useState<string>('pending');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [steadfastFilter, setSteadfastFilter] = useState<string>('all');
+  const [locationFilter, setLocationFilter] = useState<string>('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [trackingNumber, setTrackingNumber] = useState('');
