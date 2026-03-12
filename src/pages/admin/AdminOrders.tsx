@@ -1623,7 +1623,7 @@ export default function AdminOrders() {
                   <TableCell>
                     {order.tracking_number ? (
                       <a 
-                        href={`https://steadfast.com.bd/t/${order.tracking_number}`}
+                        href={/^\d+$/.test(order.tracking_number) ? `https://steadfast.com.bd/t/${order.tracking_number}` : `https://merchant.carrybee.com/order-track/${order.tracking_number}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex"

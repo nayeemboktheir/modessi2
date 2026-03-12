@@ -287,7 +287,7 @@ const OrderCard = ({ order }: { order: Order }) => {
                   <span className="font-mono bg-background px-2 py-1 rounded">{order.tracking_number}</span>
                 </div>
                 <a
-                  href={`https://steadfast.com.bd/t/${order.tracking_number}`}
+                  href={/^\d+$/.test(order.tracking_number) ? `https://steadfast.com.bd/t/${order.tracking_number}` : `https://merchant.carrybee.com/order-track/${order.tracking_number}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary hover:underline flex items-center gap-1"
