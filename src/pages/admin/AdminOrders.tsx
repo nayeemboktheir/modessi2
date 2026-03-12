@@ -1314,7 +1314,39 @@ export default function AdminOrders() {
         </Button>
       </div>
 
-      <Card>
+      {/* Location Filter - Inside/Outside Dhaka */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <span className="text-sm font-medium text-muted-foreground">Location:</span>
+        <div className="flex gap-2">
+          <Button
+            variant={locationFilter === 'all' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setLocationFilter('all')}
+          >
+            All
+          </Button>
+          <Button
+            variant={locationFilter === 'inside_dhaka' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setLocationFilter('inside_dhaka')}
+            className="gap-1"
+          >
+            <MapPin className="h-3 w-3" />
+            Inside Dhaka ({orders.filter(o => isInsideDhaka(o)).length})
+          </Button>
+          <Button
+            variant={locationFilter === 'outside_dhaka' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setLocationFilter('outside_dhaka')}
+            className="gap-1"
+          >
+            <MapPin className="h-3 w-3" />
+            Outside Dhaka ({orders.filter(o => !isInsideDhaka(o)).length})
+          </Button>
+        </div>
+      </div>
+
+
         <CardHeader>
         <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex items-center gap-2 flex-1">
