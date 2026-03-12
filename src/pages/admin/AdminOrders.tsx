@@ -538,6 +538,13 @@ export default function AdminOrders() {
         }
       }
 
+      // Location filter
+      if (locationFilter !== 'all') {
+        const isDhaka = isInsideDhaka(order);
+        if (locationFilter === 'inside_dhaka' && !isDhaka) return false;
+        if (locationFilter === 'outside_dhaka' && isDhaka) return false;
+      }
+
       // Steadfast filter
       if (steadfastFilter !== 'all') {
         if (!order.tracking_number) return false;
