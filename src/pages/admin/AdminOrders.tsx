@@ -1815,7 +1815,16 @@ export default function AdminOrders() {
                     className="flex-1"
                   >
                     <Send className="h-4 w-4 mr-2" />
-                    {sendingToSteadfast ? 'Sending...' : selectedOrder.tracking_number ? 'Already Sent to Steadfast' : 'Send to Steadfast'}
+                    {sendingToSteadfast ? 'Sending...' : selectedOrder.tracking_number ? 'Already Sent' : 'Send to Steadfast'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => handleSendToCarrybee(selectedOrder)}
+                    disabled={sendingToCarrybee || !!selectedOrder.tracking_number}
+                    className="flex-1"
+                  >
+                    <Send className="h-4 w-4 mr-2" />
+                    {sendingToCarrybee ? 'Sending...' : selectedOrder.tracking_number ? 'Already Sent' : 'Send to Carrybee'}
                   </Button>
                   <Button
                     variant="destructive"
