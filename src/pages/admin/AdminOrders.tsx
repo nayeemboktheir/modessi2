@@ -1388,13 +1388,22 @@ export default function AdminOrders() {
                     <Tag className="h-4 w-4" />
                     Print {selectedOrderIds.size} Sticker{selectedOrderIds.size > 1 ? 's' : ''}
                   </Button>
-                  <Button
+                   <Button
                     onClick={handleBulkSendToSteadfast}
                     disabled={bulkSending}
                     className="gap-2"
                   >
                     <Send className="h-4 w-4" />
                     {bulkSending ? 'Sending...' : `Send ${selectedOrderIds.size} to Steadfast`}
+                  </Button>
+                  <Button
+                    onClick={handleBulkSendToCarrybee}
+                    disabled={bulkSendingCarrybee}
+                    variant="outline"
+                    className="gap-2"
+                  >
+                    <Send className="h-4 w-4" />
+                    {bulkSendingCarrybee ? 'Sending...' : `Send ${selectedOrderIds.size} to Carrybee`}
                   </Button>
                 </>
               )}
