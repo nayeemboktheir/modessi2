@@ -31,7 +31,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { Search, Eye, Package, Truck, CheckCircle, XCircle, Clock, Send, Printer, Globe, UserPlus, Plus, Check, Tag, RefreshCw, RotateCcw, Loader2, UserCheck, History, Trash2, Calendar, Edit } from 'lucide-react';
+import { Search, Eye, Package, Truck, CheckCircle, XCircle, Clock, Send, Printer, Globe, UserPlus, Plus, Check, Tag, RefreshCw, RotateCcw, Loader2, UserCheck, History, Trash2, Calendar, Edit, MapPin } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { supabase } from '@/integrations/supabase/client';
@@ -115,6 +115,27 @@ const statusOptions = [
 ];
 
 const normalizePhoneForLookup = (phone: string): string => phone.replace(/\D/g, '').slice(-11);
+
+// Dhaka detection keywords (reused from ShippingMethodSelector)
+const DHAKA_KEYWORDS = [
+  'dhaka', 'ঢাকা', 'dhanmondi', 'ধানমন্ডি', 'gulshan', 'গুলশান', 'banani', 'বনানী',
+  'mirpur', 'মিরপুর', 'uttara', 'উত্তরা', 'mohammadpur', 'মোহাম্মদপুর', 'motijheel', 'মতিঝিল',
+  'farmgate', 'ফার্মগেট', 'tejgaon', 'তেজগাঁও', 'badda', 'বাড্ডা', 'rampura', 'রামপুরা',
+  'khilgaon', 'খিলগাঁও', 'basabo', 'বাসাবো', 'shyamoli', 'শ্যামলী', 'kalabagan', 'কলাবাগান',
+  'panthapath', 'পান্থপথ', 'bashundhara', 'বসুন্ধরা', 'aftabnagar', 'আফতাবনগর',
+  'banasree', 'বনশ্রী', 'mogbazar', 'মগবাজার', 'eskaton', 'ইস্কাটন', 'malibagh', 'মালিবাগ',
+  'shantinagar', 'শান্তিনগর', 'kakrail', 'কাকরাইল', 'paltan', 'পল্টন', 'shahbag', 'শাহবাগ',
+  'sadarghat', 'সদরঘাট', 'jatrabari', 'যাত্রাবাড়ী', 'demra', 'ডেমরা',
+  'keraniganj', 'কেরানীগঞ্জ', 'savar', 'সাভার', 'tongi', 'টঙ্গী', 'gazipur', 'গাজীপুর',
+  'narayanganj', 'নারায়ণগঞ্জ', 'adabor', 'আদাবর', 'kafrul', 'কাফরুল', 'pallabi', 'পল্লবী',
+  'dakshinkhan', 'দক্ষিণখান', 'khilkhet', 'খিলক্ষেত', 'nikunja', 'নিকুঞ্জ',
+  'postogola', 'পোস্তগোলা', 'cantonment', 'সেনানিবাস', 'airport', 'বিমানবন্দর',
+];
+
+const isInsideDhaka = (order: Order): boolean => {
+  const text = `${order.shipping_street} ${order.shipping_city} ${order.shipping_district}`.toLowerCase();
+  return DHAKA_KEYWORDS.some(k => text.includes(k.toLowerCase()));
+};
 
 const ORDERS_CACHE_KEY = 'admin_orders_cache_v3';
 const ORDERS_CACHE_TTL = 3 * 60 * 1000; // 3 minutes
@@ -238,6 +259,7 @@ export default function AdminOrders() {
   const [statusFilter, setStatusFilter] = useState<string>('pending');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [steadfastFilter, setSteadfastFilter] = useState<string>('all');
+  const [locationFilter, setLocationFilter] = useState<string>('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [trackingNumber, setTrackingNumber] = useState('');
@@ -516,6 +538,13 @@ export default function AdminOrders() {
         }
       }
 
+      // Location filter
+      if (locationFilter !== 'all') {
+        const isDhaka = isInsideDhaka(order);
+        if (locationFilter === 'inside_dhaka' && !isDhaka) return false;
+        if (locationFilter === 'outside_dhaka' && isDhaka) return false;
+      }
+
       // Steadfast filter
       if (steadfastFilter !== 'all') {
         if (!order.tracking_number) return false;
@@ -529,7 +558,7 @@ export default function AdminOrders() {
 
       return true;
     });
-  }, [orders, debouncedSearch, statusFilter, sourceFilter, steadfastFilter, dateFrom, dateTo, steadfastStatuses]);
+  }, [orders, debouncedSearch, statusFilter, sourceFilter, steadfastFilter, locationFilter, dateFrom, dateTo, steadfastStatuses]);
 
   // Pre-computed counts — O(n) single pass instead of O(n * statuses)
   const { statusCounts, sourceCounts, totalBySource } = useMemo(() => {
@@ -563,7 +592,7 @@ export default function AdminOrders() {
   useEffect(() => {
     setVisibleRows(ORDERS_PAGE_SIZE);
     setSelectedOrderIds(new Set());
-  }, [debouncedSearch, statusFilter, sourceFilter, steadfastFilter, dateFrom, dateTo]);
+  }, [debouncedSearch, statusFilter, sourceFilter, steadfastFilter, locationFilter, dateFrom, dateTo]);
 
   const displayedOrders = useMemo(
     () => filteredOrders.slice(0, visibleRows),
@@ -1285,6 +1314,37 @@ export default function AdminOrders() {
         </Button>
       </div>
 
+      {/* Location Filter - Inside/Outside Dhaka */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <span className="text-sm font-medium text-muted-foreground">Location:</span>
+        <div className="flex gap-2">
+          <Button
+            variant={locationFilter === 'all' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setLocationFilter('all')}
+          >
+            All
+          </Button>
+          <Button
+            variant={locationFilter === 'inside_dhaka' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setLocationFilter('inside_dhaka')}
+            className="gap-1"
+          >
+            <MapPin className="h-3 w-3" />
+            Inside Dhaka ({orders.filter(o => isInsideDhaka(o)).length})
+          </Button>
+          <Button
+            variant={locationFilter === 'outside_dhaka' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setLocationFilter('outside_dhaka')}
+            className="gap-1"
+          >
+            <MapPin className="h-3 w-3" />
+            Outside Dhaka ({orders.filter(o => !isInsideDhaka(o)).length})
+          </Button>
+        </div>
+      </div>
       <Card>
         <CardHeader>
         <div className="flex flex-col lg:flex-row gap-4">
