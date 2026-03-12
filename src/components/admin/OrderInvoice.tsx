@@ -82,7 +82,7 @@ export const OrderInvoice = forwardRef<HTMLDivElement, OrderInvoiceProps>(
         }}
       >
         {/* Header */}
-        <div className="flex justify-between items-start mb-8">
+        <div className="flex justify-between items-start mb-4">
           {/* Logo Section */}
           <div className="flex-1">
             {shopLogo ? (
@@ -103,7 +103,7 @@ export const OrderInvoice = forwardRef<HTMLDivElement, OrderInvoiceProps>(
 
           {/* Invoice Title & Barcode */}
           <div style={{ textAlign: 'right' }}>
-            <h2 style={{ fontSize: '22px', fontWeight: 'bold', marginBottom: '10px' }}>INVOICE</h2>
+            <h2 style={{ fontSize: '22px', fontWeight: 'bold', marginBottom: '8px' }}>INVOICE</h2>
             {order.tracking_number && (
               <div style={{ display: 'inline-block' }}>
                 <Barcode value={order.tracking_number} />
@@ -111,6 +111,46 @@ export const OrderInvoice = forwardRef<HTMLDivElement, OrderInvoiceProps>(
             )}
           </div>
         </div>
+
+        {/* Delivery Info Banner */}
+        {(() => {
+          const consignmentId = order.steadfast_consignment_id || '';
+          const isCarrybee = consignmentId && !/^\d+$/.test(consignmentId);
+          const courierName = isCarrybee ? 'Carrybee' : 'Steadfast';
+          return consignmentId ? (
+            <div 
+              style={{ 
+                backgroundColor: '#1a365d', 
+                color: 'white', 
+                padding: '16px 24px',
+                marginBottom: '24px',
+                borderRadius: '4px',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: '40px'
+              }}
+            >
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.8, marginBottom: '4px' }}>
+                  Delivery By
+                </div>
+                <div style={{ fontSize: '28px', fontWeight: 'bold' }}>
+                  {courierName}
+                </div>
+              </div>
+              <div style={{ width: '1px', height: '40px', backgroundColor: 'rgba(255,255,255,0.3)' }} />
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.8, marginBottom: '4px' }}>
+                  {courierName} ID
+                </div>
+                <div style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'monospace' }}>
+                  {consignmentId}
+                </div>
+              </div>
+            </div>
+          ) : null;
+        })()}
 
         {/* Billing & Shipping Info */}
         <div
