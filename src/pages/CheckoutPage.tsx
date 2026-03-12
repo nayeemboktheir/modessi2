@@ -100,7 +100,7 @@ const CheckoutPage = () => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const draftOrderId = useRef<string | null>(null);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [shippingZone, setShippingZone] = useState<ShippingZone>('outside_dhaka');
 
   const [shippingForm, setShippingForm] = useState<ShippingForm>({
