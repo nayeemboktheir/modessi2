@@ -116,6 +116,27 @@ const statusOptions = [
 
 const normalizePhoneForLookup = (phone: string): string => phone.replace(/\D/g, '').slice(-11);
 
+// Dhaka detection keywords (reused from ShippingMethodSelector)
+const DHAKA_KEYWORDS = [
+  'dhaka', 'ঢাকা', 'dhanmondi', 'ধানমন্ডি', 'gulshan', 'গুলশান', 'banani', 'বনানী',
+  'mirpur', 'মিরপুর', 'uttara', 'উত্তরা', 'mohammadpur', 'মোহাম্মদপুর', 'motijheel', 'মতিঝিল',
+  'farmgate', 'ফার্মগেট', 'tejgaon', 'তেজগাঁও', 'badda', 'বাড্ডা', 'rampura', 'রামপুরা',
+  'khilgaon', 'খিলগাঁও', 'basabo', 'বাসাবো', 'shyamoli', 'শ্যামলী', 'kalabagan', 'কলাবাগান',
+  'panthapath', 'পান্থপথ', 'bashundhara', 'বসুন্ধরা', 'aftabnagar', 'আফতাবনগর',
+  'banasree', 'বনশ্রী', 'mogbazar', 'মগবাজার', 'eskaton', 'ইস্কাটন', 'malibagh', 'মালিবাগ',
+  'shantinagar', 'শান্তিনগর', 'kakrail', 'কাকরাইল', 'paltan', 'পল্টন', 'shahbag', 'শাহবাগ',
+  'sadarghat', 'সদরঘাট', 'jatrabari', 'যাত্রাবাড়ী', 'demra', 'ডেমরা',
+  'keraniganj', 'কেরানীগঞ্জ', 'savar', 'সাভার', 'tongi', 'টঙ্গী', 'gazipur', 'গাজীপুর',
+  'narayanganj', 'নারায়ণগঞ্জ', 'adabor', 'আদাবর', 'kafrul', 'কাফরুল', 'pallabi', 'পল্লবী',
+  'dakshinkhan', 'দক্ষিণখান', 'khilkhet', 'খিলক্ষেত', 'nikunja', 'নিকুঞ্জ',
+  'postogola', 'পোস্তগোলা', 'cantonment', 'সেনানিবাস', 'airport', 'বিমানবন্দর',
+];
+
+const isInsideDhaka = (order: Order): boolean => {
+  const text = `${order.shipping_street} ${order.shipping_city} ${order.shipping_district}`.toLowerCase();
+  return DHAKA_KEYWORDS.some(k => text.includes(k.toLowerCase()));
+};
+
 const ORDERS_CACHE_KEY = 'admin_orders_cache_v3';
 const ORDERS_CACHE_TTL = 3 * 60 * 1000; // 3 minutes
 const ORDERS_PAGE_SIZE = 30;
