@@ -243,6 +243,8 @@ export default function AdminOrders() {
   const [trackingNumber, setTrackingNumber] = useState('');
   const [updating, setUpdating] = useState(false);
   const [sendingToSteadfast, setSendingToSteadfast] = useState(false);
+  const [sendingToCarrybee, setSendingToCarrybee] = useState(false);
+  const [bulkSendingCarrybee, setBulkSendingCarrybee] = useState(false);
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   const [bulkSending, setBulkSending] = useState(false);
   const [bulkStatusChanging, setBulkStatusChanging] = useState(false);
