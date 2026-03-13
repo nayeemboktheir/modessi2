@@ -1332,7 +1332,7 @@ export default function AdminOrders() {
             className="gap-1"
           >
             <MapPin className="h-3 w-3" />
-            Inside Dhaka ({orders.filter(o => isInsideDhaka(o)).length})
+            Inside Dhaka ({ordersBeforeLocation.filter(o => isInsideDhaka(o)).length})
           </Button>
           <Button
             variant={locationFilter === 'outside_dhaka' ? 'default' : 'outline'}
@@ -1341,7 +1341,7 @@ export default function AdminOrders() {
             className="gap-1"
           >
             <MapPin className="h-3 w-3" />
-            Outside Dhaka ({orders.filter(o => !isInsideDhaka(o)).length})
+            Outside Dhaka ({ordersBeforeLocation.filter(o => !isInsideDhaka(o)).length})
           </Button>
         </div>
       </div>
