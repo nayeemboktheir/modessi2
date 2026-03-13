@@ -509,21 +509,16 @@ export default function AdminOrders() {
 
   // Don't auto-fetch statuses on load - only on manual refresh
 
-  const filteredOrders = useMemo(() => {
+  const ordersBeforeLocation = useMemo(() => {
     const searchLower = debouncedSearch.toLowerCase();
     return orders.filter(order => {
-      // Fast-path: status check first (most selective)
       if (statusFilter !== 'all' && order.status !== statusFilter) return false;
       if (sourceFilter !== 'all' && order.order_source !== sourceFilter) return false;
-
-      // Search
       if (searchLower && !(
         order.order_number.toLowerCase().includes(searchLower) ||
         order.shipping_name.toLowerCase().includes(searchLower) ||
         order.shipping_phone.includes(debouncedSearch)
       )) return false;
-
-      // Date filter
       if (dateFrom || dateTo) {
         const orderTime = new Date(order.created_at).getTime();
         if (dateFrom) {
@@ -537,15 +532,6 @@ export default function AdminOrders() {
           if (orderTime > toTime.getTime()) return false;
         }
       }
-
-      // Location filter
-      if (locationFilter !== 'all') {
-        const isDhaka = isInsideDhaka(order);
-        if (locationFilter === 'inside_dhaka' && !isDhaka) return false;
-        if (locationFilter === 'outside_dhaka' && isDhaka) return false;
-      }
-
-      // Steadfast filter
       if (steadfastFilter !== 'all') {
         if (!order.tracking_number) return false;
         const sfStatus = steadfastStatuses[order.tracking_number];
@@ -555,10 +541,19 @@ export default function AdminOrders() {
         if (steadfastFilter === 'in_transit' && !(deliveryStatus.includes('transit') || deliveryStatus.includes('picked') || deliveryStatus.includes('hub'))) return false;
         if (steadfastFilter === 'pending_delivery' && !(deliveryStatus.includes('pending') || deliveryStatus === '')) return false;
       }
-
       return true;
     });
-  }, [orders, debouncedSearch, statusFilter, sourceFilter, steadfastFilter, locationFilter, dateFrom, dateTo, steadfastStatuses]);
+  }, [orders, debouncedSearch, statusFilter, sourceFilter, steadfastFilter, dateFrom, dateTo, steadfastStatuses]);
+
+  const filteredOrders = useMemo(() => {
+    if (locationFilter === 'all') return ordersBeforeLocation;
+    return ordersBeforeLocation.filter(order => {
+      const isDhaka = isInsideDhaka(order);
+      if (locationFilter === 'inside_dhaka' && !isDhaka) return false;
+      if (locationFilter === 'outside_dhaka' && isDhaka) return false;
+      return true;
+    });
+  }, [ordersBeforeLocation, locationFilter]);
 
   // Pre-computed counts — O(n) single pass instead of O(n * statuses)
   const { statusCounts, sourceCounts, totalBySource } = useMemo(() => {
