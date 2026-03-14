@@ -141,22 +141,17 @@ const ORDERS_CACHE_KEY = 'admin_orders_cache_v3';
 const ORDERS_CACHE_TTL = 3 * 60 * 1000; // 3 minutes
 const ORDERS_PAGE_SIZE = 30;
 const AUTO_COURIER_FETCH_ROWS = 3;
-const ORDER_FETCH_LIMIT = 120;
-const QUICK_ORDER_FETCH_LIMIT = 40;
+const ORDER_FETCH_BATCH_SIZE = 500;
 const ORDERS_QUERY_TIMEOUT_MS = 9000;
-const ORDER_ITEMS_QUERY_TIMEOUT_MS = 7000;
 
 const ORDER_SELECT = `
   id, order_number, status, payment_status, payment_method, total, subtotal, shipping_cost, discount,
   shipping_name, shipping_phone, shipping_street, shipping_city, shipping_district, shipping_postal_code,
-  tracking_number, notes, invoice_note, steadfast_note, steadfast_consignment_id, created_at, order_source, is_printed
+  tracking_number, notes, invoice_note, steadfast_note, steadfast_consignment_id, created_at, order_source, is_printed,
+  order_items (id, order_id, product_id, product_name, product_image, quantity, price, variation_name)
 `;
 
-const ORDER_ITEM_SELECT = `
-  id, order_id, product_id, product_name, product_image, quantity, price, variation_name
-`;
-
-type BaseOrderRow = Omit<Order, 'order_items'>;
+type BaseOrderRow = Order;
 
 const persistOrdersCache = (orders: Order[]) => {
   try {
@@ -205,11 +200,13 @@ const withTimeout = <T,>(promise: PromiseLike<T>, timeoutMs: number, label: stri
 const wait = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 
 const fetchOrderRows = async ({
-  limit,
+  from,
+  to,
   timeoutMs,
   retries = 1,
 }: {
-  limit: number;
+  from: number;
+  to: number;
   timeoutMs: number;
   retries?: number;
 }): Promise<BaseOrderRow[]> => {
@@ -222,9 +219,9 @@ const fetchOrderRows = async ({
           .from('orders')
           .select(ORDER_SELECT)
           .order('created_at', { ascending: false })
-          .limit(limit),
+          .range(from, to),
         timeoutMs,
-        `orders_fetch_${limit}_attempt_${attempt + 1}`
+        `orders_fetch_${from}_${to}_attempt_${attempt + 1}`
       );
 
       if (error) throw error;
@@ -238,6 +235,38 @@ const fetchOrderRows = async ({
   }
 
   throw (lastError instanceof Error ? lastError : new Error('Failed to fetch orders'));
+};
+
+const fetchAllOrderRows = async ({
+  batchSize,
+  timeoutMs,
+  retries = 1,
+}: {
+  batchSize: number;
+  timeoutMs: number;
+  retries?: number;
+}): Promise<BaseOrderRow[]> => {
+  const allRows: BaseOrderRow[] = [];
+  let offset = 0;
+
+  while (true) {
+    const batch = await fetchOrderRows({
+      from: offset,
+      to: offset + batchSize - 1,
+      timeoutMs,
+      retries,
+    });
+
+    if (batch.length === 0) break;
+
+    allRows.push(...batch);
+
+    if (batch.length < batchSize) break;
+
+    offset += batchSize;
+  }
+
+  return allRows;
 };
 
 // Debounce hook for search
