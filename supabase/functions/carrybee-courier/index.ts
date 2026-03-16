@@ -218,9 +218,8 @@ Deno.serve(async (req) => {
           cityId = detected.city_id;
           zoneId = detected.zone_id;
         } else {
-          // Default to Dhaka (14) if detection fails
-          cityId = cityId || 14;
-          zoneId = zoneId || 1;
+          results.push({ orderId: order.orderId, success: false, error: `Could not detect hub coverage for address: "${order.recipient_address}". Carrybee does not cover this area or the address is not recognized.` });
+          continue;
         }
       }
 
