@@ -1463,7 +1463,7 @@ export default function AdminOrders() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {displayedOrders.map((order, index) => (
+              {displayedOrders.map((order) => (
                 <TableRow key={order.id}>
                   <TableCell>
                     <Checkbox
@@ -1496,7 +1496,7 @@ export default function AdminOrders() {
                           )}
                         </div>
                         <div className="text-sm text-muted-foreground">{order.shipping_phone}</div>
-                        <CourierHistoryInline phone={order.shipping_phone} autoFetch={index < AUTO_COURIER_FETCH_ROWS} />
+                        <CourierHistoryInline phone={order.shipping_phone} autoFetch />
                       </div>
                       <div className="shrink-0 pt-1">
                         <CourierHistoryDialog phone={order.shipping_phone} customerName={order.shipping_name} />
