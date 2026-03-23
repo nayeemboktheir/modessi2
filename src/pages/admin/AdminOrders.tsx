@@ -140,7 +140,6 @@ const isInsideDhaka = (order: Order): boolean => {
 const ORDERS_CACHE_KEY = 'admin_orders_cache_v3';
 const ORDERS_CACHE_TTL = 3 * 60 * 1000; // 3 minutes
 const ORDERS_PAGE_SIZE = 30;
-const AUTO_COURIER_FETCH_ROWS = 3;
 const ORDER_FETCH_BATCH_SIZE = 500;
 const ORDERS_QUERY_TIMEOUT_MS = 9000;
 
@@ -1464,7 +1463,7 @@ export default function AdminOrders() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {displayedOrders.map((order, index) => (
+              {displayedOrders.map((order) => (
                 <TableRow key={order.id}>
                   <TableCell>
                     <Checkbox
@@ -1497,7 +1496,7 @@ export default function AdminOrders() {
                           )}
                         </div>
                         <div className="text-sm text-muted-foreground">{order.shipping_phone}</div>
-                        <CourierHistoryInline phone={order.shipping_phone} autoFetch={index < AUTO_COURIER_FETCH_ROWS} />
+                        <CourierHistoryInline phone={order.shipping_phone} autoFetch />
                       </div>
                       <div className="shrink-0 pt-1">
                         <CourierHistoryDialog phone={order.shipping_phone} customerName={order.shipping_name} />
