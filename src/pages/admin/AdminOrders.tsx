@@ -140,7 +140,6 @@ const isInsideDhaka = (order: Order): boolean => {
 const ORDERS_CACHE_KEY = 'admin_orders_cache_v3';
 const ORDERS_CACHE_TTL = 3 * 60 * 1000; // 3 minutes
 const ORDERS_PAGE_SIZE = 30;
-const AUTO_COURIER_FETCH_ROWS = 3;
 const ORDER_FETCH_BATCH_SIZE = 500;
 const ORDERS_QUERY_TIMEOUT_MS = 9000;
 
