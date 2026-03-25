@@ -56,6 +56,7 @@ interface ProductData {
   short_description?: string;
   long_description?: string;
   slug: string;
+  stock: number;
   variations: ProductVariation[];
 }
 
@@ -194,24 +195,31 @@ const HeroSection = memo(({ products, onBuyNow, selectedProductId, onProductSele
             </div>
 
             <div id="product-selector" className="flex justify-center gap-3 mb-4">
-              {products.map((product) => (
+              {products.map((product) => {
+                const isOutOfStock = product.stock === 0;
+                return (
                 <motion.button
                   key={product.id}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => onProductSelect(product.id)}
+                  whileHover={{ scale: isOutOfStock ? 1 : 1.05 }}
+                  whileTap={{ scale: isOutOfStock ? 1 : 0.95 }}
+                  onClick={() => !isOutOfStock && onProductSelect(product.id)}
+                  disabled={isOutOfStock}
                   className={`relative px-4 py-2 rounded-full font-semibold transition-all text-sm ${
-                    selectedProductId === product.id
-                      ? 'bg-gradient-to-r from-slate-700 to-gray-800 text-white shadow-lg scale-105'
-                      : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-slate-400'
+                    isOutOfStock
+                      ? 'bg-gray-100 text-gray-400 border-2 border-gray-200 cursor-not-allowed opacity-60'
+                      : selectedProductId === product.id
+                        ? 'bg-gradient-to-r from-slate-700 to-gray-800 text-white shadow-lg scale-105'
+                        : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-slate-400'
                   }`}
                 >
                   <span className="flex items-center gap-2">
                     <div className={`w-3 h-3 rounded-full border-2 ${getColorDot(product.slug)}`} />
                     {getColorLabel(product.slug)}
+                    {isOutOfStock && <span className="text-xs text-red-500 font-bold">(স্টক আউট)</span>}
                   </span>
                 </motion.button>
-              ))}
+              );
+              })}
             </div>
 
             <AnimatePresence mode="wait">
@@ -737,21 +745,33 @@ const CheckoutSection = memo(({ products, onSubmit, isSubmitting, selectedProduc
                   {products.map((product) => {
                     const currentImageIdx = productImageIndex[product.id] || 0;
                     const images = product.images || [];
+                    const isOutOfStock = product.stock === 0;
                     
                     return (
                       <button
                         key={product.id}
                         type="button"
                         onClick={() => {
+                          if (isOutOfStock) return;
                           updateForm('selectedProductId', product.id);
                           onProductSelect(product.id);
                         }}
+                        disabled={isOutOfStock}
                         className={`relative p-3 rounded-xl border-2 transition-all ${
-                          form.selectedProductId === product.id
-                            ? 'border-slate-600 bg-slate-50 shadow-md'
-                            : 'border-gray-200 hover:border-slate-400'
+                          isOutOfStock
+                            ? 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
+                            : form.selectedProductId === product.id
+                              ? 'border-slate-600 bg-slate-50 shadow-md'
+                              : 'border-gray-200 hover:border-slate-400'
                         }`}
                       >
+                        {isOutOfStock && (
+                          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-black/40">
+                            <span className="bg-red-600 text-white px-3 py-1.5 rounded-full text-sm font-bold shadow-lg">
+                              স্টক আউট
+                            </span>
+                          </div>
+                        )}
                         <div className="aspect-square rounded-lg overflow-hidden mb-2">
                           <OptimizedImage 
                             src={images[currentImageIdx] || images[0] || ''} 
@@ -760,7 +780,7 @@ const CheckoutSection = memo(({ products, onSubmit, isSubmitting, selectedProduc
                           />
                         </div>
                         
-                        {images.length > 1 && (
+                        {images.length > 1 && !isOutOfStock && (
                           <div className="flex gap-1 justify-center mb-2">
                             {images.slice(0, 3).map((img, idx) => (
                               <div
@@ -784,9 +804,11 @@ const CheckoutSection = memo(({ products, onSubmit, isSubmitting, selectedProduc
                         <p className="text-sm font-medium text-gray-800 line-clamp-1">
                           {getColorLabel(product.slug)}
                         </p>
-                        <p className="text-slate-600 font-bold">৳{product.price.toLocaleString()}</p>
+                        <p className="text-slate-600 font-bold">
+                          {isOutOfStock ? <span className="text-red-500">স্টক আউট</span> : `৳${product.price.toLocaleString()}`}
+                        </p>
                         
-                        {form.selectedProductId === product.id && (
+                        {form.selectedProductId === product.id && !isOutOfStock && (
                           <div className="absolute top-2 right-2 w-6 h-6 bg-slate-600 rounded-full flex items-center justify-center">
                             <Check className="h-4 w-4 text-white" />
                           </div>
