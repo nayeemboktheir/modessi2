@@ -195,24 +195,31 @@ const HeroSection = memo(({ products, onBuyNow, selectedProductId, onProductSele
             </div>
 
             <div id="product-selector" className="flex justify-center gap-3 mb-4">
-              {products.map((product) => (
+              {products.map((product) => {
+                const isOutOfStock = product.stock === 0;
+                return (
                 <motion.button
                   key={product.id}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => onProductSelect(product.id)}
+                  whileHover={{ scale: isOutOfStock ? 1 : 1.05 }}
+                  whileTap={{ scale: isOutOfStock ? 1 : 0.95 }}
+                  onClick={() => !isOutOfStock && onProductSelect(product.id)}
+                  disabled={isOutOfStock}
                   className={`relative px-4 py-2 rounded-full font-semibold transition-all text-sm ${
-                    selectedProductId === product.id
-                      ? 'bg-gradient-to-r from-slate-700 to-gray-800 text-white shadow-lg scale-105'
-                      : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-slate-400'
+                    isOutOfStock
+                      ? 'bg-gray-100 text-gray-400 border-2 border-gray-200 cursor-not-allowed opacity-60'
+                      : selectedProductId === product.id
+                        ? 'bg-gradient-to-r from-slate-700 to-gray-800 text-white shadow-lg scale-105'
+                        : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-slate-400'
                   }`}
                 >
                   <span className="flex items-center gap-2">
                     <div className={`w-3 h-3 rounded-full border-2 ${getColorDot(product.slug)}`} />
                     {getColorLabel(product.slug)}
+                    {isOutOfStock && <span className="text-xs text-red-500 font-bold">(স্টক আউট)</span>}
                   </span>
                 </motion.button>
-              ))}
+              );
+              })}
             </div>
 
             <AnimatePresence mode="wait">
