@@ -39,6 +39,20 @@ type CourierHistoryData = {
   reports?: unknown[];
 };
 
+type BDCourierPayload = {
+  courierData?: CourierHistoryData["courierData"];
+  pathao?: CourierStats;
+  steadfast?: CourierStats;
+  redx?: CourierStats;
+  paperfly?: CourierStats;
+  parceldex?: CourierStats;
+  summary?: CourierHistoryData["courierData"] extends infer T
+    ? T extends { summary?: infer S }
+      ? S
+      : never
+    : never;
+};
+
 type InternalHistoryData = {
   total_orders: number;
   delivered: number;
@@ -51,7 +65,7 @@ type InternalHistoryData = {
 
 type CombinedCourierHistoryResponse = {
   internal?: InternalHistoryData;
-  bd_courier?: CourierHistoryData | null;
+  bd_courier?: BDCourierPayload | null;
   bd_courier_available?: boolean;
   combined_risk_level?: string;
   error?: string;
@@ -98,7 +112,14 @@ export function CourierHistoryDialog({ phone, customerName }: CourierHistoryDial
 
       const bdCourier = combinedResponse?.bd_courier;
       const courierData = bdCourier?.courierData || bdCourier?.summary || bdCourier?.pathao || bdCourier?.steadfast || bdCourier?.redx || bdCourier?.paperfly || bdCourier?.parceldex
-        ? (bdCourier?.courierData || bdCourier)
+        ? {
+            pathao: bdCourier?.courierData?.pathao || bdCourier?.pathao,
+            steadfast: bdCourier?.courierData?.steadfast || bdCourier?.steadfast,
+            redx: bdCourier?.courierData?.redx || bdCourier?.redx,
+            paperfly: bdCourier?.courierData?.paperfly || bdCourier?.paperfly,
+            parceldex: bdCourier?.courierData?.parceldex || bdCourier?.parceldex,
+            summary: bdCourier?.courierData?.summary || bdCourier?.summary,
+          }
         : null;
 
       setData({
