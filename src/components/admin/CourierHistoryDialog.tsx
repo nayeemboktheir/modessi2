@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { History, Loader2, Package, XCircle, CheckCircle, AlertTriangle, Truck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 
 type CourierStats = {
   name?: string;
@@ -40,6 +39,31 @@ type CourierHistoryData = {
   reports?: unknown[];
 };
 
+type InternalHistoryData = {
+  total_orders: number;
+  delivered: number;
+  cancelled: number;
+  pending: number;
+  success_ratio: number | null;
+  total_spent: number;
+  risk_level: string;
+};
+
+type CombinedCourierHistoryResponse = {
+  internal?: InternalHistoryData;
+  bd_courier?: CourierHistoryData | null;
+  bd_courier_available?: boolean;
+  combined_risk_level?: string;
+  error?: string;
+};
+
+type DialogHistoryData = {
+  internal: InternalHistoryData | null;
+  courierData: CourierHistoryData["courierData"] | null;
+  bdCourierAvailable: boolean;
+  combinedRiskLevel: string;
+};
+
 interface CourierHistoryDialogProps {
   phone: string;
   customerName?: string;
@@ -47,7 +71,7 @@ interface CourierHistoryDialogProps {
 
 export function CourierHistoryDialog({ phone, customerName }: CourierHistoryDialogProps) {
   const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<CourierHistoryData | null>(null);
+  const [data, setData] = useState<DialogHistoryData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -62,19 +86,27 @@ export function CourierHistoryDialog({ phone, customerName }: CourierHistoryDial
         body: { phone, skipBdCourier: false },
       });
 
+      const combinedResponse = response as CombinedCourierHistoryResponse | null;
+
       if (fetchError) {
         throw new Error(fetchError.message);
       }
 
-      if (response?.error) {
-        throw new Error(response.error);
+      if (combinedResponse?.error) {
+        throw new Error(combinedResponse.error);
       }
 
-      // Extract BD courier data from combined response
-      const bdCourier = response?.bd_courier;
-      const courierData = bdCourier?.courierData || null;
+      const bdCourier = combinedResponse?.bd_courier;
+      const courierData = bdCourier?.courierData || bdCourier?.summary || bdCourier?.pathao || bdCourier?.steadfast || bdCourier?.redx || bdCourier?.paperfly || bdCourier?.parceldex
+        ? (bdCourier?.courierData || bdCourier)
+        : null;
 
-      setData({ courierData } as CourierHistoryData);
+      setData({
+        internal: combinedResponse?.internal || null,
+        courierData,
+        bdCourierAvailable: Boolean(combinedResponse?.bd_courier_available),
+        combinedRiskLevel: combinedResponse?.combined_risk_level || combinedResponse?.internal?.risk_level || "new",
+      });
     } catch (err) {
       console.error("Failed to fetch courier history:", err);
       const errorMessage = err instanceof Error ? err.message : "Failed to fetch courier history";
@@ -96,6 +128,19 @@ export function CourierHistoryDialog({ phone, customerName }: CourierHistoryDial
     if (successRatio >= 80) return { level: "Low Risk", color: "default", icon: CheckCircle };
     if (successRatio >= 50) return { level: "Medium Risk", color: "secondary", icon: AlertTriangle };
     return { level: "High Risk", color: "destructive", icon: XCircle };
+  };
+
+  const getRiskFromLevel = (level: string | undefined) => {
+    switch (level) {
+      case "low":
+        return { level: "Low Risk", color: "default", icon: CheckCircle };
+      case "medium":
+        return { level: "Medium Risk", color: "secondary", icon: AlertTriangle };
+      case "high":
+        return { level: "High Risk", color: "destructive", icon: XCircle };
+      default:
+        return { level: "New", color: "secondary", icon: AlertTriangle };
+    }
   };
 
   const CourierStatsRow = ({ name, stats }: { name: string; stats?: CourierStats }) => {
@@ -126,7 +171,10 @@ export function CourierHistoryDialog({ phone, customerName }: CourierHistoryDial
   };
 
   const summary = data?.courierData?.summary;
-  const risk = getRiskLevel(summary?.success_ratio);
+  const internal = data?.internal;
+  const hasBdHistory = Boolean(summary?.total_parcel);
+  const hasInternalHistory = Boolean(internal?.total_orders);
+  const risk = hasBdHistory ? getRiskLevel(summary?.success_ratio) : getRiskFromLevel(data?.combinedRiskLevel);
   const RiskIcon = risk.icon;
 
   return (
@@ -170,7 +218,9 @@ export function CourierHistoryDialog({ phone, customerName }: CourierHistoryDial
               {/* Overall Stats */}
               <div className="p-4 bg-muted rounded-lg">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm text-muted-foreground">Overall Summary</span>
+                  <span className="text-sm text-muted-foreground">
+                    {hasBdHistory ? "BD Courier Summary" : "Internal Order Summary"}
+                  </span>
                   <Badge variant={risk.color as any} className="gap-1">
                     <RiskIcon className="h-3 w-3" />
                     {risk.level}
@@ -178,23 +228,56 @@ export function CourierHistoryDialog({ phone, customerName }: CourierHistoryDial
                 </div>
                 <div className="grid grid-cols-4 gap-2 text-center">
                   <div>
-                    <div className="text-2xl font-bold">{summary?.total_parcel || 0}</div>
+                    <div className="text-2xl font-bold">{hasBdHistory ? summary?.total_parcel || 0 : internal?.total_orders || 0}</div>
                     <div className="text-xs text-muted-foreground">Total</div>
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-green-600">{summary?.success_parcel || 0}</div>
+                    <div className="text-2xl font-bold text-green-600">{hasBdHistory ? summary?.success_parcel || 0 : internal?.delivered || 0}</div>
+                    <div className="text-xs text-muted-foreground">Delivered</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-red-600">{hasBdHistory ? summary?.cancelled_parcel || 0 : internal?.cancelled || 0}</div>
+                    <div className="text-xs text-muted-foreground">Cancelled</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-primary">
+                      {hasBdHistory
+                        ? `${summary?.success_ratio?.toFixed(1) || 0}%`
+                        : `${internal?.success_ratio?.toFixed(1) || 0}%`}
+                    </div>
                     <div className="text-xs text-muted-foreground">Success</div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold text-red-600">{summary?.cancelled_parcel || 0}</div>
-                    <div className="text-xs text-muted-foreground">Cancel</div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold text-primary">{summary?.success_ratio?.toFixed(1) || 0}%</div>
-                    <div className="text-xs text-muted-foreground">Ratio</div>
                   </div>
                 </div>
               </div>
+
+              {hasInternalHistory && (
+                <div className="p-4 bg-muted/50 rounded-lg space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-medium text-muted-foreground">Internal Order History</h4>
+                    {data.bdCourierAvailable ? null : (
+                      <span className="text-xs text-muted-foreground">BD Courier unavailable</span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 text-center">
+                    <div>
+                      <div className="text-lg font-semibold">{internal?.total_orders || 0}</div>
+                      <div className="text-xs text-muted-foreground">Orders</div>
+                    </div>
+                    <div>
+                      <div className="text-lg font-semibold text-green-600">{internal?.delivered || 0}</div>
+                      <div className="text-xs text-muted-foreground">Delivered</div>
+                    </div>
+                    <div>
+                      <div className="text-lg font-semibold text-red-600">{internal?.cancelled || 0}</div>
+                      <div className="text-xs text-muted-foreground">Cancelled</div>
+                    </div>
+                    <div>
+                      <div className="text-lg font-semibold">{internal?.pending || 0}</div>
+                      <div className="text-xs text-muted-foreground">Pending</div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Courier Breakdown */}
               <div className="space-y-2">
@@ -209,7 +292,9 @@ export function CourierHistoryDialog({ phone, customerName }: CourierHistoryDial
                   !data.courierData?.pathao?.total_parcel &&
                   !data.courierData?.redx?.total_parcel &&
                   !data.courierData?.paperfly?.total_parcel && (
-                    <p className="text-sm text-muted-foreground text-center py-4">No courier history found for this phone number</p>
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      {hasInternalHistory ? "No BD Courier records found for this phone number" : "No courier history found for this phone number"}
+                    </p>
                   )}
               </div>
             </>
