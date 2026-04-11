@@ -142,6 +142,7 @@ function RiskBadge({ level }: { level: string }) {
     high: { icon: XCircle, label: "Risk", className: "bg-red-100 text-red-700 border-red-200" },
     medium: { icon: AlertTriangle, label: "Caution", className: "bg-amber-100 text-amber-700 border-amber-200" },
     low: { icon: CheckCircle, label: "Good", className: "bg-emerald-100 text-emerald-700 border-emerald-200" },
+    pending: { icon: Clock, label: "Pending", className: "bg-secondary text-secondary-foreground border-border" },
     new: { icon: Clock, label: "New", className: "bg-blue-100 text-blue-700 border-blue-200" },
   };
 
@@ -333,16 +334,23 @@ export function CombinedCourierHistoryInline({
 
   // Calculate display values
   const hasInternal = internal.total_orders > 0;
+  const internalResolvedCount = internal.delivered + internal.cancelled;
+  const hasResolvedInternal = hasInternal && internalResolvedCount > 0 && internal.success_ratio !== null;
+  const hasPendingOnlyInternal = hasInternal && !hasResolvedInternal;
   const hasBDCourier = bd_courier_available && bdSummary && bdSummary.total_parcel > 0;
 
-  // Use BD Courier ratio if available, otherwise internal (only if there's internal data)
-  // If neither data source has data, we'll show "New" badge instead of 0%
+  // Use BD Courier ratio if available, otherwise resolved internal history.
   const displayRatio = hasBDCourier 
     ? bdSummary!.success_ratio 
-    : (hasInternal ? (internal.success_ratio ?? 0) : 0);
+    : (hasResolvedInternal ? (internal.success_ratio ?? 0) : 0);
   
-  // Only show progress ring if we have actual data from either source
-  const hasAnyData = hasInternal || hasBDCourier;
+  // Only show progress ring if we have completed/cancelled history from either source.
+  const hasScoredHistory = hasResolvedInternal || hasBDCourier;
+  const badgeLevel = hasBDCourier || hasResolvedInternal
+    ? combined_risk_level
+    : hasPendingOnlyInternal
+      ? "pending"
+      : "new";
 
   return (
     <TooltipProvider>
@@ -352,7 +360,7 @@ export function CombinedCourierHistoryInline({
             className={cn("flex items-center gap-1.5 cursor-help", className)}
             onMouseEnter={() => { void handleTriggerHover(); }}
           >
-            {hasAnyData ? (
+            {hasScoredHistory ? (
               <>
                 <ProgressRing 
                   percentage={displayRatio} 
@@ -361,7 +369,7 @@ export function CombinedCourierHistoryInline({
                 <RiskBadge level={combined_risk_level} />
               </>
             ) : (
-              <RiskBadge level="new" />
+              <RiskBadge level={badgeLevel} />
             )}
             {fetchingBdCourier && (
               <Loader2 className="h-2.5 w-2.5 animate-spin text-muted-foreground" />
@@ -381,10 +389,37 @@ export function CombinedCourierHistoryInline({
                 </button>
               )}
             </div>
+
+            {/* Internal History */}
+            {hasInternal ? (
+              <div className="space-y-1">
+                <div className="font-medium flex items-center gap-1">
+                  <TrendingUp className="h-3 w-3" /> Internal Order History
+                </div>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 pl-4">
+                  <span>Total Orders:</span>
+                  <span className="font-medium">{internal.total_orders}</span>
+                  <span className="text-emerald-600">Delivered:</span>
+                  <span className="font-medium text-emerald-600">{internal.delivered}</span>
+                  <span className="text-red-600">Cancelled:</span>
+                  <span className="font-medium text-red-600">{internal.cancelled}</span>
+                  <span>Pending:</span>
+                  <span className="font-medium">{internal.pending}</span>
+                  <span>Success Rate:</span>
+                  <span className="font-medium">
+                    {internal.success_ratio === null ? "Not enough history" : `${Math.round(internal.success_ratio)}%`}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="text-[10px] text-muted-foreground">
+                No internal order history yet
+              </div>
+            )}
             
             {/* BD Courier Steadfast History - Show First (Most Important) */}
             {bd_courier_available && bdSteadfast && bdSteadfast.total_parcel > 0 && (
-              <div className="space-y-1">
+              <div className="space-y-1 border-t pt-2">
                 <div className="font-medium text-blue-700 flex items-center gap-1">
                   <Truck className="h-3 w-3" /> Steadfast History (BD Courier)
                 </div>
@@ -436,7 +471,7 @@ export function CombinedCourierHistoryInline({
                     <Loader2 className="h-2.5 w-2.5 animate-spin" /> Loading BD Courier data...
                   </span>
                 ) : (
-                  "Hover to load BD Courier data"
+                  hasInternal ? "BD Courier data not loaded yet" : "Hover to load BD Courier data"
                 )}
               </div>
             )}
