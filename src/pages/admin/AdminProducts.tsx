@@ -388,7 +388,8 @@ export default function AdminProducts() {
         
         if (error) {
           console.error('Failed to save variations:', error);
-          toast.error('Failed to save variations');
+          toast.error('সাইজ সেভ করতে ব্যর্থ: ' + error.message);
+          throw error;
         }
       }
     }
