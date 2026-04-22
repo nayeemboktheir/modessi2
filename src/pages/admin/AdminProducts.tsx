@@ -347,12 +347,18 @@ export default function AdminProducts() {
   };
 
   const saveVariations = async (productId: string) => {
-    // Delete existing variations
-    await supabase
+    // Delete existing variations (FK on order_items now SET NULL, cart_items CASCADE)
+    const { error: deleteError } = await supabase
       .from('product_variations')
       .delete()
       .eq('product_id', productId);
-    
+
+    if (deleteError) {
+      console.error('Failed to delete old variations:', deleteError);
+      toast.error('সাইজ আপডেট করতে ব্যর্থ: ' + deleteError.message);
+      throw deleteError;
+    }
+
     // Insert new variations
     if (hasVariations && variations.length > 0) {
       const validVariations = variations.filter((v) => v.name && v.price > 0);
