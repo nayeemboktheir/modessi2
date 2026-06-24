@@ -145,9 +145,14 @@ export default function FashionHomePage() {
                   .eq('category_id', cat.id)
                   .eq('is_active', true)
                   .not('images', 'is', null)
+                  .order('created_at', { ascending: false })
                   .limit(1)
-                  .single()
-                  .then(({ data }) => ({ catId: cat.id, image: data?.images?.[0] || null }))
+                  .maybeSingle()
+                  .then(({ data }) => {
+                    const imgs = (data as any)?.images;
+                    const first = Array.isArray(imgs) ? imgs[0] : null;
+                    return { catId: cat.id, image: first || null };
+                  })
               )
             );
             imageResults.forEach(r => { productImages[r.catId] = r.image; });
@@ -669,14 +674,7 @@ export default function FashionHomePage() {
           <div className={`grid grid-cols-2 gap-4 md:gap-6 ${categories.length <= 3 ? 'md:grid-cols-3' : 'md:grid-cols-4'}`}>
             {/* Dynamic categories from database */}
             {categories.map((category, index) => {
-              // Define fallback images for categories - using reliable Unsplash images
-              const fallbackImages = [
-                'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=400&q=80',
-                'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=400&q=80',
-                'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=400&q=80',
-                'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&q=80',
-              ];
-              
+              // No Unsplash demo fallbacks — only use real product/category images
               const gradientColors = [
                 'from-rose-100 to-rose-50',
                 'from-violet-100 to-violet-50',
@@ -684,9 +682,9 @@ export default function FashionHomePage() {
                 'from-emerald-100 to-emerald-50',
               ];
 
-              // Priority: category image_url > product image > fallback
-              const categoryImage = category.image_url || category.productImage || fallbackImages[index % fallbackImages.length];
-              
+              // Priority: category image_url > first product image from that category
+              const categoryImage = category.image_url || category.productImage || null;
+
               return (
                 <motion.div
                   key={category.id}
@@ -695,15 +693,17 @@ export default function FashionHomePage() {
                   onClick={() => navigate(`/products?category=${category.slug}`)}
                 >
                   <div className={`relative overflow-hidden rounded-2xl aspect-square bg-gradient-to-br ${gradientColors[index % gradientColors.length]}`}>
-                    <img
-                      src={categoryImage}
-                      alt={category.name}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.src = fallbackImages[index % fallbackImages.length];
-                      }}
-                    />
+                    {categoryImage ? (
+                      <img
+                        src={categoryImage}
+                        alt={category.name}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">
+                        {category.name}
+                      </div>
+                    )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
                     <div className="absolute bottom-4 left-4 right-4">
                       <h3 className="text-lg font-bold text-white">{category.name}</h3>
