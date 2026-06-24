@@ -145,9 +145,14 @@ export default function FashionHomePage() {
                   .eq('category_id', cat.id)
                   .eq('is_active', true)
                   .not('images', 'is', null)
+                  .order('created_at', { ascending: false })
                   .limit(1)
-                  .single()
-                  .then(({ data }) => ({ catId: cat.id, image: data?.images?.[0] || null }))
+                  .maybeSingle()
+                  .then(({ data }) => {
+                    const imgs = (data as any)?.images;
+                    const first = Array.isArray(imgs) ? imgs[0] : null;
+                    return { catId: cat.id, image: first || null };
+                  })
               )
             );
             imageResults.forEach(r => { productImages[r.catId] = r.image; });
