@@ -32,6 +32,7 @@ import ReyonCottonLandingPage from '@/pages/ReyonCottonLandingPage';
 import AdminLayout from '@/components/admin/AdminLayout';
 import AdminDashboard from '@/pages/admin/AdminDashboard';
 import AdminProducts from '@/pages/admin/AdminProducts';
+import AdminWholesalePrices from '@/pages/admin/AdminWholesalePrices';
 import AdminCategories from '@/pages/admin/AdminCategories';
 import AdminOrders from '@/pages/admin/AdminOrders';
 import AdminIncompleteOrders from '@/pages/admin/AdminIncompleteOrders';
@@ -112,6 +113,7 @@ const App = () => (
               <Route path="/admin" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
               <Route path="/admin/reports" element={<AdminLayout><AdminReports /></AdminLayout>} />
               <Route path="/admin/products" element={<AdminLayout><AdminProducts /></AdminLayout>} />
+              <Route path="/admin/wholesale-prices" element={<AdminLayout><AdminWholesalePrices /></AdminLayout>} />
               <Route path="/admin/categories" element={<AdminLayout><AdminCategories /></AdminLayout>} />
               <Route path="/admin/orders" element={<AdminLayout><AdminOrders /></AdminLayout>} />
               <Route path="/admin/incomplete-orders" element={<AdminLayout><AdminIncompleteOrders /></AdminLayout>} />
