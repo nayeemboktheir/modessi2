@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -339,8 +339,8 @@ export default function AdminWholesalePrices() {
                 const isOpen = !!expanded[product.id];
 
                 return (
-                  <>
-                    <TableRow key={product.id}>
+                  <Fragment key={product.id}>
+                    <TableRow>
                       <TableCell>
                         {variations.length > 0 && (
                           <Button
@@ -467,7 +467,7 @@ export default function AdminWholesalePrices() {
                           </TableRow>
                         );
                       })}
-                  </>
+                  </Fragment>
                 );
               })}
               {filteredProducts.length === 0 && (
