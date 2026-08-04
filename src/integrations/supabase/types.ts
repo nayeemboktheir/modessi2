@@ -928,6 +928,57 @@ export type Database = {
         }
         Relationships: []
       }
+      wholesale_prices: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          min_quantity: number
+          notes: string | null
+          product_id: string
+          updated_at: string
+          variation_id: string | null
+          wholesale_price: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          min_quantity?: number
+          notes?: string | null
+          product_id: string
+          updated_at?: string
+          variation_id?: string | null
+          wholesale_price: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          min_quantity?: number
+          notes?: string | null
+          product_id?: string
+          updated_at?: string
+          variation_id?: string | null
+          wholesale_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wholesale_prices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wholesale_prices_variation_id_fkey"
+            columns: ["variation_id"]
+            isOneToOne: false
+            referencedRelation: "product_variations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wishlist_items: {
         Row: {
           created_at: string
