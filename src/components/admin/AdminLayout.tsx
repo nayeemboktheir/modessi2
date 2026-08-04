@@ -24,6 +24,8 @@ import {
   Home,
   Video,
   Shield,
+  Tags,
+
   
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
