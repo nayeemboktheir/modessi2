@@ -503,8 +503,8 @@ export default function AdminWholesalePrices() {
               {bulkRunning ? 'Applying...' : 'Confirm'}
             </AlertDialogAction>
           </AlertDialogFooter>
-        </AlertDialogFooter>
         </AlertDialogContent>
+
       </AlertDialog>
     </div>
   );
