@@ -47,6 +47,8 @@ const adminNavItems = [
   { title: 'Dashboard', url: '/admin', icon: LayoutDashboard },
   { title: 'Reports', url: '/admin/reports', icon: BarChart3 },
   { title: 'Products', url: '/admin/products', icon: Package },
+  { title: 'Wholesale Prices', url: '/admin/wholesale-prices', icon: Tags },
+
   { title: 'Categories', url: '/admin/categories', icon: FolderTree },
   { title: 'Orders', url: '/admin/orders', icon: ShoppingCart },
   { title: 'Incomplete Orders', url: '/admin/incomplete-orders', icon: ShoppingCart },
