@@ -52,10 +52,8 @@ interface CombinedResponse {
 const cache = new Map<string, { data: CombinedResponse; timestamp: number }>();
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
-// Limit background auto-fetches to avoid backend overload on Orders page
-const AUTO_BD_FETCH_LIMIT = 5;
 const autoFetchedPhones = new Set<string>();
-let autoFetchCount = 0;
+const COURIER_CACHE_EVENT = "courier-history-cache-updated";
 
 function normalizePhone(phone: string): string {
   let cleaned = phone.replace(/[^0-9]/g, "");
@@ -167,8 +165,8 @@ async function processBdQueue() {
     const task = bdFetchQueue.shift();
     if (task) {
       await task();
-      // 2.5s gap between requests to respect rate limits
-      await new Promise(r => setTimeout(r, 2500));
+      // Keep requests serial while loading every visible customer automatically.
+      await new Promise(r => setTimeout(r, 300));
     }
   }
   bdFetchRunning = false;
@@ -208,6 +206,20 @@ export function CombinedCourierHistoryInline({
     setLoading(false);
   }, [normalizedPhone]);
 
+  // Keep duplicate orders for the same phone in sync when the shared request finishes.
+  useEffect(() => {
+    const handleCacheUpdate = (event: Event) => {
+      const updatedPhone = (event as CustomEvent<string>).detail;
+      if (updatedPhone !== normalizedPhone) return;
+
+      const cached = cache.get(normalizedPhone);
+      if (cached) setData(cached.data);
+    };
+
+    window.addEventListener(COURIER_CACHE_EVENT, handleCacheUpdate);
+    return () => window.removeEventListener(COURIER_CACHE_EVENT, handleCacheUpdate);
+  }, [normalizedPhone]);
+
   const fetchCombinedHistory = useCallback(
     async (includeBdCourier: boolean, showLoading = false): Promise<CombinedResponse | null> => {
       if (!normalizedPhone || normalizedPhone.length < 11) return null;
@@ -224,6 +236,7 @@ export function CombinedCourierHistoryInline({
         if (result) {
           cache.set(normalizedPhone, { data: result, timestamp: Date.now() });
           setData(result);
+          window.dispatchEvent(new CustomEvent(COURIER_CACHE_EVENT, { detail: normalizedPhone }));
           return result;
         }
       } catch (err) {
@@ -237,21 +250,20 @@ export function CombinedCourierHistoryInline({
     [normalizedPhone]
   );
 
-  // Auto-fetch BD Courier for pending rows, but with a strict global cap to protect backend
+  // Auto-fetch courier history for every visible row; the queue keeps calls serial.
   useEffect(() => {
     if (!autoFetchBdCourier || !normalizedPhone || normalizedPhone.length < 11) return;
     if (data?.bd_courier_available) return;
-    if (autoFetchCount >= AUTO_BD_FETCH_LIMIT || autoFetchedPhones.has(normalizedPhone)) return;
+    if (autoFetchedPhones.has(normalizedPhone)) return;
 
     let mounted = true;
     autoFetchedPhones.add(normalizedPhone);
-    autoFetchCount += 1;
 
     const task = async () => {
-      if (!mounted) return;
-      setFetchingBdCourier(true);
+      if (mounted) setFetchingBdCourier(true);
       try {
-        await fetchCombinedHistory(true);
+        const result = await fetchCombinedHistory(true);
+        if (!result) autoFetchedPhones.delete(normalizedPhone);
       } finally {
         if (mounted) setFetchingBdCourier(false);
       }
@@ -341,7 +353,7 @@ export function CombinedCourierHistoryInline({
 
   // Use BD Courier ratio if available, otherwise resolved internal history.
   const displayRatio = hasBDCourier 
-    ? bdSummary!.success_ratio 
+    ? bdSummary.success_ratio 
     : (hasResolvedInternal ? (internal.success_ratio ?? 0) : 0);
   
   // Only show progress ring if we have completed/cancelled history from either source.
