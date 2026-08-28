@@ -297,22 +297,30 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get BD Courier API key - check env first, then admin_settings
-    let bdCourierApiKey = Deno.env.get("BDCOURIER_API_KEY") || "";
+    // Admin settings are editable from the app and must override an older
+    // environment secret. Fall back to the secret only when no saved key exists.
+    let bdCourierApiKey = "";
+    try {
+      const { data: settingData, error: settingError } = await supabase
+        .from("admin_settings")
+        .select("value")
+        .eq("key", "bdcourier_api_key")
+        .maybeSingle();
+
+      if (settingError) {
+        console.error("Could not read bdcourier_api_key from admin_settings:", settingError.message);
+      } else if (settingData?.value) {
+        bdCourierApiKey = settingData.value.trim();
+        console.log("Using BD Courier API key from admin_settings");
+      }
+    } catch (error) {
+      console.error("Could not read bdcourier_api_key from admin_settings:", error);
+    }
 
     if (!bdCourierApiKey) {
-      try {
-        const { data: settingData } = await supabase
-          .from("admin_settings")
-          .select("value")
-          .eq("key", "bdcourier_api_key")
-          .single();
-        if (settingData?.value) {
-          bdCourierApiKey = settingData.value;
-          console.log("Using BD Courier API key from admin_settings");
-        }
-      } catch (e) {
-        console.log("Could not read bdcourier_api_key from admin_settings");
+      bdCourierApiKey = (Deno.env.get("BDCOURIER_API_KEY") || "").trim();
+      if (bdCourierApiKey) {
+        console.log("Using BD Courier API key from environment fallback");
       }
     }
 
