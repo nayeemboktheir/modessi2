@@ -1,15 +1,16 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { requireAdmin } from '../_shared/auth.ts';
+import { readCache, writeCache } from '../_shared/courierCache.ts';
+import { maskPhone } from '../_shared/redact.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// In-memory cache with TTL
-const cache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours cache to reduce API calls
+// Entries live in the courier_lookup_cache table (see _shared/courierCache.ts).
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 // Rate limiting: track last request time
 let lastRequestTime = 0;
@@ -95,7 +96,7 @@ async function fetchBDCourier(phone: string, apiKey: string): Promise<BDCourierR
 
     // Use the paid API endpoint: api.bdcourier.com (POST method)
     const apiUrl = 'https://api.bdcourier.com/courier-check';
-    console.log(`Calling BD Courier API (POST): ${apiUrl}, phone: ${phone}`);
+    console.log(`Calling BD Courier API (POST): ${apiUrl}, phone: ${maskPhone(phone)}`);
 
     const response = await fetch(
       apiUrl,
@@ -272,34 +273,28 @@ serve(async (req) => {
     const cleanedPhone = cleanPhone(phone);
     const cacheKey = `combined_${cleanedPhone}`;
 
-    // Check cache first - this is critical for reducing API calls.
-    // IMPORTANT: If the client is requesting BD Courier data (skipBdCourier=false)
-    // and the cached entry doesn't have BD Courier available, we must bypass cache
-    // so hover/click can actually fetch paid BD data.
-    const cached = cache.get(cacheKey);
-    const cacheFresh = !!cached && Date.now() - cached.timestamp < CACHE_TTL_MS;
-    const cachedHasBd = !!cached?.data?.bd_courier_available;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-    if (cacheFresh) {
-      const shouldBypassCacheForBdFetch = !skipBdCourier && !cachedHasBd;
+    // Cache lives in Postgres, not in this worker's memory: the worker is discarded
+    // after the response, so an in-process Map never survives to serve a second call.
+    // If the caller wants BD Courier data and the cached entry predates it, refetch.
+    const cachedPayload = await readCache<CombinedResponse>(supabase, cacheKey, CACHE_TTL_MS);
 
-      if (!shouldBypassCacheForBdFetch) {
-        console.log("Returning cached result for:", cleanedPhone);
-        return new Response(JSON.stringify({ ...cached.data, cached: true }), {
+    if (cachedPayload) {
+      const cachedHasBd = !!cachedPayload.bd_courier_available;
+      const needsBdRefetch = !skipBdCourier && !cachedHasBd;
+
+      if (!needsBdRefetch) {
+        console.log("Returning cached result for:", maskPhone(cleanedPhone));
+        return new Response(JSON.stringify({ ...cachedPayload, cached: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      console.log(
-        "Bypassing cache to fetch BD Courier data for:",
-        cleanedPhone,
-        "(cached entry missing BD data)"
-      );
+      console.log("Cached entry lacks BD Courier data, refetching for:", maskPhone(cleanedPhone));
     }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Admin settings are editable from the app and must override an older
     // environment secret. Fall back to the secret only when no saved key exists.
@@ -373,8 +368,7 @@ serve(async (req) => {
       }
     }
 
-    // Cache the result
-    cache.set(cacheKey, { data: response, timestamp: Date.now() });
+    await writeCache(supabase, cacheKey, response);
 
     return new Response(JSON.stringify(response), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

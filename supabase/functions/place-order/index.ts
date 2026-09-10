@@ -4,6 +4,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.89.0';
 import { callerIsAdmin } from '../_shared/auth.ts';
+import { maskPhone } from '../_shared/redact.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -256,7 +257,7 @@ Deno.serve(async (req) => {
         
         // Block if has pending orders beyond limit
         if (blockPendingOrders && pendingOrders.length >= maxPendingOrders) {
-          console.log(`Status-based blocking: Phone ${phone} has ${pendingOrders.length} pending orders`);
+          console.log(`Status-based blocking: ${maskPhone(phone)} has ${pendingOrders.length} pending orders`);
           return new Response(
             JSON.stringify({ 
               error: `আপনার ${pendingOrders.length}টি অর্ডার পেন্ডিং আছে। নতুন অর্ডার করতে আগের অর্ডার ডেলিভারি হওয়া পর্যন্ত অপেক্ষা করুন।`,
@@ -273,7 +274,7 @@ Deno.serve(async (req) => {
         
         // Block if has shipped orders (in transit)
         if (blockShippedOrders && shippedOrders.length > 0) {
-          console.log(`Status-based blocking: Phone ${phone} has ${shippedOrders.length} shipped orders`);
+          console.log(`Status-based blocking: ${maskPhone(phone)} has ${shippedOrders.length} shipped orders`);
           return new Response(
             JSON.stringify({ 
               error: `আপনার একটি অর্ডার ডেলিভারির জন্য পাঠানো হয়েছে। ডেলিভারি সম্পন্ন হলে নতুন অর্ডার করতে পারবেন।`,
@@ -325,7 +326,7 @@ Deno.serve(async (req) => {
           returned: 'রিটার্ন',
         };
         
-        console.log(`Time-based blocking: Phone ${phone} has recent order ${lastOrder.order_number} from ${minutesAgo} minutes ago`);
+        console.log(`Time-based blocking: ${maskPhone(phone)} ordered ${lastOrder.order_number} ${minutesAgo} minutes ago`);
         
         const timeAgoText = hoursAgo < 1 
           ? `${minutesAgo} মিনিট আগে` 

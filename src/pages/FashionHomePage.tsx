@@ -34,6 +34,7 @@ interface Product {
   is_featured?: boolean;
   rating?: number;
   review_count?: number;
+  stock?: number;
 }
 
 interface Category {
@@ -286,7 +287,9 @@ export default function FashionHomePage() {
       category: '',
       rating: product.rating || 0,
       reviewCount: product.review_count || 0,
-      stock: 100,
+      // Carry the real figure through; hardcoding 100 made every product look
+      // available and defeated the cart's stock clamp.
+      stock: product.stock ?? 0,
     };
     dispatch(addToCart({ product: productForCart, quantity: 1 }));
     dispatch(openCart());
@@ -307,7 +310,9 @@ export default function FashionHomePage() {
       category: '',
       rating: product.rating || 0,
       reviewCount: product.review_count || 0,
-      stock: 100,
+      // Carry the real figure through; hardcoding 100 made every product look
+      // available and defeated the cart's stock clamp.
+      stock: product.stock ?? 0,
     };
 
     dispatch(addToCart({ product: productForCart, quantity: 1 }));
@@ -328,7 +333,9 @@ export default function FashionHomePage() {
       category: '',
       rating: product.rating || 0,
       reviewCount: product.review_count || 0,
-      stock: 100,
+      // Carry the real figure through; hardcoding 100 made every product look
+      // available and defeated the cart's stock clamp.
+      stock: product.stock ?? 0,
     };
     dispatch(toggleWishlist(productForWishlist));
   };

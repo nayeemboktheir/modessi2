@@ -21,6 +21,22 @@ interface BulkOrderRequest {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+// Courier APIs occasionally hang. Without a deadline one stalled call blocks the whole
+// request — and inside a bulk loop, every order behind it — until the router kills the
+// worker at 150s.
+const UPSTREAM_TIMEOUT_MS = 20_000;
+
+async function fetchWithTimeout(input: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
+
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function getCredentials(supabase: any) {
   // First try to get from admin_settings table
   const { data: settings } = await supabase
@@ -52,7 +68,7 @@ async function sendToSteadfast(
   secretKey: string
 ): Promise<{ success: boolean; data?: unknown; error?: string }> {
   try {
-    const response = await fetch('https://portal.packzy.com/api/v1/create_order', {
+    const response = await fetchWithTimeout('https://portal.packzy.com/api/v1/create_order', {
       method: 'POST',
       headers: {
         'Api-Key': apiKey,

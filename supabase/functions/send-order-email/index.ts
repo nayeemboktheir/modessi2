@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.89.0';
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { requireAdminOrInternal } from '../_shared/auth.ts';
+import { escapeHtml } from '../_shared/redact.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -52,7 +53,7 @@ serve(async (req) => {
     const { data: settings } = await supabase
       .from('admin_settings')
       .select('key, value')
-      .in('key', ['resend_api_key', 'notification_email', 'order_notification_enabled']);
+      .in('key', ['resend_api_key', 'notification_email', 'order_notification_enabled', 'order_email_from']);
 
     const settingsMap: Record<string, string> = {};
     settings?.forEach((s: { key: string; value: string }) => {
@@ -92,7 +93,7 @@ serve(async (req) => {
     const itemsHtml = body.items.map(item => `
       <tr>
         <td style="padding: 12px; border-bottom: 1px solid #eee;">
-          ${item.name}
+          ${escapeHtml(item.name)}
         </td>
         <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">
           ${item.quantity}
@@ -116,7 +117,7 @@ serve(async (req) => {
       <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px 8px 0 0;">
           <h1 style="margin: 0; font-size: 24px;">🛒 New Order Received!</h1>
-          <p style="margin: 10px 0 0; opacity: 0.9;">Order #${body.order_number}</p>
+          <p style="margin: 10px 0 0; opacity: 0.9;">Order #${escapeHtml(body.order_number)}</p>
         </div>
         
         <div style="background: #f9f9f9; padding: 20px; border: 1px solid #ddd; border-top: none;">
@@ -124,20 +125,20 @@ serve(async (req) => {
           <table style="width: 100%; margin-bottom: 20px;">
             <tr>
               <td style="padding: 8px 0; color: #666;"><strong>Name:</strong></td>
-              <td style="padding: 8px 0;">${body.customer_name}</td>
+              <td style="padding: 8px 0;">${escapeHtml(body.customer_name)}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #666;"><strong>Phone:</strong></td>
-              <td style="padding: 8px 0;">${body.customer_phone}</td>
+              <td style="padding: 8px 0;">${escapeHtml(body.customer_phone)}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #666;"><strong>Address:</strong></td>
-              <td style="padding: 8px 0;">${body.customer_address}</td>
+              <td style="padding: 8px 0;">${escapeHtml(body.customer_address)}</td>
             </tr>
             ${body.notes ? `
             <tr>
               <td style="padding: 8px 0; color: #666;"><strong>Notes:</strong></td>
-              <td style="padding: 8px 0;">${body.notes}</td>
+              <td style="padding: 8px 0;">${escapeHtml(body.notes)}</td>
             </tr>
             ` : ''}
           </table>
@@ -183,8 +184,12 @@ serve(async (req) => {
     `;
 
     const emailResponse = await resend.emails.send({
-      from: 'Store Orders <onboarding@resend.dev>',
+      // onboarding@resend.dev is Resend's shared sandbox sender: it only delivers to
+      // the Resend account owner and is unusable in production. Set the
+      // order_email_from setting to a verified domain sender.
+      from: settingsMap.order_email_from || 'Store Orders <onboarding@resend.dev>',
       to: [settingsMap.notification_email],
+      // Plain-text header, not HTML — escaping here would show the entities literally.
       subject: `🛒 New Order #${body.order_number} - ৳${body.total.toFixed(2)}`,
       html: emailHtml,
     });

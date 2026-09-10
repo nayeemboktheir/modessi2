@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.89.0';
 import { requireAdmin } from '../_shared/auth.ts';
+import { maskPhone } from '../_shared/redact.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -56,7 +57,7 @@ serve(async (req) => {
       `+88${cleanPhone}`,
     ];
 
-    console.log('Checking customer history for phone variations:', phoneVariations);
+    console.log('Checking customer history for phone:', maskPhone(cleanPhone));
 
     // Query orders with any of these phone variations
     const { data: orders, error } = await supabase
@@ -139,7 +140,7 @@ serve(async (req) => {
       },
     };
 
-    console.log('Customer history result:', JSON.stringify(result));
+    console.log('Customer history resolved:', result.total_orders, 'orders');
 
     return new Response(
       JSON.stringify(result),

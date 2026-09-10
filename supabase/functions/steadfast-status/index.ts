@@ -78,21 +78,16 @@ async function getStatusByTrackingCode(
       };
     }
 
+    // status_by_trackingcode returns { status, delivery_status } and nothing else.
+    // Recipient and rider details are only present on the create-order response, so
+    // asking for them here always yielded undefined.
     return {
       success: true,
       data: {
         tracking_code: trackingCode,
-        consignment_id: data.consignment?.consignment_id,
-        invoice: data.consignment?.invoice,
-        recipient_name: data.consignment?.recipient_name,
-        recipient_phone: data.consignment?.recipient_phone,
-        recipient_address: data.consignment?.recipient_address,
-        cod_amount: data.consignment?.cod_amount,
-        delivery_status: data.consignment?.delivery_status,
-        current_status: data.delivery_status || data.consignment?.delivery_status,
-        rider_name: data.consignment?.rider_name,
-        rider_phone: data.consignment?.rider_phone,
-        updated_at: data.consignment?.updated_at,
+        current_status: data.delivery_status,
+        delivery_status: data.delivery_status,
+        updated_at: new Date().toISOString(),
       },
     };
   } catch (error: unknown) {
@@ -133,23 +128,30 @@ Deno.serve(async (req) => {
     }
 
     const body: StatusRequest = await req.json();
-    const trackingCodes = body.tracking_codes || [];
+    const requestedCodes = body.tracking_codes || [];
 
-    if (trackingCodes.length === 0) {
+    if (requestedCodes.length === 0) {
       return new Response(
         JSON.stringify({ error: 'No tracking codes provided' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Fetching status for ${trackingCodes.length} tracking codes`);
+    // Each lookup is a sequential external call with a 200ms gap, so an unbounded
+    // list runs past the router's 150s worker timeout and the caller gets nothing —
+    // including the codes that already succeeded. Cap the batch and tell the caller
+    // what was left over so it can ask again.
+    const MAX_CODES_PER_REQUEST = 40;
+    const trackingCodes = requestedCodes.slice(0, MAX_CODES_PER_REQUEST);
+    const remaining = requestedCodes.slice(MAX_CODES_PER_REQUEST);
+
+    console.log(`Fetching status for ${trackingCodes.length} of ${requestedCodes.length} tracking codes`);
 
     const results: Record<string, SteadfastStatus | { error: string }> = {};
 
-    // Fetch status for each tracking code (with rate limiting)
-    for (const trackingCode of trackingCodes) {
+    for (const [index, trackingCode] of trackingCodes.entries()) {
       const result = await getStatusByTrackingCode(trackingCode, apiKey, secretKey);
-      
+
       if (result.success && result.data) {
         results[trackingCode] = result.data;
       } else {
@@ -157,15 +159,17 @@ Deno.serve(async (req) => {
       }
 
       // Small delay to avoid rate limiting
-      if (trackingCodes.length > 1) {
+      if (index < trackingCodes.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 200));
       }
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        results 
+      JSON.stringify({
+        success: true,
+        results,
+        processed: trackingCodes.length,
+        remaining_tracking_codes: remaining,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

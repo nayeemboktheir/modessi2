@@ -14,12 +14,16 @@ Ordered by severity. Line references are clickable.
 |---|---|---|---|
 | Critical | 4 | 4 | 0 |
 | High | 10 | 10 | 0 |
-| Medium | 13 | 1 (#18) | 12 |
+| Medium | 13 | 13 | 0 |
 | Low | 7 | 0 | 7 |
 
-Fixed findings carry a `> **Fixed**` note under their heading saying what changed. Two carry
-qualifications worth reading: **#1** (the public endpoints still need rate limiting) and **#9**
-(stock enforcement ships switched off).
+One Medium finding (**#21**) turned out to be half wrong on re-examination — both pages it
+named were in fact guarded. The correction is recorded in place rather than deleted.
+
+Fixed findings carry a `> **Fixed**` note under their heading saying what changed. Three carry
+qualifications worth reading: **#1** (the public endpoints still need rate limiting), **#9** (stock
+enforcement ships switched off) and **#19** (the order-email sender must still be pointed at a
+verified domain).
 
 ### Deploying the fixes
 
@@ -29,6 +33,7 @@ Nothing below takes effect until both of these run:
 # migrations, in order
 psql "$SUPABASE_DB_URL" -f supabase/migrations/20260911120000_restrict_anonymous_table_access.sql
 psql "$SUPABASE_DB_URL" -f supabase/migrations/20260911130000_order_integrity_and_stock.sql
+psql "$SUPABASE_DB_URL" -f supabase/migrations/20260911140000_courier_lookup_cache.sql
 
 # edge functions (_shared/ ships with them)
 SSH_HOST=root@your-server FUNCTIONS_DIR=/data/coolify/.../volumes/functions ./scripts/deploy-functions.sh
@@ -220,6 +225,8 @@ unlike single-order delete.
 
 ### 15. Courier caching and rate limiting do not work
 
+> **Fixed** — new `courier_lookup_cache` table (migration `20260911140000`) plus `_shared/courierCache.ts`; both courier functions read and write it instead of a per-worker Map, so the 24h/10min TTLs finally hold across requests.
+
 [combined-courier-history](supabase/functions/combined-courier-history/index.ts#L14) keeps its 24h
 cache and 2s throttle in module-level variables, but the self-hosted router spawns a fresh worker per
 request ([main/index.ts:96](supabase/functions/main/index.ts#L96)), so both reset on every call.
@@ -229,6 +236,8 @@ customer, every time.
 
 ### 16. Ad-platform phone hashes are malformed
 
+> **Fixed** — both functions now drop the trunk zero (`01712345678` → `8801712345678`).
+
 [facebook-capi:196-199](supabase/functions/facebook-capi/index.ts#L196-L199) and
 [tiktok-events-api:180-183](supabase/functions/tiktok-events-api/index.ts#L180-L183) build
 `"880" + "01712345678"` into `88001712345678`, keeping the leading zero. The correct E.164 form is
@@ -236,6 +245,8 @@ customer, every time.
 the main reason to run CAPI at all.
 
 ### 17. Plaintext PII in function logs
+
+> **Fixed** — `_shared/redact.ts` added; phone numbers are masked (`017****5678`) in every log, `facebook-capi` logs which user-data fields were present rather than their values, and `customer-history` logs a count instead of the result set.
 
 [facebook-capi:177](supabase/functions/facebook-capi/index.ts#L177) logs the raw email, phone, name,
 city and zip before hashing. [send-sms:194](supabase/functions/send-sms/index.ts#L194) and
@@ -254,6 +265,8 @@ notifications silently never send.
 
 ### 19. Order emails come from Resend's sandbox sender
 
+> **Fixed** — every customer-supplied field is escaped via `escapeHtml`, and the sender is configurable through `admin_settings.order_email_from` (the sandbox address remains only as a fallback). **You still need to set that key to a verified domain sender** — until then order emails only reach the Resend account owner.
+
 [send-order-email:182](supabase/functions/send-order-email/index.ts#L182) uses
 `onboarding@resend.dev`, which only delivers to the Resend account owner. Customer-supplied name,
 address and notes are also interpolated into the email HTML unescaped
@@ -262,11 +275,15 @@ inbox.
 
 ### 20. Duplicate Purchase events on refresh
 
+> **Fixed** — a per-order marker in `sessionStorage` now outlives the mount, so a refresh no longer re-reports the sale.
+
 [OrderConfirmationPage](src/pages/OrderConfirmationPage.tsx#L80) guards firing with refs, but
 `location.state` survives a browser reload, so refreshing re-fires Purchase with a *new* `eventId` —
 deduplication fails and conversions inflate.
 
 ### 21. Admin route guard gaps
+
+> **Partly a false positive, remainder fixed** — both pages wrap *themselves* in `AdminLayout`, whose guard does check `isAdmin`, so neither was actually open. `AdminLandingVideoSettings` now also redirects explicitly instead of rendering blank. The stale-cache half was real: the TTL is down from 5 minutes to 1, and the cache is cleared on sign-out.
 
 [AdminOrderProtection](src/pages/admin/AdminOrderProtection.tsx) is routed outside `AdminLayout` with
 no auth check at all; [AdminLandingVideoSettings:14](src/pages/admin/AdminLandingVideoSettings.tsx#L14)
@@ -275,6 +292,8 @@ checks `user` but not `isAdmin`. RLS still blocks the data, but both UIs open fo
 ([useAuth.tsx:18](src/hooks/useAuth.tsx#L18)), so a demoted admin keeps UI access until it expires.
 
 ### 22. Silent write failures
+
+> **Fixed** — `updateUserRole` lists role rows instead of `.single()`, the bulk status change only updates the UI for orders that actually succeeded, and `AdminSiteSettings` writes back only the fields that changed. The `create-admin-user` zero-row-update case remains open.
 
 > **Partially fixed** — the duplicate-draft path in CheckoutPage is gone (rewritten for #2). The others remain.
 
@@ -291,6 +310,8 @@ checks `user` but not `isAdmin`. RLS still blocks the data, but both UIs open fo
 
 ### 23. Bulk operations abort mid-way
 
+> **Fixed** — per-product error isolation in the wholesale bulk update (with a report of what failed), a 40-code cap per `steadfast-status` request with the client chunking to match, and a 20s `AbortController` timeout on every courier fetch.
+
 [AdminWholesalePrices.tsx:213](src/pages/admin/AdminWholesalePrices.tsx#L213) throws on the first
 failure inside the loop, leaving the catalog partially repriced with no report of which products
 changed. [steadfast-status:132](supabase/functions/steadfast-status/index.ts#L132) and the courier
@@ -302,16 +323,22 @@ validation the single-order branch enforces
 
 ### 24. `steadfast-status` reads fields the API does not return
 
+> **Fixed** — the mapping now returns only what `status_by_trackingcode` actually sends.
+
 [steadfast-status:83-95](supabase/functions/steadfast-status/index.ts#L83-L95) pulls
 `consignment.recipient_*` and `rider_*` from the tracking-status response, but those only exist on the
 create-order response — every field except `current_status` is always `undefined`.
 
 ### 25. 2.1 MB single JS bundle
 
+> **Fixed** — route-level `React.lazy` splitting. Main bundle 2,099 kB → 712 kB; the admin panel and its charts load only when an admin opens them.
+
 547 kB gzipped, confirmed by `npm run build`. No route-level code splitting, so every storefront
 visitor on mobile data downloads all 24 admin pages plus recharts. The site logo is also a 590 kB PNG.
 
 ### 26. Out-of-stock products are purchasable in the UI
+
+> **Fixed** — `ProductCard` disables and refuses add/buy when sold out, `FashionHomePage` passes real stock through instead of `100`, and `cartSlice` clamps quantity to available stock.
 
 [ProductCard.tsx:189](src/components/products/ProductCard.tsx#L189) never checks `product.stock`;
 [FashionHomePage.tsx:289](src/pages/FashionHomePage.tsx#L289) hardcodes `stock: 100` onto the cart
@@ -320,6 +347,8 @@ Cotton Tarsel and Reyon Cotton landing pages do not disable sold-out colours, th
 near-identical Digital Tarsel page does.
 
 ### 27. AdminOrders loads the entire orders table into the browser
+
+> **Fixed** — the fetch is capped at the 2,000 most recent orders with an on-screen notice when it truncates, and the sessionStorage cache holds at most 300.
 
 [AdminOrders.tsx:240-268](src/pages/admin/AdminOrders.tsx#L240-L268) pages through *all* orders with
 their line items in 500-row batches, then filters client-side and caches the whole set in

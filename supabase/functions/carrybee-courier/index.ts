@@ -30,6 +30,22 @@ interface CarrybeeCredentials {
   clientContext: string;
 }
 
+// Courier APIs occasionally hang. Without a deadline one stalled call blocks the whole
+// request — and inside a bulk loop, every order behind it — until the router kills the
+// worker at 150s.
+const UPSTREAM_TIMEOUT_MS = 20_000;
+
+async function fetchWithTimeout(input: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
+
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function getCredentials(supabase: any): Promise<CarrybeeCredentials> {
   const { data: settings } = await supabase
     .from('admin_settings')
@@ -66,7 +82,7 @@ async function getCredentials(supabase: any): Promise<CarrybeeCredentials> {
 
 async function getDefaultStoreId(creds: CarrybeeCredentials): Promise<string | null> {
   try {
-    const res = await fetch(`${creds.baseUrl}/api/v2/stores`, {
+    const res = await fetchWithTimeout(`${creds.baseUrl}/api/v2/stores`, {
       headers: {
         'Client-ID': creds.clientId,
         'Client-Secret': creds.clientSecret,
@@ -87,7 +103,7 @@ async function getDefaultStoreId(creds: CarrybeeCredentials): Promise<string | n
 async function getAddressDetails(creds: CarrybeeCredentials, address: string): Promise<{ city_id: number; zone_id: number } | null> {
   try {
     const query = address.length >= 10 ? address : address + ' Bangladesh';
-    const res = await fetch(`${creds.baseUrl}/api/v2/address-details`, {
+    const res = await fetchWithTimeout(`${creds.baseUrl}/api/v2/address-details`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -130,7 +146,7 @@ async function createCarrybeeOrder(
     if (order.note) body.special_instruction = order.note.substring(0, 255);
     if (order.product_description) body.product_description = order.product_description.substring(0, 255);
 
-    const res = await fetch(`${creds.baseUrl}/api/v2/orders`, {
+    const res = await fetchWithTimeout(`${creds.baseUrl}/api/v2/orders`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

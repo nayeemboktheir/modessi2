@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import { Loader2, Save, Video, Plus, Trash2, Tag } from 'lucide-react';
 
 const AdminLandingVideoSettings = () => {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -24,11 +24,18 @@ const AdminLandingVideoSettings = () => {
   const [digitalTarselVideo, setDigitalTarselVideo] = useState('');
   const [reyonCottonVideo, setReyonCottonVideo] = useState('');
 
+  // Being signed in is not the same as being an admin: this page edits site-wide
+  // settings, so a logged-in customer must not reach it either. RLS blocks the
+  // writes regardless, but the form should not open at all.
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (authLoading) return;
+
+    if (!user) {
       navigate('/auth');
+    } else if (!isAdmin) {
+      navigate('/');
     }
-  }, [user, authLoading, navigate]);
+  }, [user, isAdmin, authLoading, navigate]);
 
   useEffect(() => {
     fetchSettings();

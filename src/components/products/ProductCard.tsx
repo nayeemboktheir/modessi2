@@ -29,6 +29,13 @@ const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
   const hasVariations = product.variations && product.variations.length > 0;
   const [selectedVariation, setSelectedVariation] = useState<ProductVariation | undefined>(undefined);
 
+  // Sold out when the selected variation (or, with no variations, the product) has no
+  // stock. Nothing downstream checks this — place-order deducts but does not refuse —
+  // so the UI must not offer an item it cannot fulfil.
+  const activeStock = selectedVariation?.stock ?? product.stock;
+  const isSoldOut = typeof activeStock === 'number' && activeStock <= 0;
+
+
   // Get display price based on variation or base price
   const displayPrice = selectedVariation?.price ?? product.price;
   const displayOriginalPrice = selectedVariation?.original_price ?? product.originalPrice;
@@ -46,7 +53,12 @@ const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
       toast.error('সাইজ সিলেক্ট করুন');
       return;
     }
-    
+    if (isSoldOut) {
+      toast.error('এই পণ্যটি স্টকে নেই');
+      return;
+    }
+
+
     dispatch(addToCart({ product, variation: selectedVariation }));
     dispatch(openCart());
     
@@ -84,7 +96,12 @@ const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
       toast.error('সাইজ সিলেক্ট করুন');
       return;
     }
-    
+    if (isSoldOut) {
+      toast.error('এই পণ্যটি স্টকে নেই');
+      return;
+    }
+
+
     // Add to cart and navigate to checkout
     dispatch(addToCart({ product, variation: selectedVariation }));
     
@@ -187,14 +204,16 @@ const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
                     size="sm" 
                     className="w-full text-xs py-2"
                     onClick={handleAddToCart}
+                    disabled={isSoldOut}
                   >
                     <ShoppingCart className="h-3.5 w-3.5 mr-1" />
-                    কার্টে যোগ করুন
+                    {isSoldOut ? 'স্টক নেই' : 'কার্টে যোগ করুন'}
                   </Button>
                   <Button 
                     size="sm" 
                     className="w-full text-xs py-2 bg-accent text-accent-foreground hover:bg-accent/90"
                     onClick={handleBuyNow}
+                    disabled={isSoldOut}
                   >
                     <Zap className="h-3.5 w-3.5 mr-1" />
                     এখনই কিনুন
@@ -287,7 +306,8 @@ const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
                   type="button"
                   className="flex-1 inline-flex items-center justify-center gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-2 py-2.5 text-xs font-medium transition-colors pointer-events-auto"
                   onClick={handleAddToCart}
-                  title="কার্টে যোগ করুন"
+                  disabled={isSoldOut}
+                  title={isSoldOut ? 'স্টকে নেই' : 'কার্টে যোগ করুন'}
                 >
                   <ShoppingCart className="h-4 w-4 shrink-0" />
                   <span>কার্ট</span>
@@ -296,7 +316,8 @@ const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
                   type="button"
                   className="flex-1 inline-flex items-center justify-center gap-1.5 bg-amber-500 text-white hover:bg-amber-600 rounded-md px-2 py-2.5 text-xs font-medium transition-colors pointer-events-auto"
                   onClick={handleBuyNow}
-                  title="এখনই কিনুন"
+                  disabled={isSoldOut}
+                  title={isSoldOut ? 'স্টকে নেই' : 'এখনই কিনুন'}
                 >
                   <Zap className="h-4 w-4 shrink-0" />
                   <span>কিনুন</span>

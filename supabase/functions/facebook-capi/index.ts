@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { describeUserData } from '../_shared/redact.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -174,7 +175,7 @@ serve(async (req) => {
 
     const body: RequestBody = await req.json();
     console.log("Received event:", body.event_name);
-    console.log("User data:", JSON.stringify(body.user_data));
+    console.log("User data fields present:", describeUserData(body.user_data));
     console.log("Custom data:", JSON.stringify(body.custom_data));
 
     // Build user data with hashing
@@ -191,11 +192,14 @@ serve(async (req) => {
     
     // Hash and add phone with Bangladesh country code normalization
     if (body.user_data.phone) {
+      // Bangladesh E.164 is 880 + the 10-digit subscriber number, i.e. the leading
+      // trunk "0" is dropped: 01712345678 -> 8801712345678, not 88001712345678.
       let cleanPhone = body.user_data.phone.replace(/\D/g, "");
-      // Add Bangladesh country code if not present
-      if (cleanPhone.startsWith("01")) {
-        cleanPhone = "880" + cleanPhone;
-      } else if (!cleanPhone.startsWith("880")) {
+      if (cleanPhone.startsWith("880")) {
+        // already country-coded
+      } else if (cleanPhone.startsWith("0")) {
+        cleanPhone = "880" + cleanPhone.slice(1);
+      } else {
         cleanPhone = "880" + cleanPhone;
       }
       userData.ph = [await hashData(cleanPhone)];

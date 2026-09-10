@@ -67,12 +67,22 @@ const AdminSiteSettings = () => {
   // Save header settings mutation
   const saveHeaderMutation = useMutation({
     mutationFn: async (newSettings: HeaderSettings) => {
-      const settingsToSave = [
+      // Write back only the fields this admin actually changed. Saving all four
+      // unconditionally overwrote the untouched ones with values loaded before the
+      // edit began, silently discarding a concurrent change by another admin.
+      const baseline = existingSettings ?? {};
+      const candidates = [
         { key: 'site_name', value: newSettings.site_name },
         { key: 'site_logo', value: newSettings.site_logo },
         { key: 'header_phone', value: newSettings.header_phone },
         { key: 'header_promo_text', value: newSettings.header_promo_text },
       ];
+
+      const settingsToSave = candidates.filter(
+        ({ key, value }) => value !== (baseline as Record<string, string>)[key]
+      );
+
+      if (settingsToSave.length === 0) return;
 
       for (const setting of settingsToSave) {
         const { error } = await supabase

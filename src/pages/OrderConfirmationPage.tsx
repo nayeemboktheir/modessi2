@@ -40,6 +40,23 @@ const OrderConfirmationPage = () => {
   const hasSentServerPurchaseRef = useRef(false);
   const hasSentPixelPurchaseRef = useRef(false);
 
+  // Refs only survive the mount. `location.state` survives a browser reload, so a
+  // refresh of this page re-ran both effects with a fresh eventId and reported the
+  // same sale to Meta/TikTok/GA again — dedup could not catch it because the ids
+  // differed. Marking the order in sessionStorage makes the guard outlive the mount.
+  const purchaseAlreadyReported = (channel: string, order: string) => {
+    if (!order) return false;
+    try {
+      const key = `purchase_reported_${channel}_${order}`;
+      if (sessionStorage.getItem(key)) return true;
+      sessionStorage.setItem(key, '1');
+      return false;
+    } catch {
+      // Private mode / blocked storage: fall back to the per-mount refs.
+      return false;
+    }
+  };
+
   const { isReady: pixelReady, setUserData } = useFacebookPixel();
   const { trackPurchase: trackServerPurchase } = useServerTracking();
 
@@ -81,6 +98,10 @@ const OrderConfirmationPage = () => {
   useEffect(() => {
     if (!orderNumber || !total || total <= 0) return;
     if (hasSentServerPurchaseRef.current) return;
+    if (purchaseAlreadyReported('server', orderNumber)) {
+      hasSentServerPurchaseRef.current = true;
+      return;
+    }
 
     hasSentServerPurchaseRef.current = true;
 
@@ -127,6 +148,10 @@ const OrderConfirmationPage = () => {
     if (!orderNumber || !total || total <= 0) return;
     if (hasSentPixelPurchaseRef.current) return;
     if (!pixelReady || !window.fbq) return;
+    if (purchaseAlreadyReported('pixel', orderNumber)) {
+      hasSentPixelPurchaseRef.current = true;
+      return;
+    }
 
     const eventId = purchaseEventIdRef.current || generateEventId();
     purchaseEventIdRef.current = eventId;

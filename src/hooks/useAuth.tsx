@@ -16,7 +16,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Cache admin check to avoid redundant queries
 const adminCache = new Map<string, { isAdmin: boolean; timestamp: number }>();
-const ADMIN_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+// Short enough that a revoked admin loses the UI promptly, long enough to spare the
+// role query on every navigation. RLS is the real gate either way.
+const ADMIN_CACHE_TTL = 60 * 1000; // 1 minute
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -133,6 +135,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    // Drop the cached role decision as well: it is keyed by user id and outlives the
+    // session otherwise, so signing back in within the TTL would reuse a stale
+    // verdict rather than re-checking whether the account is still an admin.
+    adminCache.clear();
+    adminCheckRef.current = null;
     setUser(null);
     setSession(null);
     setIsAdmin(false);

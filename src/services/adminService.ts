@@ -358,13 +358,18 @@ export const getAllUsers = async () => {
 };
 
 export const updateUserRole = async (userId: string, role: 'admin' | 'user') => {
-  const { data: existing } = await supabase
+  // A user can legitimately hold more than one role row, so this lists them rather
+  // than using `.single()`, whose error was previously discarded — sending the code
+  // down the insert path and creating yet another duplicate row.
+  const { data: existing, error: lookupError } = await supabase
     .from('user_roles')
     .select('id')
-    .eq('user_id', userId)
-    .single();
+    .eq('user_id', userId);
 
-  if (existing) {
+  if (lookupError) throw lookupError;
+
+  if (existing && existing.length > 0) {
+    // Collapse any duplicates onto the requested role in one statement.
     const { error } = await supabase
       .from('user_roles')
       .update({ role })
