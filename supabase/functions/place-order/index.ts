@@ -3,6 +3,7 @@
 // Optimized for speed: returns response immediately, handles CAPI/SMS in background.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.89.0';
+import { callerIsAdmin } from '../_shared/auth.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -56,6 +57,7 @@ function isBangladeshPhone(phone: string) {
 // Background task: Send order email notification
 async function sendOrderEmail(
   supabaseUrl: string,
+  serviceKey: string,
   orderId: string,
   orderNumber: string,
   name: string,
@@ -72,7 +74,12 @@ async function sendOrderEmail(
     const emailUrl = `${supabaseUrl}/functions/v1/send-order-email`;
     const emailResponse = await fetch(emailUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      // The service key identifies this as an internal call; send-order-email
+      // rejects anything else.
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${serviceKey}`,
+      },
       body: JSON.stringify({
         order_id: orderId,
         order_number: orderNumber,
@@ -126,7 +133,11 @@ async function sendOrderSms(
       const smsUrl = `${supabaseUrl}/functions/v1/send-sms`;
       const smsResponse = await fetch(smsUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        // Internal call — send-sms authorizes on the service key.
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${serviceKey}`,
+        },
         body: JSON.stringify({
           phone: phone,
           template_key: 'order_placed',
@@ -415,7 +426,18 @@ Deno.serve(async (req) => {
       }
     }
 
+    // A "manual" order lets the caller override item prices, shipping, discount and
+    // advance — so it is an admin-only capability, not something a request field can
+    // claim on its own. Anyone else asking for it is refused rather than silently
+    // downgraded, so a real admin never has an order quietly repriced on them.
     const isManualOrder = body.orderSource === 'manual';
+    if (isManualOrder && !(await callerIsAdmin(req))) {
+      console.warn('Rejected manual order from non-admin caller');
+      return new Response(JSON.stringify({ error: 'Admin access required' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const enrichedDbItems = uuidItems.map((i) => {
       const p = productById.get(i.productId);
@@ -582,7 +604,7 @@ Deno.serve(async (req) => {
     // These run after the response is sent, so the user doesn't wait
     const backgroundTasks = Promise.all([
       sendOrderSms(supabaseUrl, serviceKey, phone, name, orderNumber, total, orderId),
-      sendOrderEmail(supabaseUrl, orderId, orderNumber, name, phone, address, subtotal, shippingCost, total, itemsFinal, notes),
+      sendOrderEmail(supabaseUrl, serviceKey, orderId, orderNumber, name, phone, address, subtotal, shippingCost, total, itemsFinal, notes),
     ]);
 
     // Use EdgeRuntime.waitUntil to run tasks in background after response
