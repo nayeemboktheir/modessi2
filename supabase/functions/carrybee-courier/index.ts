@@ -154,6 +154,34 @@ async function createCarrybeeOrder(
   }
 }
 
+// Orders that already carry a tracking number were sent to a courier before. Sending
+// again books — and bills — a second physical delivery, which a double-click, a retry
+// after a slow response, or a re-selected bulk batch would otherwise do silently.
+async function findAlreadyDispatched(
+  supabase: { from: (t: string) => any },
+  orderIds: string[],
+): Promise<Map<string, string>> {
+  const ids = orderIds.filter(Boolean);
+  if (ids.length === 0) return new Map();
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select('id, tracking_number')
+    .in('id', ids)
+    .not('tracking_number', 'is', null);
+
+  if (error) {
+    console.error('Could not check existing consignments:', error.message);
+    return new Map();
+  }
+
+  return new Map(
+    (data ?? [])
+      .filter((row: { tracking_number: string | null }) => !!row.tracking_number)
+      .map((row: { id: string; tracking_number: string }) => [row.id, row.tracking_number]),
+  );
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -211,7 +239,19 @@ Deno.serve(async (req) => {
 
     const results: { orderId: string; success: boolean; consignment_id?: string; error?: string }[] = [];
 
+    const alreadySent = await findAlreadyDispatched(
+      supabase,
+      ordersToProcess.map((o) => o.orderId),
+    );
+
     for (const order of ordersToProcess) {
+      const existingConsignment = order.orderId ? alreadySent.get(order.orderId) : undefined;
+      if (existingConsignment) {
+        console.log(`Skipping order ${order.orderId}: already dispatched as ${existingConsignment}`);
+        results.push({ orderId: order.orderId, success: true, consignment_id: existingConsignment });
+        continue;
+      }
+
       // If city_id/zone_id not provided, try to detect from address
       let cityId = order.city_id;
       let zoneId = order.zone_id;

@@ -545,6 +545,46 @@ Deno.serve(async (req) => {
     const steadfastNote = typeof body.steadfastNote === 'string' ? body.steadfastNote.trim().slice(0, 500) : null;
     const orderSource = isManualOrder ? 'manual' : (body.orderSource === 'landing_page' ? 'landing_page' : 'web');
 
+    // === STOCK ===
+    // Deduct what this order consumes, under a row lock so two concurrent checkouts
+    // can't both take the last unit. Enforcement (refusing the order outright) is
+    // opt-in via admin_settings.stock_enforcement_enabled, because the stock figures
+    // predate any automatic accounting and would otherwise reject valid orders.
+    const { data: stockSetting } = await supabase
+      .from('admin_settings')
+      .select('value')
+      .eq('key', 'stock_enforcement_enabled')
+      .maybeSingle();
+
+    const enforceStock = stockSetting?.value === 'true';
+
+    const { data: shortfalls, error: stockError } = await supabase.rpc('apply_order_stock', {
+      p_items: itemsFinal.map((i) => ({
+        productId: i.productId,
+        variationId: i.variationId,
+        quantity: i.quantity,
+      })),
+      p_enforce: enforceStock,
+    });
+
+    if (stockError) {
+      if (stockError.message?.includes('INSUFFICIENT_STOCK')) {
+        console.log('Order rejected for insufficient stock:', stockError.message);
+        return new Response(
+          JSON.stringify({
+            error: 'দুঃখিত, নির্বাচিত পণ্যের পর্যাপ্ত স্টক নেই। অনুগ্রহ করে পরিমাণ কমিয়ে চেষ্টা করুন।',
+            errorCode: 'INSUFFICIENT_STOCK',
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Never block a sale on a stock-bookkeeping failure when enforcement is off.
+      console.error('Stock update failed, continuing with order:', stockError);
+    } else if (Array.isArray(shortfalls) && shortfalls.length > 0) {
+      console.warn('Order oversells stock:', JSON.stringify(shortfalls));
+    }
+
     const orderId = crypto.randomUUID();
 
     // Insert order first (order_items has FK to orders)

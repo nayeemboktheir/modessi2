@@ -23,6 +23,8 @@ import { Loader2, Plus, Trash2 } from 'lucide-react';
 
 interface OrderItem {
   id: string;
+  product_id?: string | null;
+  variation_id?: string | null;
   product_name: string;
   product_image: string | null;
   quantity: number;
@@ -72,6 +74,9 @@ const paymentMethods = [
 
 const paymentStatuses = [
   { value: 'pending', label: 'Pending' },
+  // place-order writes 'partial' for advance payments; without it here the Select
+  // renders blank on those orders and saving would silently overwrite the status.
+  { value: 'partial', label: 'Partial (advance paid)' },
   { value: 'paid', label: 'Paid' },
   { value: 'failed', label: 'Failed' },
   { value: 'refunded', label: 'Refunded' },
@@ -184,52 +189,40 @@ export function OrderEditDialog({ order, open, onOpenChange, onOrderUpdated }: O
         variation_name: item.variation_name?.trim() || null,
       }));
 
-      // Run independent operations in parallel to reduce save latency
-      const [{ error: orderError }, { error: deleteError }] = await Promise.all([
-        supabase
-          .from('orders')
-          .update({
-            shipping_name: shippingName.trim(),
-            shipping_phone: shippingPhone.trim(),
-            shipping_street: shippingStreet.trim(),
-            shipping_city: shippingCity.trim(),
-            shipping_district: shippingDistrict.trim(),
-            shipping_postal_code: shippingPostalCode.trim() || null,
-            payment_method: paymentMethod,
-            payment_status: paymentStatus,
-            shipping_cost: shippingCost,
-            discount: discount,
-            notes: notes.trim() || null,
-            subtotal: subtotal,
-            total: total,
-          })
-          .eq('id', order.id),
-        supabase
-          .from('order_items')
-          .delete()
-          .eq('order_id', order.id),
-      ]);
+      // One transactional RPC rather than update + delete + insert as three separate
+      // requests: a failure partway through the old sequence left the order carrying
+      // a total for items that had already been deleted.
+      const { error: saveError } = await supabase.rpc('admin_update_order_with_items', {
+        p_order_id: order.id,
+        p_order: {
+          shipping_name: shippingName.trim(),
+          shipping_phone: shippingPhone.trim(),
+          shipping_street: shippingStreet.trim(),
+          shipping_city: shippingCity.trim(),
+          shipping_district: shippingDistrict.trim(),
+          shipping_postal_code: shippingPostalCode.trim() || null,
+          payment_method: paymentMethod,
+          payment_status: paymentStatus,
+          shipping_cost: shippingCost,
+          discount: discount,
+          notes: notes.trim() || null,
+          subtotal: subtotal,
+          total: total,
+        },
+        p_items: normalizedItems.map(item => ({
+          // Preserve the catalogue link where the line item still has one; the old
+          // code hardcoded nulls, permanently detaching edited orders from products.
+          product_id: item.product_id ?? null,
+          variation_id: item.variation_id ?? null,
+          product_name: item.product_name,
+          product_image: item.product_image,
+          quantity: item.quantity,
+          price: item.price,
+          variation_name: item.variation_name,
+        })),
+      });
 
-      if (orderError) throw orderError;
-      if (deleteError) throw deleteError;
-
-      const itemsToInsert = normalizedItems.map(item => ({
-        id: item.id,
-        order_id: order.id,
-        product_name: item.product_name,
-        product_image: item.product_image,
-        quantity: item.quantity,
-        price: item.price,
-        variation_name: item.variation_name,
-        product_id: null,
-        variation_id: null,
-      }));
-
-      const { error: insertError } = await supabase
-        .from('order_items')
-        .insert(itemsToInsert);
-
-      if (insertError) throw insertError;
+      if (saveError) throw saveError;
 
       const updatedOrder: Order = {
         ...order,

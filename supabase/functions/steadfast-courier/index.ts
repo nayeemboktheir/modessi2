@@ -86,6 +86,34 @@ async function sendToSteadfast(
   }
 }
 
+// Orders that already carry a tracking number were sent to a courier before. Sending
+// again books — and bills — a second physical delivery, which a double-click, a retry
+// after a slow response, or a re-selected bulk batch would otherwise do silently.
+async function findAlreadyDispatched(
+  supabase: { from: (t: string) => any },
+  orderIds: string[],
+): Promise<Map<string, string>> {
+  const ids = orderIds.filter(Boolean);
+  if (ids.length === 0) return new Map();
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select('id, tracking_number')
+    .in('id', ids)
+    .not('tracking_number', 'is', null);
+
+  if (error) {
+    console.error('Could not check existing consignments:', error.message);
+    return new Map();
+  }
+
+  return new Map(
+    (data ?? [])
+      .filter((row: { tracking_number: string | null }) => !!row.tracking_number)
+      .map((row: { id: string; tracking_number: string }) => [row.id, row.tracking_number]),
+  );
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -123,8 +151,20 @@ Deno.serve(async (req) => {
       console.log(`Processing bulk order: ${body.orders.length} orders`);
       
       const results: { orderId: string; success: boolean; tracking_code?: string; consignment_id?: string; error?: string }[] = [];
-      
+
+      const alreadySent = await findAlreadyDispatched(
+        supabase,
+        (body.orders as SteadfastOrderRequest[]).map((o) => o.orderId),
+      );
+
       for (const order of body.orders as SteadfastOrderRequest[]) {
+        const existing = order.orderId ? alreadySent.get(order.orderId) : undefined;
+        if (existing) {
+          console.log(`Skipping order ${order.orderId}: already dispatched as ${existing}`);
+          results.push({ orderId: order.orderId, success: true, tracking_code: existing, consignment_id: existing });
+          continue;
+        }
+
         const result = await sendToSteadfast(order, apiKey, secretKey);
         
         if (result.success && result.data) {
@@ -166,6 +206,22 @@ Deno.serve(async (req) => {
     // Single order request
     const order = body as SteadfastOrderRequest;
     console.log('Creating Steadfast order for:', order.invoice);
+
+    if (order.orderId) {
+      const existing = (await findAlreadyDispatched(supabase, [order.orderId])).get(order.orderId);
+      if (existing) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            alreadyDispatched: true,
+            message: 'Order was already sent to a courier',
+            consignment_id: existing,
+            tracking_code: existing,
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
 
     if (!order.invoice || !order.recipient_name || !order.recipient_phone || !order.recipient_address || order.cod_amount === undefined) {
       return new Response(

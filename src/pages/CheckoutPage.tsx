@@ -434,7 +434,7 @@ const CheckoutPage = () => {
       // Navigate to confirmation page with order details including items for tracking
       navigate('/order-confirmation', {
         state: {
-          orderNumber: order.id,
+          orderNumber: order.orderNumber || order.id,
           customerName: shippingForm.name,
           phone: shippingForm.phone,
           total: total,

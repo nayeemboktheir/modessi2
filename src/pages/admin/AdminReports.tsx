@@ -102,31 +102,53 @@ export default function AdminReports() {
   const { data: ordersData, isLoading } = useQuery({
     queryKey: ['sales-report', currentRange.from.toISOString(), currentRange.to.toISOString()],
     queryFn: async () => {
-      const { data: orders, error } = await supabase
-        .from('orders')
-        .select(`
-          id,
-          total,
-          subtotal,
-          shipping_cost,
-          discount,
-          status,
-          created_at,
-          order_items (
-            id,
-            product_name,
-            product_image,
-            quantity,
-            price,
-            variation_name
-          )
-        `)
-        .gte('created_at', currentRange.from.toISOString())
-        .lte('created_at', currentRange.to.toISOString())
-        .neq('status', 'cancelled');
+      // Paged explicitly: an unbounded select is capped by PGRST_DB_MAX_ROWS (1000 on
+      // a stock Supabase config), which silently truncated every report covering a
+      // busier period — revenue and product totals were computed from an arbitrary
+      // slice with nothing on screen to say so.
+      const PAGE_SIZE = 1000;
+      const all: NonNullable<Awaited<ReturnType<typeof fetchPage>>> = [];
+      let offset = 0;
 
-      if (error) throw error;
-      return orders || [];
+      async function fetchPage(from: number) {
+        const { data, error } = await supabase
+          .from('orders')
+          .select(`
+            id,
+            total,
+            subtotal,
+            shipping_cost,
+            discount,
+            status,
+            created_at,
+            order_items (
+              id,
+              product_name,
+              product_image,
+              quantity,
+              price,
+              variation_name
+            )
+          `)
+          .gte('created_at', currentRange.from.toISOString())
+          .lte('created_at', currentRange.to.toISOString())
+          .neq('status', 'cancelled')
+          .order('created_at', { ascending: false })
+          .range(from, from + PAGE_SIZE - 1);
+
+        if (error) throw error;
+        return data || [];
+      }
+
+      for (;;) {
+        const page = await fetchPage(offset);
+        all.push(...page);
+
+        if (page.length < PAGE_SIZE) break;
+        offset += PAGE_SIZE;
+      }
+
+      return all;
     },
   });
 

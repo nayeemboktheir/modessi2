@@ -15,6 +15,7 @@ import FaviconLoader from '@/components/FaviconLoader';
 import FashionHomePage from '@/pages/FashionHomePage';
 import OrderConfirmationPage from '@/pages/OrderConfirmationPage';
 import AuthPage from '@/pages/AuthPage';
+import ResetPasswordPage from '@/pages/ResetPasswordPage';
 import MyAccountPage from '@/pages/MyAccountPage';
 import ProductsPage from '@/pages/ProductsPage';
 import ProductDetailPage from '@/pages/ProductDetailPage';
@@ -98,6 +99,7 @@ const App = () => (
               <Route path="/my-account" element={<MyAccountPage />} />
               <Route path="/order-confirmation" element={<OrderConfirmationPage />} />
               <Route path="/auth" element={<AuthPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
               
               {/* Landing Pages */}
               <Route path="/step/:slug" element={<ProductLandingPage />} />

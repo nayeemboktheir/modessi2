@@ -8,9 +8,63 @@ Ordered by severity. Line references are clickable.
 
 ---
 
+## Status
+
+| Severity | Total | Fixed | Open |
+|---|---|---|---|
+| Critical | 4 | 4 | 0 |
+| High | 10 | 10 | 0 |
+| Medium | 13 | 1 (#18) | 12 |
+| Low | 7 | 0 | 7 |
+
+Fixed findings carry a `> **Fixed**` note under their heading saying what changed. Two carry
+qualifications worth reading: **#1** (the public endpoints still need rate limiting) and **#9**
+(stock enforcement ships switched off).
+
+### Deploying the fixes
+
+Nothing below takes effect until both of these run:
+
+```sh
+# migrations, in order
+psql "$SUPABASE_DB_URL" -f supabase/migrations/20260911120000_restrict_anonymous_table_access.sql
+psql "$SUPABASE_DB_URL" -f supabase/migrations/20260911130000_order_integrity_and_stock.sql
+
+# edge functions (_shared/ ships with them)
+SSH_HOST=root@your-server FUNCTIONS_DIR=/data/coolify/.../volumes/functions ./scripts/deploy-functions.sh
+```
+
+`main/index.ts` is unchanged, so no container restart is needed. Regenerate
+`src/integrations/supabase/types.ts` after the migrations — the two new RPC signatures were
+hand-written to match and should be replaced by real generated output:
+
+```sh
+supabase gen types typescript --db-url "$SUPABASE_DB_URL" > src/integrations/supabase/types.ts
+```
+
+### Turning on stock enforcement
+
+`apply_order_stock` deducts stock on every order from now on, but only *refuses* an order when
+`admin_settings.stock_enforcement_enabled` is `'true'`. It ships off deliberately: the stock column
+has never been decremented by anything, so today's figures do not reflect reality and enforcing them
+immediately would reject good orders. Once the numbers have been corrected and have tracked real
+sales for a while:
+
+```sql
+INSERT INTO public.admin_settings (key, value) VALUES ('stock_enforcement_enabled', 'true')
+ON CONFLICT (key) DO UPDATE SET value = 'true';
+```
+
+Until then, overselling shows up as negative stock in Inventory and as a warning in the
+`place-order` logs.
+
+---
+
 ## Critical — security
 
 ### 1. Every edge function is callable by anyone on the internet
+
+> **Fixed** — `_shared/auth.ts` added; `requireAdmin` on the six admin-only functions, `requireAdminOrInternal` on `send-sms` / `send-order-email`. Residual: `place-order` and the three pixel forwarders must stay public and still need rate limiting.
 
 The router in [supabase/functions/main/index.ts:58-69](supabase/functions/main/index.ts#L58-L69) only
 verifies that the bearer token is *signed* by `JWT_SECRET`. The anon key is exactly such a token and
@@ -36,6 +90,8 @@ genuinely public ones (`place-order`, the pixel forwarders) need their own valid
 
 ### 2. Anonymous read of every abandoned checkout
 
+> **Fixed** — migration `20260911120000` removes anon SELECT entirely and scopes UPDATE to unconverted drafts under two days old; CheckoutPage now generates the draft id client-side and upserts on it.
+
 [Migration 20260121195758](supabase/migrations/20260121195758_a7b0389b-352b-45b4-9967-8b2b2544f844.sql)
 grants `SELECT` and `UPDATE` on `draft_orders` to `anon` with `USING (true)`. That table holds name,
 phone, street, district and cart contents. One anon-key request returns the PII of every customer who
@@ -44,6 +100,8 @@ nothing filters by session.
 
 ### 3. Client-controlled price override on real products
 
+> **Fixed** — `place-order` verifies the caller holds the admin role before honouring `orderSource: 'manual'`, and returns 403 otherwise.
+
 [place-order/index.ts:417-421](supabase/functions/place-order/index.ts#L417-L421) trusts
 `body.orderSource === 'manual'` — a plain request field, with no auth behind it — to accept
 client-sent `price`, `customShippingCost`, `customDiscount` and `customAdvance`. The comment two
@@ -51,6 +109,8 @@ lines above claims totals are computed from DB values to prevent tampering. Anyo
 for any product at any price, including a negative total.
 
 ### 4. `orders` and `order_items` accept anonymous inserts
+
+> **Fixed** — migration `20260911120000` drops both anonymous INSERT policies. Orders are created only by `place-order` on the service-role key.
 
 Both have `INSERT ... WITH CHECK (true)`
 ([base migration](supabase/migrations/20260104175806_remix_migration_from_pg_dump.sql)), so the
@@ -62,6 +122,8 @@ Both have `INSERT ... WITH CHECK (true)`
 
 ### 5. Order numbers collide and lose orders
 
+> **Fixed** — migration `20260911130000` replaces the random suffix with `order_number_seq` (`ORD-YYYYMMDD-NNNNN`), seeded past existing numbers, and drops the duplicate trigger.
+
 [`generate_order_number()`](supabase/migrations/20260104175806_remix_migration_from_pg_dump.sql#L49)
 builds `ORD-<date>-<4 random digits>` against a `UNIQUE` constraint on `order_number`. At ~100
 orders/day that is roughly a 40% chance of at least one collision per day; the insert fails and the
@@ -70,11 +132,15 @@ customer sees "Failed to place order". Two identical `BEFORE INSERT` triggers
 
 ### 6. Manual orders with an advance payment always fail
 
+> **Fixed** — migration `20260911130000` widens the CHECK to include `partial`. It also widens `orders_payment_method_check`, which allowed only `cod`/`stripe` while OrderEditDialog offers bKash, Nagad and bank transfer — every such save failed too. `partial` added to the dialog's status list.
+
 [place-order/index.ts:530](supabase/functions/place-order/index.ts#L530) writes
 `payment_status: 'partial'`, which is not in the `orders_payment_status_check` CHECK constraint
 (`pending | paid | failed | refunded`). Every advance-payment order 500s.
 
 ### 7. Editing a product destroys size history and customer carts
+
+> **Fixed** — `saveVariations` now reconciles: rows keep their ids, only genuinely removed sizes are deleted.
 
 [AdminProducts.tsx:349-360](src/pages/admin/AdminProducts.tsx#L349-L360) deletes all
 `product_variations` for the product and re-inserts them with new IDs on *every* save. Because of
@@ -84,12 +150,16 @@ Fixing a typo in a description silently erases which size past orders were for a
 
 ### 8. Editing an order can leave it with zero line items
 
+> **Fixed** — replaced by the transactional `admin_update_order_with_items` RPC (migration `20260911130000`), which also preserves `product_id` / `variation_id` instead of writing nulls.
+
 [OrderEditDialog.tsx:188-231](src/components/admin/OrderEditDialog.tsx#L188-L231) updates the order
 and deletes its items in a `Promise.all`, then inserts the new items in a separate step with no
 transaction. If the insert fails, the order keeps its total but has no items. The insert also
 hardcodes `product_id: null, variation_id: null`, permanently severing edited orders from the catalog.
 
 ### 9. No stock control anywhere
+
+> **Fixed** — `apply_order_stock` RPC decrements under a row lock, called from `place-order`. Rejecting orders is opt-in via `admin_settings.stock_enforcement_enabled` (default off) because the existing stock figures were never maintained; see the note below.
 
 `place-order` never checks or decrements stock, and no trigger does it either — nothing in
 `supabase/functions` or `supabase/migrations` touches `stock` outside a one-off data fix. `stock` is
@@ -98,12 +168,16 @@ a display-only number edited by hand in AdminInventory. Overselling is unbounded
 
 ### 10. Customers see a UUID as their order number
 
+> **Fixed** — `createOrder` now returns `orderNumber` and CheckoutPage passes it through. The landing pages already did this correctly.
+
 [CheckoutPage.tsx:429](src/pages/CheckoutPage.tsx#L429) passes `orderNumber: order.id`, and
 [createOrder](src/services/orderService.ts#L92) drops `data.orderNumber` from the response entirely.
 The confirmation screen prints a raw UUID that matches nothing in the admin panel, the SMS, or the
 invoice.
 
 ### 11. Landing-page checkout forms can never submit
+
+> **Fixed** — the renderer accepts both `productId` and `productIds`, so pages already saved in either shape work.
 
 The editor writes `settings.productId` (a string,
 [SectionEditor.tsx:308](src/components/landing-builder/SectionEditor.tsx#L308)); the renderer reads
@@ -113,10 +187,14 @@ with a permanently disabled submit button.
 
 ### 12. `/reset-password` is not routed
 
+> **Fixed** — route added in `App.tsx`.
+
 `ResetPasswordPage.tsx` is never imported by [App.tsx](src/App.tsx); the catch-all route renders the
 home page instead. Password-reset emails lead nowhere.
 
 ### 13. Sales reports silently truncate
+
+> **Fixed** — the query pages through results in 1000-row batches instead of relying on an unbounded select.
 
 [AdminReports.tsx:105-130](src/pages/admin/AdminReports.tsx#L105-L130) fetches orders with no
 `.range()` or `.limit()`, so it is capped by whatever `PGRST_DB_MAX_ROWS` the stack sets (1000 on a
@@ -126,6 +204,8 @@ is summed over a 200-row slice while the order count comes from a separate query
 use `count: 'planned'`, which returns planner *estimates*, not real numbers.
 
 ### 14. Duplicate courier consignments
+
+> **Fixed** — both courier functions look up existing `tracking_number` values first and skip (reporting the existing consignment) rather than booking a second delivery.
 
 Neither [steadfast-courier](supabase/functions/steadfast-courier/index.ts#L118) nor
 [carrybee-courier](supabase/functions/carrybee-courier/index.ts#L210) checks for an existing
@@ -164,6 +244,8 @@ history.
 
 ### 18. Internal function calls carry no auth header
 
+> **Fixed alongside #1** — `place-order` now sends the service-role key on both internal calls.
+
 `place-order` calls `send-order-email` and `send-sms` by URL with no `Authorization` header
 ([place-order:73](supabase/functions/place-order/index.ts#L73),
 [:135](supabase/functions/place-order/index.ts#L135)). If those functions are not listed in
@@ -193,6 +275,8 @@ checks `user` but not `isAdmin`. RLS still blocks the data, but both UIs open fo
 ([useAuth.tsx:18](src/hooks/useAuth.tsx#L18)), so a demoted admin keeps UI access until it expires.
 
 ### 22. Silent write failures
+
+> **Partially fixed** — the duplicate-draft path in CheckoutPage is gone (rewritten for #2). The others remain.
 
 - [adminService.ts:360](src/services/adminService.ts#L360) discards the error from `.single()` on
   `user_roles` and falls through to an insert, creating duplicate role rows.

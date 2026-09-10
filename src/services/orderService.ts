@@ -93,6 +93,9 @@ export const createOrder = async (orderData: CreateOrderData): Promise<Order> =>
 
   return {
     id: data.orderId,
+    // The edge function returns the generated ORD-… number; without carrying it
+    // through, callers fall back to showing the raw UUID to the customer.
+    orderNumber: data.orderNumber,
     userId: orderData.userId || '',
     items: orderData.items,
     total: Number(data.total),
@@ -129,6 +132,7 @@ export const fetchUserOrders = async (userId: string): Promise<Order[]> => {
 
   return (data || []).map((order): Order => ({
     id: order.id,
+    orderNumber: order.order_number,
     userId: order.user_id || '',
     items: (order.order_items || []).map((item: any) => ({
       product: {

@@ -157,14 +157,24 @@ const SectionRenderer = ({ section, theme, slug }: SectionRendererProps) => {
   // Fetch products for checkout section
   useEffect(() => {
     if (section.type !== "checkout-form") return;
-    const settings = section.settings as { productIds?: string[] };
-    if (!settings.productIds || settings.productIds.length === 0) return;
+
+    // The section editor saves a single `productId`; older/hand-edited pages carry a
+    // `productIds` array. Accepting both is what makes checkout sections built in the
+    // admin UI actually render products instead of an empty, unsubmittable form.
+    const settings = section.settings as { productIds?: string[]; productId?: string };
+    const productIds = settings.productIds?.length
+      ? settings.productIds
+      : settings.productId
+        ? [settings.productId]
+        : [];
+
+    if (productIds.length === 0) return;
 
     const fetchProducts = async () => {
       const { data: productsData } = await supabase
         .from("products")
         .select("id, name, price, original_price, images")
-        .in("id", settings.productIds || []);
+        .in("id", productIds);
 
       if (productsData) {
         const productsWithVariations = await Promise.all(
