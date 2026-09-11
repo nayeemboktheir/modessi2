@@ -142,6 +142,12 @@ const ORDERS_CACHE_TTL = 3 * 60 * 1000; // 3 minutes
 const ORDERS_PAGE_SIZE = 30;
 const ORDER_FETCH_BATCH_SIZE = 500;
 const ORDERS_QUERY_TIMEOUT_MS = 9000;
+// Most recent N orders. Everything older is reachable through the date filters,
+// which query the server rather than this in-memory set.
+const ORDERS_FETCH_LIMIT = 2000;
+// sessionStorage holds ~5MB; orders carry their line items, so persisting the whole
+// set silently blew the quota (the failure was swallowed) once a shop got busy.
+const ORDERS_CACHE_MAX_ROWS = 300;
 
 const ORDER_SELECT = `
   id, order_number, status, payment_status, payment_method, total, subtotal, shipping_cost, discount,
@@ -154,7 +160,10 @@ type BaseOrderRow = Order;
 
 const persistOrdersCache = (orders: Order[]) => {
   try {
-    sessionStorage.setItem(ORDERS_CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data: orders }));
+    sessionStorage.setItem(
+      ORDERS_CACHE_KEY,
+      JSON.stringify({ timestamp: Date.now(), data: orders.slice(0, ORDERS_CACHE_MAX_ROWS) }),
+    );
   } catch {
     // ignore cache write errors (quota, private mode)
   }
@@ -240,15 +249,20 @@ const fetchAllOrderRows = async ({
   batchSize,
   timeoutMs,
   retries = 1,
+  maxRows = ORDERS_FETCH_LIMIT,
 }: {
   batchSize: number;
   timeoutMs: number;
   retries?: number;
-}): Promise<BaseOrderRow[]> => {
+  maxRows?: number;
+}): Promise<{ rows: BaseOrderRow[]; truncated: boolean }> => {
   const allRows: BaseOrderRow[] = [];
   let offset = 0;
 
-  while (true) {
+  // Bounded on purpose. This pulls whole orders *with their line items* into the
+  // browser to filter them client-side, so an unbounded loop grew with the order
+  // table until the page took minutes to load and blew the sessionStorage quota.
+  while (allRows.length < maxRows) {
     const batch = await fetchOrderRows({
       from: offset,
       to: offset + batchSize - 1,
@@ -260,12 +274,15 @@ const fetchAllOrderRows = async ({
 
     allRows.push(...batch);
 
-    if (batch.length < batchSize) break;
+    if (batch.length < batchSize) {
+      return { rows: allRows, truncated: false };
+    }
 
     offset += batchSize;
   }
 
-  return allRows;
+  // Hitting the cap means older orders exist beyond what is loaded.
+  return { rows: allRows.slice(0, maxRows), truncated: allRows.length >= maxRows };
 };
 
 // Debounce hook for search
@@ -281,6 +298,7 @@ function useDebouncedValue<T>(value: T, delay: number): T {
 export default function AdminOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [ordersTruncated, setOrdersTruncated] = useState(false);
   const [visibleRows, setVisibleRows] = useState(ORDERS_PAGE_SIZE);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 200);
@@ -373,11 +391,13 @@ export default function AdminOrders() {
     if (showLoader) setLoading(true);
 
     try {
-      const baseOrders = await fetchAllOrderRows({
+      const { rows: baseOrders, truncated } = await fetchAllOrderRows({
         batchSize: ORDER_FETCH_BATCH_SIZE,
         timeoutMs: ORDERS_QUERY_TIMEOUT_MS,
         retries: 1,
       });
+
+      setOrdersTruncated(truncated);
 
       const normalizedOrders: Order[] = baseOrders.map((order) => ({
         ...order,
@@ -454,24 +474,29 @@ export default function AdminOrders() {
     const ordersWithTracking = targetOrders.filter(o => o.tracking_number && !steadfastStatuses[o.tracking_number!]);
     if (ordersWithTracking.length === 0) return;
 
-    // Limit to 50 at a time to avoid edge function timeout
-    const batch = ordersWithTracking.slice(0, 50);
-
     setLoadingStatuses(true);
     try {
-      const trackingCodes = batch.map(o => o.tracking_number!);
-      
-      const { data, error } = await supabase.functions.invoke('steadfast-status', {
-        body: { tracking_codes: trackingCodes },
-      });
+      // The function caps each request at 40 codes so a batch can't outrun the edge
+      // worker timeout, so send them in chunks of that size and merge as we go —
+      // results land in the UI progressively instead of all-or-nothing.
+      const CHUNK_SIZE = 40;
+      const allCodes = ordersWithTracking.map(o => o.tracking_number!);
 
-      if (error) {
-        console.error('Failed to fetch Steadfast statuses:', error);
-        return;
-      }
+      for (let i = 0; i < allCodes.length; i += CHUNK_SIZE) {
+        const chunk = allCodes.slice(i, i + CHUNK_SIZE);
 
-      if (data?.results) {
-        setSteadfastStatuses(prev => ({ ...prev, ...data.results }));
+        const { data, error } = await supabase.functions.invoke('steadfast-status', {
+          body: { tracking_codes: chunk },
+        });
+
+        if (error) {
+          console.error('Failed to fetch Steadfast statuses:', error);
+          break;
+        }
+
+        if (data?.results) {
+          setSteadfastStatuses(prev => ({ ...prev, ...data.results }));
+        }
       }
     } catch (error) {
       console.error('Error fetching Steadfast statuses:', error);
@@ -992,19 +1017,21 @@ export default function AdminOrders() {
     setBulkStatusChanging(true);
     try {
       const ordersToUpdate = orders.filter(o => selectedOrderIds.has(o.id));
-      let successCount = 0;
       let failCount = 0;
+      const updatedIds = new Set<string>();
 
       for (const order of ordersToUpdate) {
         try {
           await updateOrderStatus(order.id, newStatus);
           sendStatusSms(order, newStatus);
-          successCount++;
+          updatedIds.add(order.id);
         } catch (error) {
           console.error(`Failed to update order ${order.order_number}:`, error);
           failCount++;
         }
       }
+
+      const successCount = updatedIds.size;
 
       if (failCount > 0) {
         toast.warning(`Updated ${successCount} orders, ${failCount} failed`);
@@ -1013,9 +1040,10 @@ export default function AdminOrders() {
       }
 
       setSelectedOrderIds(new Set());
-      // Update local state instantly
-      setOrders(prev => prev.map(o => 
-        selectedOrderIds.has(o.id) ? { ...o, status: newStatus } : o
+      // Only reflect the orders that actually changed — applying the new status to
+      // every selected order showed failures as successes until the next reload.
+      setOrders(prev => prev.map(o =>
+        updatedIds.has(o.id) ? { ...o, status: newStatus } : o
       ));
     } catch (error) {
       console.error('Failed to bulk update status:', error);
@@ -1628,6 +1656,13 @@ export default function AdminOrders() {
                   </TableCell>
                 </TableRow>
               ))}
+              {ordersTruncated && (
+                <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  Showing the {ORDERS_FETCH_LIMIT.toLocaleString()} most recent orders. Use the date
+                  filters to reach older ones.
+                </div>
+              )}
+
               {filteredOrders.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={13} className="text-center py-8 text-muted-foreground">

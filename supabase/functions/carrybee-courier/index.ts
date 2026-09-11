@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { requireAdmin } from '../_shared/auth.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -27,6 +28,22 @@ interface CarrybeeCredentials {
   clientId: string;
   clientSecret: string;
   clientContext: string;
+}
+
+// Courier APIs occasionally hang. Without a deadline one stalled call blocks the whole
+// request — and inside a bulk loop, every order behind it — until the router kills the
+// worker at 150s.
+const UPSTREAM_TIMEOUT_MS = 20_000;
+
+async function fetchWithTimeout(input: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
+
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function getCredentials(supabase: any): Promise<CarrybeeCredentials> {
@@ -65,7 +82,7 @@ async function getCredentials(supabase: any): Promise<CarrybeeCredentials> {
 
 async function getDefaultStoreId(creds: CarrybeeCredentials): Promise<string | null> {
   try {
-    const res = await fetch(`${creds.baseUrl}/api/v2/stores`, {
+    const res = await fetchWithTimeout(`${creds.baseUrl}/api/v2/stores`, {
       headers: {
         'Client-ID': creds.clientId,
         'Client-Secret': creds.clientSecret,
@@ -86,7 +103,7 @@ async function getDefaultStoreId(creds: CarrybeeCredentials): Promise<string | n
 async function getAddressDetails(creds: CarrybeeCredentials, address: string): Promise<{ city_id: number; zone_id: number } | null> {
   try {
     const query = address.length >= 10 ? address : address + ' Bangladesh';
-    const res = await fetch(`${creds.baseUrl}/api/v2/address-details`, {
+    const res = await fetchWithTimeout(`${creds.baseUrl}/api/v2/address-details`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -129,7 +146,7 @@ async function createCarrybeeOrder(
     if (order.note) body.special_instruction = order.note.substring(0, 255);
     if (order.product_description) body.product_description = order.product_description.substring(0, 255);
 
-    const res = await fetch(`${creds.baseUrl}/api/v2/orders`, {
+    const res = await fetchWithTimeout(`${creds.baseUrl}/api/v2/orders`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -153,6 +170,34 @@ async function createCarrybeeOrder(
   }
 }
 
+// Orders that already carry a tracking number were sent to a courier before. Sending
+// again books — and bills — a second physical delivery, which a double-click, a retry
+// after a slow response, or a re-selected bulk batch would otherwise do silently.
+async function findAlreadyDispatched(
+  supabase: { from: (t: string) => any },
+  orderIds: string[],
+): Promise<Map<string, string>> {
+  const ids = orderIds.filter(Boolean);
+  if (ids.length === 0) return new Map();
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select('id, tracking_number')
+    .in('id', ids)
+    .not('tracking_number', 'is', null);
+
+  if (error) {
+    console.error('Could not check existing consignments:', error.message);
+    return new Map();
+  }
+
+  return new Map(
+    (data ?? [])
+      .filter((row: { tracking_number: string | null }) => !!row.tracking_number)
+      .map((row: { id: string; tracking_number: string }) => [row.id, row.tracking_number]),
+  );
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -166,6 +211,9 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const auth = await requireAdmin(req);
+    if (!auth.ok) return auth.response;
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -207,7 +255,19 @@ Deno.serve(async (req) => {
 
     const results: { orderId: string; success: boolean; consignment_id?: string; error?: string }[] = [];
 
+    const alreadySent = await findAlreadyDispatched(
+      supabase,
+      ordersToProcess.map((o) => o.orderId),
+    );
+
     for (const order of ordersToProcess) {
+      const existingConsignment = order.orderId ? alreadySent.get(order.orderId) : undefined;
+      if (existingConsignment) {
+        console.log(`Skipping order ${order.orderId}: already dispatched as ${existingConsignment}`);
+        results.push({ orderId: order.orderId, success: true, consignment_id: existingConsignment });
+        continue;
+      }
+
       // If city_id/zone_id not provided, try to detect from address
       let cityId = order.city_id;
       let zoneId = order.zone_id;

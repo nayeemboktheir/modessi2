@@ -347,50 +347,88 @@ export default function AdminProducts() {
   };
 
   const saveVariations = async (productId: string) => {
-    // Delete existing variations (FK on order_items now SET NULL, cart_items CASCADE)
-    const { error: deleteError } = await supabase
+    // Variation rows are reconciled in place, never wiped and recreated. Recreating
+    // them mints new ids, and because order_items.variation_id is ON DELETE SET NULL
+    // (and cart_items CASCADE), a plain delete-all would erase which size every past
+    // order was for and empty live customer carts — on every product save, even one
+    // that never touched the sizes.
+
+    const validVariations = hasVariations
+      ? variations.filter((v) => v.name && v.price > 0)
+      : [];
+
+    // Dedupe by normalized name (matches the unique index on the table).
+    const desired = Array.from(
+      new Map(validVariations.map((v) => [String(v.name).trim().toLowerCase(), v])).values()
+    );
+
+    const { data: existingRows, error: fetchError } = await supabase
       .from('product_variations')
-      .delete()
+      .select('id')
       .eq('product_id', productId);
 
-    if (deleteError) {
-      console.error('Failed to delete old variations:', deleteError);
-      toast.error('সাইজ আপডেট করতে ব্যর্থ: ' + deleteError.message);
-      throw deleteError;
+    if (fetchError) {
+      console.error('Failed to load existing variations:', fetchError);
+      toast.error('সাইজ আপডেট করতে ব্যর্থ: ' + fetchError.message);
+      throw fetchError;
     }
 
-    // Insert new variations
-    if (hasVariations && variations.length > 0) {
-      const validVariations = variations.filter((v) => v.name && v.price > 0);
+    const existingIds = new Set((existingRows || []).map((r) => r.id));
+    const keptIds = new Set(desired.map((v) => v.id).filter((id): id is string => !!id && existingIds.has(id)));
 
-      // Dedupe by normalized name before saving (prevents accidental duplicates in UI)
-      const uniqueValidVariations = Array.from(
-        new Map(
-          validVariations
-            .map((v) => [String(v.name).trim().toLowerCase(), v])
-        ).values()
-      );
+    const toUpdate = desired.filter((v) => v.id && keptIds.has(v.id));
+    const toInsert = desired.filter((v) => !v.id || !keptIds.has(v.id));
+    const toDelete = [...existingIds].filter((id) => !keptIds.has(id));
 
-      if (uniqueValidVariations.length > 0) {
-        const { error } = await supabase
-          .from('product_variations')
-          .insert(
-            uniqueValidVariations.map((v, idx) => ({
-              product_id: productId,
-              name: v.name,
-              price: v.price,
-              original_price: v.original_price || null,
-              stock: v.stock,
-              sort_order: idx + 1,
-              is_active: v.is_active,
-            }))
-          );
-        
-        if (error) {
-          console.error('Failed to save variations:', error);
-          toast.error('সাইজ সেভ করতে ব্যর্থ: ' + error.message);
-          throw error;
-        }
+    const rowFor = (v: ProductVariation, idx: number) => ({
+      product_id: productId,
+      name: v.name,
+      price: v.price,
+      original_price: v.original_price || null,
+      stock: v.stock,
+      sort_order: idx + 1,
+      is_active: v.is_active,
+    });
+
+    // Update first: a row that keeps its id keeps every order_item pointing at it.
+    for (const [idx, v] of desired.entries()) {
+      if (!toUpdate.includes(v)) continue;
+
+      const { error } = await supabase
+        .from('product_variations')
+        .update(rowFor(v, idx))
+        .eq('id', v.id!);
+
+      if (error) {
+        console.error('Failed to update variation:', error);
+        toast.error('সাইজ সেভ করতে ব্যর্থ: ' + error.message);
+        throw error;
+      }
+    }
+
+    if (toInsert.length > 0) {
+      const { error } = await supabase
+        .from('product_variations')
+        .insert(toInsert.map((v) => rowFor(v, desired.indexOf(v))));
+
+      if (error) {
+        console.error('Failed to insert variations:', error);
+        toast.error('সাইজ সেভ করতে ব্যর্থ: ' + error.message);
+        throw error;
+      }
+    }
+
+    // Only sizes the admin actually removed are deleted.
+    if (toDelete.length > 0) {
+      const { error } = await supabase
+        .from('product_variations')
+        .delete()
+        .in('id', toDelete);
+
+      if (error) {
+        console.error('Failed to remove variations:', error);
+        toast.error('সাইজ মুছতে ব্যর্থ: ' + error.message);
+        throw error;
       }
     }
   };

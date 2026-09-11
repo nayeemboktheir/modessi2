@@ -1,4 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { requireAdminOrInternal } from '../_shared/auth.ts';
+import { maskPhone } from '../_shared/redact.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -59,7 +61,7 @@ async function sendViaBulkSMSBD(phone: string, message: string, apiKey: string, 
     message: message,
   });
 
-  console.log(`Sending SMS to ${formattedPhone} via BulkSMSBD`);
+  console.log(`Sending SMS to ${maskPhone(formattedPhone)} via BulkSMSBD`);
   
   const response = await fetch(`${url}?${params.toString()}`);
   const result = await response.json();
@@ -78,7 +80,7 @@ async function sendViaSSLWireless(phone: string, message: string, apiKey: string
   
   const url = `https://smsplus.sslwireless.com/api/v3/send-sms`;
   
-  console.log(`Sending SMS to ${formattedPhone} via SSL Wireless`);
+  console.log(`Sending SMS to ${maskPhone(formattedPhone)} via SSL Wireless`);
   
   const response = await fetch(url, {
     method: 'POST',
@@ -110,7 +112,7 @@ async function sendViaInfobip(phone: string, message: string, apiKey: string, se
   
   const baseUrl = 'https://api.infobip.com';
   
-  console.log(`Sending SMS to ${formattedPhone} via Infobip`);
+  console.log(`Sending SMS to ${maskPhone(formattedPhone)} via Infobip`);
   
   const response = await fetch(`${baseUrl}/sms/2/text/advanced`, {
     method: 'POST',
@@ -151,7 +153,7 @@ async function sendViaTwilio(phone: string, message: string, apiKey: string, sen
     };
   }
   
-  console.log(`Sending SMS to ${formattedPhone} via Twilio`);
+  console.log(`Sending SMS to ${maskPhone(formattedPhone)} via Twilio`);
   
   const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
   
@@ -184,6 +186,9 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const auth = await requireAdminOrInternal(req);
+    if (!auth.ok) return auth.response;
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
@@ -191,7 +196,7 @@ Deno.serve(async (req) => {
     const body: SendSmsRequest = await req.json();
     const { phone, message, template_key, order_id, variables = {} } = body;
 
-    console.log('SMS request received:', { phone, template_key, order_id });
+    console.log('SMS request received:', { phone: maskPhone(phone), template_key, order_id });
 
     // Fetch SMS settings
     const { data: settingsData, error: settingsError } = await supabase
@@ -267,7 +272,7 @@ Deno.serve(async (req) => {
       throw new Error('Phone number is required');
     }
 
-    console.log('Sending SMS:', { phone, messageLength: finalMessage.length });
+    console.log('Sending SMS:', { phone: maskPhone(phone), messageLength: finalMessage.length });
 
     // Send SMS based on provider
     let result: { success: boolean; response: any };

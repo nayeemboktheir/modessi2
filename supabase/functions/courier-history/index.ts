@@ -1,14 +1,17 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.89.0';
+import { requireAdmin } from '../_shared/auth.ts';
+import { readCache, writeCache } from '../_shared/courierCache.ts';
+import { maskPhone } from '../_shared/redact.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Simple in-memory cache to reduce API calls
-const cache = new Map<string, { data: unknown; timestamp: number }>();
-const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes cache
+// Entries live in the courier_lookup_cache table: this worker is discarded after the
+// response, so an in-process Map would start empty on every request.
+const CACHE_TTL_MS = 10 * 60 * 1000;
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -17,6 +20,9 @@ serve(async (req) => {
   }
 
   try {
+    const auth = await requireAdmin(req);
+    if (!auth.ok) return auth.response;
+
     const { phone } = await req.json();
 
     if (!phone) {
@@ -49,12 +55,12 @@ serve(async (req) => {
       cleanPhone = '0' + cleanPhone;
     }
 
-    // Check cache first
-    const cached = cache.get(cleanPhone);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-      console.log('Returning cached courier history for phone:', cleanPhone);
+    const cacheKey = `bdcourier_${cleanPhone}`;
+    const cached = await readCache<unknown>(supabase, cacheKey, CACHE_TTL_MS);
+    if (cached) {
+      console.log('Returning cached courier history');
       return new Response(
-        JSON.stringify({ success: true, data: cached.data, cached: true }),
+        JSON.stringify({ success: true, data: cached, cached: true }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -70,12 +76,12 @@ serve(async (req) => {
       );
     }
 
-    console.log('Checking courier history for phone:', cleanPhone);
+    console.log('Checking courier history for phone:', maskPhone(cleanPhone));
 
     // BD Courier PAID API endpoint (api.bdcourier.com) - POST method
     const apiUrl = 'https://api.bdcourier.com/courier-check';
     
-    console.log('Calling BD Courier API (POST):', apiUrl, 'phone:', cleanPhone);
+    console.log('Calling BD Courier API (POST):', apiUrl, 'phone:', maskPhone(cleanPhone));
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -193,8 +199,7 @@ serve(async (req) => {
 
     console.log('Normalized courier data:', JSON.stringify(normalizedData).substring(0, 300));
 
-    // Cache the result
-    cache.set(cleanPhone, { data: normalizedData, timestamp: Date.now() });
+    await writeCache(supabase, cacheKey, normalizedData);
 
     return new Response(
       JSON.stringify({ success: true, data: normalizedData }),

@@ -92,6 +92,7 @@ const loadPixelScript = (pixelId: string): Promise<void> => {
       ttq.methods = ['page', 'track', 'identify', 'instances', 'debug', 'on', 'off', 'once', 'ready', 'alias', 'group', 'enableCookie', 'disableCookie'];
       ttq.setAndDefer = function(t: any, e: string) {
         t[e] = function() {
+          // eslint-disable-next-line prefer-rest-params -- verbatim vendor loader snippet
           t.push([e].concat(Array.prototype.slice.call(arguments, 0)));
         };
       };

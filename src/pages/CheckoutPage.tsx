@@ -33,6 +33,33 @@ const getSessionId = () => {
   return sessionId;
 };
 
+// The draft's id is generated here rather than read back from the database:
+// draft_orders carries other customers' PII, so anon has no SELECT policy on it.
+// Keeping the id in localStorage is what lets a returning shopper keep updating the
+// same draft instead of creating a new one on every visit.
+// Rotated after a day so it always stays inside the window the RLS update policy
+// allows; past that the row is read-only to anon and a stale id would just error.
+const DRAFT_ID_TTL_MS = 24 * 60 * 60 * 1000;
+
+const clearDraftOrderId = () => {
+  localStorage.removeItem('checkout_draft_id');
+  localStorage.removeItem('checkout_draft_id_at');
+};
+
+const getDraftOrderId = () => {
+  const draftId = localStorage.getItem('checkout_draft_id');
+  const createdAt = Number(localStorage.getItem('checkout_draft_id_at')) || 0;
+
+  if (draftId && Date.now() - createdAt < DRAFT_ID_TTL_MS) {
+    return draftId;
+  }
+
+  const freshId = crypto.randomUUID();
+  localStorage.setItem('checkout_draft_id', freshId);
+  localStorage.setItem('checkout_draft_id_at', String(Date.now()));
+  return freshId;
+};
+
 const CheckoutPage = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -270,42 +297,16 @@ const CheckoutPage = () => {
       total: total,
     };
 
-    try {
-      if (draftOrderId.current) {
-        // Update existing draft
-        await supabase
-          .from('draft_orders')
-          .update(draftData)
-          .eq('id', draftOrderId.current);
-      } else {
-        // Check if there's an existing draft for this session
-        const { data: existing } = await supabase
-          .from('draft_orders')
-          .select('id')
-          .eq('session_id', sessionId)
-          .eq('is_converted', false)
-          .maybeSingle();
-        
-        if (existing) {
-          draftOrderId.current = existing.id;
-          await supabase
-            .from('draft_orders')
-            .update(draftData)
-            .eq('id', existing.id);
-        } else {
-          // Create new draft
-          const { data } = await supabase
-            .from('draft_orders')
-            .insert([draftData])
-            .select('id')
-            .single();
-          
-          if (data) {
-            draftOrderId.current = data.id;
-          }
-        }
-      }
-    } catch (error) {
+    // Upsert on the client-generated id: the first save inserts, later ones update.
+    // No read-back is involved, so this works without a SELECT policy for anon.
+    const draftId = getDraftOrderId();
+    draftOrderId.current = draftId;
+
+    const { error } = await supabase
+      .from('draft_orders')
+      .upsert({ id: draftId, ...draftData }, { onConflict: 'id' });
+
+    if (error) {
       console.error('Error saving draft order:', error);
     }
   }, [cartItems, shippingForm, user, cartTotal, shippingCost, total]);
@@ -411,8 +412,11 @@ const CheckoutPage = () => {
           .eq('id', draftOrderId.current);
       }
       
-      // Clear session ID for next checkout
+      // Clear session and draft ids so the next checkout starts a fresh draft — the
+      // converted one is no longer writable by anon.
       localStorage.removeItem('checkout_session_id');
+      clearDraftOrderId();
+      draftOrderId.current = null;
       
       // Mark as order placed before clearing cart to prevent redirect
       hasPlacedOrder.current = true;
@@ -430,7 +434,7 @@ const CheckoutPage = () => {
       // Navigate to confirmation page with order details including items for tracking
       navigate('/order-confirmation', {
         state: {
-          orderNumber: order.id,
+          orderNumber: order.orderNumber || order.id,
           customerName: shippingForm.name,
           phone: shippingForm.phone,
           total: total,

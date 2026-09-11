@@ -27,6 +27,7 @@ import { toast } from 'sonner';
 import { useFacebookPixel } from '@/hooks/useFacebookPixel';
 import { useServerTracking } from '@/hooks/useServerTracking';
 import { supabase } from '@/integrations/supabase/client';
+import { useDocumentMeta } from '@/hooks/useDocumentMeta';
 
 const ProductDetailPage = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -38,6 +39,15 @@ const ProductDetailPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedVariation, setSelectedVariation] = useState<ProductVariation | undefined>(undefined);
   
+  // Per-product link preview: without this every product shared the one generic
+  // og:image and title from index.html, so all shared links looked identical.
+  useDocumentMeta({
+    title: product ? `${product.name} | Modessi` : undefined,
+    description: product?.description?.slice(0, 160) || undefined,
+    image: product?.images?.[0],
+    type: 'product',
+  });
+
   const dispatch = useAppDispatch();
   const wishlistItems = useAppSelector(selectWishlistItems);
   const { trackViewContent, trackAddToCartWithEventId, generateEventId, isReady } = useFacebookPixel();

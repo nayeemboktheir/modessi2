@@ -34,7 +34,13 @@ export const parseIframeHtml = (input: string): string | null => {
 
   try {
     const url = new URL(src.startsWith("//") ? `https:${src}` : src);
-    const isAllowed = allowedDomains.some((d) => url.hostname.includes(d));
+    if (url.protocol !== "https:") return null;
+    // Exact host or a true subdomain of it. `includes` also matched hostile hosts
+    // such as youtube.com.evil.com, which defeated the point of the allowlist.
+    const hostname = url.hostname.toLowerCase();
+    const isAllowed = allowedDomains.some(
+      (d) => hostname === d || hostname.endsWith(`.${d}`)
+    );
     if (!isAllowed) return null;
   } catch {
     return null;

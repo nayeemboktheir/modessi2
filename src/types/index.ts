@@ -76,6 +76,8 @@ export interface Address {
 
 export interface Order {
   id: string;
+  /** Human-facing number (ORD-YYYYMMDD-NNNNN) — this is what the customer quotes. */
+  orderNumber?: string;
   userId: string;
   items: CartItem[];
   total: number;

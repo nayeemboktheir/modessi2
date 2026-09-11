@@ -3,6 +3,8 @@
 // Optimized for speed: returns response immediately, handles CAPI/SMS in background.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.89.0';
+import { callerIsAdmin } from '../_shared/auth.ts';
+import { maskPhone } from '../_shared/redact.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -56,6 +58,7 @@ function isBangladeshPhone(phone: string) {
 // Background task: Send order email notification
 async function sendOrderEmail(
   supabaseUrl: string,
+  serviceKey: string,
   orderId: string,
   orderNumber: string,
   name: string,
@@ -72,7 +75,12 @@ async function sendOrderEmail(
     const emailUrl = `${supabaseUrl}/functions/v1/send-order-email`;
     const emailResponse = await fetch(emailUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      // The service key identifies this as an internal call; send-order-email
+      // rejects anything else.
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${serviceKey}`,
+      },
       body: JSON.stringify({
         order_id: orderId,
         order_number: orderNumber,
@@ -126,7 +134,11 @@ async function sendOrderSms(
       const smsUrl = `${supabaseUrl}/functions/v1/send-sms`;
       const smsResponse = await fetch(smsUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        // Internal call — send-sms authorizes on the service key.
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${serviceKey}`,
+        },
         body: JSON.stringify({
           phone: phone,
           template_key: 'order_placed',
@@ -245,7 +257,7 @@ Deno.serve(async (req) => {
         
         // Block if has pending orders beyond limit
         if (blockPendingOrders && pendingOrders.length >= maxPendingOrders) {
-          console.log(`Status-based blocking: Phone ${phone} has ${pendingOrders.length} pending orders`);
+          console.log(`Status-based blocking: ${maskPhone(phone)} has ${pendingOrders.length} pending orders`);
           return new Response(
             JSON.stringify({ 
               error: `আপনার ${pendingOrders.length}টি অর্ডার পেন্ডিং আছে। নতুন অর্ডার করতে আগের অর্ডার ডেলিভারি হওয়া পর্যন্ত অপেক্ষা করুন।`,
@@ -262,7 +274,7 @@ Deno.serve(async (req) => {
         
         // Block if has shipped orders (in transit)
         if (blockShippedOrders && shippedOrders.length > 0) {
-          console.log(`Status-based blocking: Phone ${phone} has ${shippedOrders.length} shipped orders`);
+          console.log(`Status-based blocking: ${maskPhone(phone)} has ${shippedOrders.length} shipped orders`);
           return new Response(
             JSON.stringify({ 
               error: `আপনার একটি অর্ডার ডেলিভারির জন্য পাঠানো হয়েছে। ডেলিভারি সম্পন্ন হলে নতুন অর্ডার করতে পারবেন।`,
@@ -314,7 +326,7 @@ Deno.serve(async (req) => {
           returned: 'রিটার্ন',
         };
         
-        console.log(`Time-based blocking: Phone ${phone} has recent order ${lastOrder.order_number} from ${minutesAgo} minutes ago`);
+        console.log(`Time-based blocking: ${maskPhone(phone)} ordered ${lastOrder.order_number} ${minutesAgo} minutes ago`);
         
         const timeAgoText = hoursAgo < 1 
           ? `${minutesAgo} মিনিট আগে` 
@@ -415,7 +427,18 @@ Deno.serve(async (req) => {
       }
     }
 
+    // A "manual" order lets the caller override item prices, shipping, discount and
+    // advance — so it is an admin-only capability, not something a request field can
+    // claim on its own. Anyone else asking for it is refused rather than silently
+    // downgraded, so a real admin never has an order quietly repriced on them.
     const isManualOrder = body.orderSource === 'manual';
+    if (isManualOrder && !(await callerIsAdmin(req))) {
+      console.warn('Rejected manual order from non-admin caller');
+      return new Response(JSON.stringify({ error: 'Admin access required' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const enrichedDbItems = uuidItems.map((i) => {
       const p = productById.get(i.productId);
@@ -523,6 +546,46 @@ Deno.serve(async (req) => {
     const steadfastNote = typeof body.steadfastNote === 'string' ? body.steadfastNote.trim().slice(0, 500) : null;
     const orderSource = isManualOrder ? 'manual' : (body.orderSource === 'landing_page' ? 'landing_page' : 'web');
 
+    // === STOCK ===
+    // Deduct what this order consumes, under a row lock so two concurrent checkouts
+    // can't both take the last unit. Enforcement (refusing the order outright) is
+    // opt-in via admin_settings.stock_enforcement_enabled, because the stock figures
+    // predate any automatic accounting and would otherwise reject valid orders.
+    const { data: stockSetting } = await supabase
+      .from('admin_settings')
+      .select('value')
+      .eq('key', 'stock_enforcement_enabled')
+      .maybeSingle();
+
+    const enforceStock = stockSetting?.value === 'true';
+
+    const { data: shortfalls, error: stockError } = await supabase.rpc('apply_order_stock', {
+      p_items: itemsFinal.map((i) => ({
+        productId: i.productId,
+        variationId: i.variationId,
+        quantity: i.quantity,
+      })),
+      p_enforce: enforceStock,
+    });
+
+    if (stockError) {
+      if (stockError.message?.includes('INSUFFICIENT_STOCK')) {
+        console.log('Order rejected for insufficient stock:', stockError.message);
+        return new Response(
+          JSON.stringify({
+            error: 'দুঃখিত, নির্বাচিত পণ্যের পর্যাপ্ত স্টক নেই। অনুগ্রহ করে পরিমাণ কমিয়ে চেষ্টা করুন।',
+            errorCode: 'INSUFFICIENT_STOCK',
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Never block a sale on a stock-bookkeeping failure when enforcement is off.
+      console.error('Stock update failed, continuing with order:', stockError);
+    } else if (Array.isArray(shortfalls) && shortfalls.length > 0) {
+      console.warn('Order oversells stock:', JSON.stringify(shortfalls));
+    }
+
     const orderId = crypto.randomUUID();
 
     // Insert order first (order_items has FK to orders)
@@ -582,7 +645,7 @@ Deno.serve(async (req) => {
     // These run after the response is sent, so the user doesn't wait
     const backgroundTasks = Promise.all([
       sendOrderSms(supabaseUrl, serviceKey, phone, name, orderNumber, total, orderId),
-      sendOrderEmail(supabaseUrl, orderId, orderNumber, name, phone, address, subtotal, shippingCost, total, itemsFinal, notes),
+      sendOrderEmail(supabaseUrl, serviceKey, orderId, orderNumber, name, phone, address, subtotal, shippingCost, total, itemsFinal, notes),
     ]);
 
     // Use EdgeRuntime.waitUntil to run tasks in background after response

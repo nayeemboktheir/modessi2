@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -68,12 +67,22 @@ const AdminSiteSettings = () => {
   // Save header settings mutation
   const saveHeaderMutation = useMutation({
     mutationFn: async (newSettings: HeaderSettings) => {
-      const settingsToSave = [
+      // Write back only the fields this admin actually changed. Saving all four
+      // unconditionally overwrote the untouched ones with values loaded before the
+      // edit began, silently discarding a concurrent change by another admin.
+      const baseline = existingSettings ?? {};
+      const candidates = [
         { key: 'site_name', value: newSettings.site_name },
         { key: 'site_logo', value: newSettings.site_logo },
         { key: 'header_phone', value: newSettings.header_phone },
         { key: 'header_promo_text', value: newSettings.header_promo_text },
       ];
+
+      const settingsToSave = candidates.filter(
+        ({ key, value }) => value !== (baseline as Record<string, string>)[key]
+      );
+
+      if (settingsToSave.length === 0) return;
 
       for (const setting of settingsToSave) {
         const { error } = await supabase
@@ -140,17 +149,14 @@ const AdminSiteSettings = () => {
 
   if (isLoading) {
     return (
-      <AdminLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      </AdminLayout>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
     );
   }
 
   return (
-    <AdminLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
             <Settings className="h-8 w-8" />
@@ -278,8 +284,7 @@ const AdminSiteSettings = () => {
             </div>
           </CardContent>
         </Card>
-      </div>
-    </AdminLayout>
+    </div>
   );
 };
 

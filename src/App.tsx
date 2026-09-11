@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Provider } from 'react-redux';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -11,49 +12,55 @@ import GoogleAnalyticsTracker from '@/components/tracking/GoogleAnalyticsTracker
 import { TikTokPixelTracker } from '@/components/tracking/TikTokPixelTracker';
 import CartDrawer from '@/components/cart/CartDrawer';
 import FaviconLoader from '@/components/FaviconLoader';
+import SocialChatWidget from '@/components/SocialChatWidget';
 
 import FashionHomePage from '@/pages/FashionHomePage';
-import OrderConfirmationPage from '@/pages/OrderConfirmationPage';
-import AuthPage from '@/pages/AuthPage';
-import MyAccountPage from '@/pages/MyAccountPage';
-import ProductsPage from '@/pages/ProductsPage';
-import ProductDetailPage from '@/pages/ProductDetailPage';
-import WishlistPage from '@/pages/WishlistPage';
-import AboutPage from '@/pages/AboutPage';
-import ContactPage from '@/pages/ContactPage';
-import CartPage from '@/pages/CartPage';
-import CheckoutPage from '@/pages/CheckoutPage';
-import ProductLandingPage from '@/pages/ProductLandingPage';
-import LandingPage from '@/pages/LandingPage';
-import CottonTarselLandingPage from '@/pages/CottonTarselLandingPage';
-import DigitalTarselLandingPage from '@/pages/DigitalTarselLandingPage';
-import ReyonCottonLandingPage from '@/pages/ReyonCottonLandingPage';
 
-import AdminLayout from '@/components/admin/AdminLayout';
-import AdminDashboard from '@/pages/admin/AdminDashboard';
-import AdminProducts from '@/pages/admin/AdminProducts';
-import AdminWholesalePrices from '@/pages/admin/AdminWholesalePrices';
-import AdminCategories from '@/pages/admin/AdminCategories';
-import AdminOrders from '@/pages/admin/AdminOrders';
-import AdminIncompleteOrders from '@/pages/admin/AdminIncompleteOrders';
-import AdminOrderProtection from '@/pages/admin/AdminOrderProtection';
-import AdminCourierHistory from '@/pages/admin/AdminCourierHistory';
-import AdminCourierSettings from '@/pages/admin/AdminCourierSettings';
-import AdminUsers from '@/pages/admin/AdminUsers';
-import AdminInventory from '@/pages/admin/AdminInventory';
-import AdminBanners from '@/pages/admin/AdminBanners';
-import AdminShopSettings from '@/pages/admin/AdminShopSettings';
-import AdminMarketing from '@/pages/admin/AdminMarketing';
-import AdminSMS from '@/pages/admin/AdminSMS';
-import AdminLandingPages from '@/pages/admin/AdminLandingPages';
-import AdminLandingPageEditor from '@/pages/admin/AdminLandingPageEditor';
-import AdminContactSubmissions from '@/pages/admin/AdminContactSubmissions';
-import AdminSiteSettings from '@/pages/admin/AdminSiteSettings';
-import AdminSocialMedia from '@/pages/admin/AdminSocialMedia';
-import AdminReports from '@/pages/admin/AdminReports';
-import AdminHomePageEdit from '@/pages/admin/AdminHomePageEdit';
-import AdminLandingVideoSettings from '@/pages/admin/AdminLandingVideoSettings';
 
+
+// Route components are code-split so a shopper does not download the 24-page admin
+// panel (and recharts, and the landing builder) just to open the storefront. The
+// home page stays eager: it is the most common entry point.
+const OrderConfirmationPage = lazy(() => import('@/pages/OrderConfirmationPage'));
+const AuthPage = lazy(() => import('@/pages/AuthPage'));
+const ResetPasswordPage = lazy(() => import('@/pages/ResetPasswordPage'));
+const MyAccountPage = lazy(() => import('@/pages/MyAccountPage'));
+const ProductsPage = lazy(() => import('@/pages/ProductsPage'));
+const ProductDetailPage = lazy(() => import('@/pages/ProductDetailPage'));
+const WishlistPage = lazy(() => import('@/pages/WishlistPage'));
+const AboutPage = lazy(() => import('@/pages/AboutPage'));
+const ContactPage = lazy(() => import('@/pages/ContactPage'));
+const CartPage = lazy(() => import('@/pages/CartPage'));
+const CheckoutPage = lazy(() => import('@/pages/CheckoutPage'));
+const ProductLandingPage = lazy(() => import('@/pages/ProductLandingPage'));
+const LandingPage = lazy(() => import('@/pages/LandingPage'));
+const CottonTarselLandingPage = lazy(() => import('@/pages/CottonTarselLandingPage'));
+const DigitalTarselLandingPage = lazy(() => import('@/pages/DigitalTarselLandingPage'));
+const ReyonCottonLandingPage = lazy(() => import('@/pages/ReyonCottonLandingPage'));
+const AdminLayout = lazy(() => import('@/components/admin/AdminLayout'));
+const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'));
+const AdminProducts = lazy(() => import('@/pages/admin/AdminProducts'));
+const AdminWholesalePrices = lazy(() => import('@/pages/admin/AdminWholesalePrices'));
+const AdminCategories = lazy(() => import('@/pages/admin/AdminCategories'));
+const AdminOrders = lazy(() => import('@/pages/admin/AdminOrders'));
+const AdminIncompleteOrders = lazy(() => import('@/pages/admin/AdminIncompleteOrders'));
+const AdminOrderProtection = lazy(() => import('@/pages/admin/AdminOrderProtection'));
+const AdminCourierHistory = lazy(() => import('@/pages/admin/AdminCourierHistory'));
+const AdminCourierSettings = lazy(() => import('@/pages/admin/AdminCourierSettings'));
+const AdminUsers = lazy(() => import('@/pages/admin/AdminUsers'));
+const AdminInventory = lazy(() => import('@/pages/admin/AdminInventory'));
+const AdminBanners = lazy(() => import('@/pages/admin/AdminBanners'));
+const AdminShopSettings = lazy(() => import('@/pages/admin/AdminShopSettings'));
+const AdminMarketing = lazy(() => import('@/pages/admin/AdminMarketing'));
+const AdminSMS = lazy(() => import('@/pages/admin/AdminSMS'));
+const AdminLandingPages = lazy(() => import('@/pages/admin/AdminLandingPages'));
+const AdminLandingPageEditor = lazy(() => import('@/pages/admin/AdminLandingPageEditor'));
+const AdminContactSubmissions = lazy(() => import('@/pages/admin/AdminContactSubmissions'));
+const AdminSiteSettings = lazy(() => import('@/pages/admin/AdminSiteSettings'));
+const AdminSocialMedia = lazy(() => import('@/pages/admin/AdminSocialMedia'));
+const AdminReports = lazy(() => import('@/pages/admin/AdminReports'));
+const AdminHomePageEdit = lazy(() => import('@/pages/admin/AdminHomePageEdit'));
+const AdminLandingVideoSettings = lazy(() => import('@/pages/admin/AdminLandingVideoSettings'));
 
 const queryClient = new QueryClient();
 
@@ -68,12 +75,19 @@ const GlobalAppEffects = () => {
   return (
     <>
       <FaviconLoader />
+      <SocialChatWidget />
       <FacebookPixelTracker />
       <GoogleAnalyticsTracker />
       <TikTokPixelTracker />
     </>
   );
 };
+
+const RouteFallback = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+  </div>
+);
 
 const App = () => (
   <Provider store={store}>
@@ -85,6 +99,7 @@ const App = () => (
           <BrowserRouter>
             <GlobalAppEffects />
             <CartDrawer />
+            <Suspense fallback={<RouteFallback />}>
             <Routes>
               {/* Main Pages */}
               <Route path="/" element={<FashionHomePage />} />
@@ -98,6 +113,7 @@ const App = () => (
               <Route path="/my-account" element={<MyAccountPage />} />
               <Route path="/order-confirmation" element={<OrderConfirmationPage />} />
               <Route path="/auth" element={<AuthPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
               
               {/* Landing Pages */}
               <Route path="/step/:slug" element={<ProductLandingPage />} />
@@ -138,6 +154,7 @@ const App = () => (
               {/* Catch all - redirect to main page */}
               <Route path="*" element={<FashionHomePage />} />
             </Routes>
+            </Suspense>
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>

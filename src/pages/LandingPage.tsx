@@ -15,6 +15,7 @@ import {
 import { ShippingMethodSelector, ShippingZone, SHIPPING_RATES } from "@/components/checkout/ShippingMethodSelector";
 import { toast } from "sonner";
 import { getEmbedUrl as getVideoEmbedUrl, parseIframeHtml } from "@/lib/videoEmbed";
+import { useDocumentMeta } from '@/hooks/useDocumentMeta';
 
 interface Section {
   id: string;
@@ -64,6 +65,13 @@ const LandingPage = () => {
     },
   });
 
+  // The page previously rendered `<title>` inside a plain div, which React 18 does
+  // not hoist into <head> — so meta_title was set in the admin and then ignored.
+  useDocumentMeta({
+    title: page?.meta_title || undefined,
+    description: page?.meta_description || undefined,
+  });
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -96,9 +104,6 @@ const LandingPage = () => {
         color: theme.textColor,
       }}
     >
-      {/* SEO Meta */}
-      {page.meta_title && <title>{page.meta_title}</title>}
-
       {/* Custom CSS */}
       {page.custom_css && <style>{page.custom_css}</style>}
 
@@ -157,14 +162,24 @@ const SectionRenderer = ({ section, theme, slug }: SectionRendererProps) => {
   // Fetch products for checkout section
   useEffect(() => {
     if (section.type !== "checkout-form") return;
-    const settings = section.settings as { productIds?: string[] };
-    if (!settings.productIds || settings.productIds.length === 0) return;
+
+    // The section editor saves a single `productId`; older/hand-edited pages carry a
+    // `productIds` array. Accepting both is what makes checkout sections built in the
+    // admin UI actually render products instead of an empty, unsubmittable form.
+    const settings = section.settings as { productIds?: string[]; productId?: string };
+    const productIds = settings.productIds?.length
+      ? settings.productIds
+      : settings.productId
+        ? [settings.productId]
+        : [];
+
+    if (productIds.length === 0) return;
 
     const fetchProducts = async () => {
       const { data: productsData } = await supabase
         .from("products")
         .select("id, name, price, original_price, images")
-        .in("id", settings.productIds || []);
+        .in("id", productIds);
 
       if (productsData) {
         const productsWithVariations = await Promise.all(
@@ -466,7 +481,7 @@ const SectionRenderer = ({ section, theme, slug }: SectionRendererProps) => {
       // Helper to clean text - remove special characters/emojis that don't render
       const cleanText = (text: string) => {
         if (!text) return text;
-        return text.replace(/^[👍✅✔️•\-\*◊◆●○▪▫🔘🌴👉]+\s*/g, '').trim();
+        return text.replace(/^(?:[👍✅✔•\-*◊◆●○▪▫🔘🌴👉]️?|\s)+/gu, '').trim();
       };
       
       return (
@@ -1318,7 +1333,7 @@ const SectionRenderer = ({ section, theme, slug }: SectionRendererProps) => {
       // Helper to clean text - remove special characters/emojis that don't render
       const cleanText = (text: string) => {
         if (!text) return text;
-        return text.replace(/^[👍✅✔️•\-\*◊◆●○▪▫🔘🌴]+\s*/g, '').trim();
+        return text.replace(/^(?:[👍✅✔•\-*◊◆●○▪▫🔘🌴👉]\uFE0F?|\s)+/gu, '').trim();
       };
 
       return (

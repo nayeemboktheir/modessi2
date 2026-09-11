@@ -176,10 +176,14 @@ serve(async (req) => {
 
     // Add hashed phone with Bangladesh country code normalization
     if (body.user_data?.phone) {
+      // Bangladesh E.164 is 880 + the 10-digit subscriber number, i.e. the leading
+      // trunk "0" is dropped: 01712345678 -> 8801712345678, not 88001712345678.
       let cleanPhone = body.user_data.phone.replace(/\D/g, "");
-      if (cleanPhone.startsWith("01")) {
-        cleanPhone = "880" + cleanPhone;
-      } else if (!cleanPhone.startsWith("880")) {
+      if (cleanPhone.startsWith("880")) {
+        // already country-coded
+      } else if (cleanPhone.startsWith("0")) {
+        cleanPhone = "880" + cleanPhone.slice(1);
+      } else {
         cleanPhone = "880" + cleanPhone;
       }
       userData.phone = await hashData(cleanPhone);

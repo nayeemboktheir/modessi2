@@ -25,6 +25,19 @@ const getCartItemKey = (productId: string, variationId?: string): string => {
   return variationId ? `${productId}-${variationId}` : productId;
 };
 
+// Stock available for a cart line: the chosen variation's, else the product's.
+// A missing/unknown value means "unconstrained" so legacy carts keep working.
+const availableStock = (item: CartItem): number | null => {
+  const stock = item.variation?.stock ?? item.product?.stock;
+  return typeof stock === 'number' ? stock : null;
+};
+
+const clampToStock = (item: CartItem, quantity: number): number => {
+  const stock = availableStock(item);
+  const capped = stock === null ? quantity : Math.min(quantity, Math.max(stock, 1));
+  return Math.max(1, capped);
+};
+
 const initialState: CartState = {
   items: loadCartFromStorage(),
   isOpen: false,
@@ -46,9 +59,10 @@ const cartSlice = createSlice({
       );
 
       if (existingItem) {
-        existingItem.quantity += quantity;
+        existingItem.quantity = clampToStock(existingItem, existingItem.quantity + quantity);
       } else {
-        state.items.push({ product, quantity, variation });
+        const newItem = { product, quantity, variation };
+        state.items.push({ ...newItem, quantity: clampToStock(newItem, quantity) });
       }
       saveCartToStorage(state.items);
     },
@@ -72,7 +86,9 @@ const cartSlice = createSlice({
         (item) => getCartItemKey(item.product.id, item.variation?.id) === itemKey
       );
       if (item) {
-        item.quantity = Math.max(1, quantity);
+        // Previously clamped only the lower bound, so "+" could run to any number
+        // regardless of what was actually in stock.
+        item.quantity = clampToStock(item, quantity);
       }
       saveCartToStorage(state.items);
     },

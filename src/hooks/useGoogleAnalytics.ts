@@ -142,6 +142,7 @@ export const useGoogleAnalytics = () => {
     // Initialize gtag
     window.dataLayer = window.dataLayer || [];
     window.gtag = function () {
+      // eslint-disable-next-line prefer-rest-params -- verbatim vendor loader snippet
       window.dataLayer.push(arguments);
     };
     window.gtag('js', new Date());

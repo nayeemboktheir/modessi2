@@ -1,5 +1,11 @@
-project_id = "kphkbmwycreriandedis"
+# Retained for Supabase CLI tooling (db dump, gen types). The backend is now
+# self-hosted on Coolify, not a managed cloud project.
+project_id = "modessi"
 
+# NOTE: on self-hosted Supabase the CLI never reads this block - there is no
+# management API to deploy functions to. JWT verification is enforced by the
+# router in supabase/functions/main/index.ts instead, which reads the
+# FUNCTIONS_VERIFY_JWT and FUNCTIONS_NO_VERIFY_JWT env vars on the
+# supabase-edge-functions container. Kept here as documentation of intent.
 [functions.tiktok-events-api]
 verify_jwt = false
-

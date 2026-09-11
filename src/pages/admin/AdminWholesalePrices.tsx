@@ -218,26 +218,44 @@ export default function AdminWholesalePrices() {
     }
     setBulkRunning(true);
     try {
+      // Each product is isolated: throwing on the first failure used to abandon the
+      // rest, leaving the catalogue partially repriced with nothing on screen saying
+      // which products had already changed.
+      const failed: string[] = [];
+
       for (const product of filteredProducts) {
         const price = Math.round(Number(product.price) * (1 - percent / 100) * 100) / 100;
         const existing = wholesaleMap[keyFor(product.id, null)];
-        if (existing) {
-          const { error } = await supabase
-            .from('wholesale_prices')
-            .update({ wholesale_price: price })
-            .eq('id', existing.id);
-          if (error) throw error;
-        } else {
-          const { error } = await supabase
-            .from('wholesale_prices')
-            .insert({ product_id: product.id, variation_id: null, wholesale_price: price, min_quantity: 1 });
-          if (error) throw error;
+
+        const { error } = existing
+          ? await supabase
+              .from('wholesale_prices')
+              .update({ wholesale_price: price })
+              .eq('id', existing.id)
+          : await supabase
+              .from('wholesale_prices')
+              .insert({ product_id: product.id, variation_id: null, wholesale_price: price, min_quantity: 1 });
+
+        if (error) {
+          console.error(`Bulk price update failed for ${product.name}:`, error);
+          failed.push(product.name);
         }
       }
+
       setDrafts({});
       setBulkOpen(false);
       setBulkPercent('');
-      toast.success(`Updated ${filteredProducts.length} products`);
+
+      const updated = filteredProducts.length - failed.length;
+      if (failed.length === 0) {
+        toast.success(`Updated ${updated} products`);
+      } else {
+        toast.warning(
+          `Updated ${updated} of ${filteredProducts.length}. Failed: ${failed.slice(0, 5).join(', ')}${failed.length > 5 ? ` and ${failed.length - 5} more` : ''}`,
+          { duration: 10000 }
+        );
+      }
+
       await queryClient.invalidateQueries({ queryKey: ['admin-wholesale-prices'] });
     } catch (e: any) {
       toast.error(e?.message || 'Bulk update failed');

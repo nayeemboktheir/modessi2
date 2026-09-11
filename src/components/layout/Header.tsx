@@ -19,7 +19,6 @@ import { selectCartCount, toggleCart } from '@/store/slices/cartSlice';
 import { selectWishlistItems } from '@/store/slices/wishlistSlice';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { categories } from '@/data/mockData';
 import defaultLogo from '@/assets/site-logo.png';
 
 const Header = () => {

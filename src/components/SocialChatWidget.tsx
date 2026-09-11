@@ -13,12 +13,16 @@ const SocialChatWidget = () => {
   const location = useLocation();
   
   // Hide on landing pages
+  // Landing pages run their own conversion flow and must not carry a chat bubble.
+  // Paths match the routes that actually exist in App.tsx.
   const isLandingPage =
     location.pathname.startsWith("/lp/") ||
-    location.pathname.startsWith("/l/") ||
-    location.pathname.startsWith("/landing/");
-  
-  if (isLandingPage) return null;
+    location.pathname.startsWith("/step/") ||
+    location.pathname.startsWith("/admin");
+
+  // No early return above this line: hooks must run in the same order on every
+  // render, and bailing out before useQuery crashed the subtree the moment a
+  // shopper navigated between a landing page and a normal one.
   const { data: settings } = useQuery({
     queryKey: ["social-chat-settings"],
     queryFn: async () => {
@@ -53,7 +57,7 @@ const SocialChatWidget = () => {
     (settings?.messenger_enabled && settings?.messenger_page_id) ||
     (settings?.whatsapp_enabled && settings?.whatsapp_number);
 
-  if (!hasAnyEnabled) return null;
+  if (isLandingPage || !hasAnyEnabled) return null;
 
   const handleWhatsAppClick = () => {
     if (settings?.whatsapp_number) {
