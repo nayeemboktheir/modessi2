@@ -36,21 +36,26 @@ domain), **#32** (client-side metadata only) and **#34** (64 `any` warnings left
 
 Code changes are complete; these need a decision or an action outside the repo.
 
-- [ ] **Apply the three migrations and sync the functions** (commands below). Nothing here is live
-      until you do — and none of the SQL has been run against a real database yet, so apply it to a
-      copy first. The `setval` seeding in `20260911130000` is the part most worth checking against
-      your actual `orders` data.
-- [ ] **Regenerate `src/integrations/supabase/types.ts`** — the two new RPC signatures were
-      hand-written to match what the generator will emit.
+- [x] **Applied the three migrations and redeployed every function** (2026-09-11). The backend the
+      app actually points at is the managed project in `.env` (`kphkbmwycreriandedis`), not the
+      Coolify stack CLAUDE.md describes, so the migrations were applied there and the functions were
+      deployed through the platform rather than by rsync. `setval` seeded the order-number sequence
+      from the existing `ORD-…` rows.
+- [x] **Regenerated `src/integrations/supabase/types.ts`** — the hand-written RPC signatures are
+      replaced by generated output; the `admin_update_order_with_items` typecheck error is gone and
+      `npm run build` is clean.
+- [x] **Rate-limited the four public endpoints** (#1). `public.rate_limit_hits` plus the
+      `rate_limit_hit()` function hold fixed-window counters (a module-level Map is useless when
+      every request gets a fresh worker); `_shared/rateLimit.ts` wraps them. Budgets per IP:
+      `place-order` 20 per 10 minutes, each pixel forwarder 60 per minute. The limiter fails open on
+      a counter error — losing an order to our own bookkeeping would be worse than the abuse.
 - [ ] **Set `admin_settings.order_email_from`** to a verified Resend domain sender (#19). Until
       then order notifications still fall back to the sandbox address, which only delivers to the
       Resend account owner.
-- [ ] **Rate-limit the four genuinely public endpoints** (#1): `place-order` and the three pixel
-      forwarders cannot use a role check, so they remain open to fake orders and polluted ad data.
-      This is the largest piece of unfinished security work.
-- [ ] **Consider dropping `tiktok-events-api` from `FUNCTIONS_NO_VERIFY_JWT`** on the
-      `supabase-edge-functions` container (#1) — it currently needs no token at all, unlike its two
-      siblings.
+- [x] **`tiktok-events-api` JWT** (#1) — moot on the managed platform: there is no
+      `FUNCTIONS_NO_VERIFY_JWT` container variable, all functions deploy with `verify_jwt = false`,
+      and each one authorizes in code. The three pixel forwarders are now equally exposed and
+      equally rate-limited.
 - [ ] **Decide on stock enforcement** (#9) — deducting is already live; refusing orders waits on
       `admin_settings.stock_enforcement_enabled`, see below.
 - [ ] **Prerendering or SSR** if the per-page metadata from #32 needs to reach crawlers that do not

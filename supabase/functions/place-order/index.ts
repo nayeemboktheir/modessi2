@@ -5,6 +5,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.89.0';
 import { callerIsAdmin } from '../_shared/auth.ts';
 import { maskPhone } from '../_shared/redact.ts';
+import { clientIp, tooManyRequests, withinRateLimit } from '../_shared/rateLimit.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -161,6 +162,12 @@ async function sendOrderSms(
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+
+  // Anonymous shoppers place orders here, so a request budget per IP is the only
+  // thing preventing a script from filling the shop with fake orders.
+  if (!(await withinRateLimit('place-order', clientIp(req), 600, 20))) {
+    return tooManyRequests(corsHeaders, 60);
+  }
 
   try {
     if (req.method !== 'POST') {
