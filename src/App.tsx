@@ -12,6 +12,7 @@ import GoogleAnalyticsTracker from '@/components/tracking/GoogleAnalyticsTracker
 import { TikTokPixelTracker } from '@/components/tracking/TikTokPixelTracker';
 import CartDrawer from '@/components/cart/CartDrawer';
 import FaviconLoader from '@/components/FaviconLoader';
+import SocialChatWidget from '@/components/SocialChatWidget';
 
 import FashionHomePage from '@/pages/FashionHomePage';
 
@@ -74,6 +75,7 @@ const GlobalAppEffects = () => {
   return (
     <>
       <FaviconLoader />
+      <SocialChatWidget />
       <FacebookPixelTracker />
       <GoogleAnalyticsTracker />
       <TikTokPixelTracker />

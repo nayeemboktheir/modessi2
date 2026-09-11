@@ -28,7 +28,7 @@ const ERROR_COOLDOWN_MS = 5 * 60 * 1000; // retry failed numbers after 5 mins
 
 // In-memory mirrors so we don't JSON.parse on every render
 let memCache: Record<string, { summary?: Summary; fetchedAt: number }> = {};
-let errorCooldown: Record<string, number> = {};
+const errorCooldown: Record<string, number> = {};
 let cacheLoaded = false;
 
 function loadCache() {

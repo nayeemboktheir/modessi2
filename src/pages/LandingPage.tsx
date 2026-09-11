@@ -15,6 +15,7 @@ import {
 import { ShippingMethodSelector, ShippingZone, SHIPPING_RATES } from "@/components/checkout/ShippingMethodSelector";
 import { toast } from "sonner";
 import { getEmbedUrl as getVideoEmbedUrl, parseIframeHtml } from "@/lib/videoEmbed";
+import { useDocumentMeta } from '@/hooks/useDocumentMeta';
 
 interface Section {
   id: string;
@@ -64,6 +65,13 @@ const LandingPage = () => {
     },
   });
 
+  // The page previously rendered `<title>` inside a plain div, which React 18 does
+  // not hoist into <head> — so meta_title was set in the admin and then ignored.
+  useDocumentMeta({
+    title: page?.meta_title || undefined,
+    description: page?.meta_description || undefined,
+  });
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -96,9 +104,6 @@ const LandingPage = () => {
         color: theme.textColor,
       }}
     >
-      {/* SEO Meta */}
-      {page.meta_title && <title>{page.meta_title}</title>}
-
       {/* Custom CSS */}
       {page.custom_css && <style>{page.custom_css}</style>}
 
@@ -476,7 +481,7 @@ const SectionRenderer = ({ section, theme, slug }: SectionRendererProps) => {
       // Helper to clean text - remove special characters/emojis that don't render
       const cleanText = (text: string) => {
         if (!text) return text;
-        return text.replace(/^[👍✅✔️•\-\*◊◆●○▪▫🔘🌴👉]+\s*/g, '').trim();
+        return text.replace(/^(?:[👍✅✔•\-*◊◆●○▪▫🔘🌴👉]️?|\s)+/gu, '').trim();
       };
       
       return (
@@ -1328,7 +1333,7 @@ const SectionRenderer = ({ section, theme, slug }: SectionRendererProps) => {
       // Helper to clean text - remove special characters/emojis that don't render
       const cleanText = (text: string) => {
         if (!text) return text;
-        return text.replace(/^[👍✅✔️•\-\*◊◆●○▪▫🔘🌴]+\s*/g, '').trim();
+        return text.replace(/^(?:[👍✅✔•\-*◊◆●○▪▫🔘🌴👉]\uFE0F?|\s)+/gu, '').trim();
       };
 
       return (

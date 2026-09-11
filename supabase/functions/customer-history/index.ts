@@ -63,7 +63,10 @@ serve(async (req) => {
     const { data: orders, error } = await supabase
       .from('orders')
       .select('id, order_number, status, total, created_at, shipping_name')
-      .or(phoneVariations.map(p => `shipping_phone.ilike.%${p.slice(-10)}%`).join(','))
+      // Suffix match, not a substring match: %<digits>% also matched a number that
+      // merely contained those ten digits somewhere, returning another customer's
+      // orders under this phone number.
+      .or(phoneVariations.map(p => `shipping_phone.like.%${p.slice(-10)}`).join(','))
       .order('created_at', { ascending: false });
 
     if (error) {

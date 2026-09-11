@@ -135,7 +135,7 @@ export default function FashionHomePage() {
         if (categoriesData) {
           // For categories without images, fetch first product image in parallel
           const catsNeedingImages = categoriesData.filter(cat => !cat.image_url);
-          let productImages: Record<string, string | null> = {};
+          const productImages: Record<string, string | null> = {};
           
           if (catsNeedingImages.length > 0) {
             const imageResults = await Promise.all(

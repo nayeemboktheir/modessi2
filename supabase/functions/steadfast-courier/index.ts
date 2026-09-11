@@ -20,7 +20,6 @@ interface BulkOrderRequest {
   orders: SteadfastOrderRequest[];
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 // Courier APIs occasionally hang. Without a deadline one stalled call blocks the whole
 // request — and inside a bulk loop, every order behind it — until the router kills the
 // worker at 150s.

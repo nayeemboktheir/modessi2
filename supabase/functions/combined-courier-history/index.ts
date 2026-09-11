@@ -169,7 +169,9 @@ async function fetchInternalHistory(
   const { data: orders, error } = await supabase
     .from("orders")
     .select("id, status, total, created_at")
-    .or(phoneVariations.map((p) => `shipping_phone.ilike.%${p.slice(-10)}%`).join(","))
+    // Suffix match — see customer-history: a substring match could attribute another
+    // customer's orders to this phone number.
+    .or(phoneVariations.map((p) => `shipping_phone.like.%${p.slice(-10)}`).join(","))
     .order("created_at", { ascending: false })
     .limit(100);
 

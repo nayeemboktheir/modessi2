@@ -71,9 +71,10 @@ export default function AdminReports() {
     switch (selectedPreset) {
       case 'today':
         return { from: startOfDay(now), to: endOfDay(now) };
-      case 'yesterday':
+      case 'yesterday': {
         const yesterday = subDays(now, 1);
         return { from: startOfDay(yesterday), to: endOfDay(yesterday) };
+      }
       case 'week':
         return { from: startOfWeek(now, { weekStartsOn: 0 }), to: endOfWeek(now, { weekStartsOn: 0 }) };
       case 'month':

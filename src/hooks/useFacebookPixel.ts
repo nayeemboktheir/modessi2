@@ -145,6 +145,7 @@ const loadPixelScript = (pixelId: string, userData?: UserData): Promise<void> =>
     (function (f: any, b: Document, e: string, v: string, n?: any, t?: any, s?: any) {
       if (f.fbq) return;
       n = f.fbq = function () {
+      /* eslint-disable @typescript-eslint/no-unused-expressions, prefer-spread, prefer-rest-params -- verbatim vendor loader snippet; rewriting it risks breaking pixel init */
         n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
       };
       if (!f._fbq) f._fbq = n;

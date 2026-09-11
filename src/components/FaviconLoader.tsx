@@ -3,8 +3,6 @@ import { supabase } from '@/integrations/supabase/client';
 
 export default function FaviconLoader() {
   useEffect(() => {
-    let intervalId: number | undefined;
-
     const loadSiteSettings = async () => {
       try {
         const { data, error } = await supabase
@@ -57,11 +55,11 @@ export default function FaviconLoader() {
     document.addEventListener('visibilitychange', onVisibilityChange);
 
     // Periodic refresh (helps when settings changed in admin without full reload)
-    intervalId = window.setInterval(loadSiteSettings, 30_000);
+    const intervalId = window.setInterval(loadSiteSettings, 30_000);
 
     return () => {
       document.removeEventListener('visibilitychange', onVisibilityChange);
-      if (intervalId) window.clearInterval(intervalId);
+      window.clearInterval(intervalId);
     };
   }, []);
 

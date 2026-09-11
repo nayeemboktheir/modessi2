@@ -63,8 +63,10 @@ SSH_HOST=root@your-server FUNCTIONS_DIR=/data/coolify/.../volumes/functions \
   ./scripts/deploy-functions.sh
 ```
 
-Function secrets (courier API keys, SMS provider credentials, the Resend key) are set as environment
-variables on the `supabase-edge-functions` container in Coolify, not in this repo.
+Function secrets (courier API keys, SMS provider credentials) are set as environment variables on
+the `supabase-edge-functions` container in Coolify, not in this repo. The Resend key and the
+order-notification sender are the exception — they are read from `admin_settings`
+(`resend_api_key`, `order_email_from`), so the sender can be changed without a redeploy.
 
 JWT verification is enforced by the router, not by `supabase/config.toml`. Functions listed in the
 `FUNCTIONS_NO_VERIFY_JWT` env var are reachable without a token; everything else requires one.

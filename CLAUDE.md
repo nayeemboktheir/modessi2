@@ -34,18 +34,21 @@ admin panel from one bundle, against a **self-hosted** Supabase stack (Coolify),
 
 ### Front end
 
-- **Routing** — every route is declared eagerly in [src/App.tsx](src/App.tsx) (no lazy loading, no
-  nested route configs). Admin pages are wrapped inline as `<AdminLayout><AdminX /></AdminLayout>`;
-  a couple of routes (`/admin/order-protection`, `/admin/landing-video-settings`) deliberately skip
-  the layout. `*` falls through to the home page, so `NotFound.tsx` is unused.
+- **Routing** — every route is declared in [src/App.tsx](src/App.tsx) (no nested route configs) and
+  every route component except the home page is `React.lazy`-loaded behind a single `<Suspense>`, so
+  the storefront bundle does not carry the admin panel. Admin pages are wrapped inline as
+  `<AdminLayout><AdminX /></AdminLayout>`; `/admin/order-protection` and
+  `/admin/landing-video-settings` are not wrapped at the route level because those two components
+  wrap themselves. `*` falls through to the home page, so `NotFound.tsx` is unused but kept.
 - **Two state systems coexist.** Redux Toolkit ([src/store/](src/store/)) holds cart and wishlist,
   which persist to `localStorage` inside the slices themselves; TanStack Query holds all
   server-derived data. Most pages call Supabase directly through `useQuery` rather than going
   through [src/services/](src/services/) — the service layer (`productService`, `orderService`,
   `adminService`) is partial, so check whether a helper exists before adding a duplicate query.
 - **Auth** — [src/hooks/useAuth.tsx](src/hooks/useAuth.tsx) is a context provider over Supabase
-  GoTrue that also resolves `isAdmin` by querying `user_roles`, with a 5-minute module-level cache.
-  `AdminLayout` gates admin routes on it, but that is convenience only: real authorization is RLS.
+  GoTrue that also resolves `isAdmin` by querying `user_roles`, with a 1-minute module-level cache
+  that is cleared on sign-out. `AdminLayout` gates admin routes on it, but that is convenience only:
+  real authorization is RLS in the database and an explicit role check in the edge functions.
 - **Site configuration** lives in the `admin_settings` table as loose `key`/`value` rows, read
   ad-hoc by whichever component needs it (`Header`, `Footer`, `FaviconLoader`, print dialogs,
   pixel hooks). Adding a setting means adding a row plus a reader — there is no central config
@@ -78,17 +81,29 @@ as a single long-lived router that verifies the JWT and spawns a user worker per
 
 - **Deploying is an rsync**, not `supabase functions deploy`. Individual functions reload per
   request; changes to `main/index.ts` need a container restart.
-- **JWT verification is the router's job**, driven by the `FUNCTIONS_VERIFY_JWT` and
-  `FUNCTIONS_NO_VERIFY_JWT` env vars on the `supabase-edge-functions` container.
-  `verify_jwt` in `supabase/config.toml` is documentation only — nothing reads it.
-- Secrets (courier keys, SMS credentials, Resend key) are container env vars in Coolify, not in
-  this repo.
+- **The router only checks that the JWT is signed**, driven by the `FUNCTIONS_VERIFY_JWT` and
+  `FUNCTIONS_NO_VERIFY_JWT` env vars on the `supabase-edge-functions` container (`verify_jwt` in
+  `supabase/config.toml` is documentation only — nothing reads it). The publishable anon key is a
+  valid signed JWT and ships in the browser bundle, **so passing the router proves nothing about the
+  caller.** Every function that spends money or touches customer data authorizes for itself via
+  [`_shared/auth.ts`](supabase/functions/_shared/auth.ts): `requireAdmin` on the courier and history
+  functions, `requireAdminOrInternal` (which also accepts the service-role key, for
+  function-to-function calls) on `send-sms` and `send-order-email`. Add that guard to any new
+  function unless it genuinely must be public.
+- **Each request runs in a freshly spawned worker**, so module-level state does not survive between
+  calls. Anything that needs to persist — caches, rate-limit counters — belongs in a table; see
+  `courier_lookup_cache` and [`_shared/courierCache.ts`](supabase/functions/_shared/courierCache.ts).
+- Secrets (courier keys, SMS credentials) are container env vars in Coolify. The Resend key and the
+  order-email sender are the exception: they live in `admin_settings`
+  (`resend_api_key`, `order_email_from`).
 
 `place-order` is the checkout path: it uses the service-role key so guests can order, responds
-immediately, and defers SMS / courier / pixel work to `EdgeRuntime.waitUntil` — which is why the
-router allows a 150s worker timeout. Courier integrations (`steadfast-*`, `carrybee-courier`,
-`bdcourier` via `courier-history` / `combined-courier-history`) cache aggressively and self-rate-limit
-because the upstream APIs are strict.
+immediately, and defers SMS / email work to `EdgeRuntime.waitUntil` — which is why the router allows
+a 150s worker timeout. It also deducts stock through the `apply_order_stock` RPC, but only *refuses*
+an order when `admin_settings.stock_enforcement_enabled` is `'true'` (off by default). Courier
+integrations (`steadfast-*`, `carrybee-courier`, `bdcourier` via `courier-history` /
+`combined-courier-history`) are strictly rate-limited upstream, so they cache into
+`courier_lookup_cache` and refuse to re-dispatch an order that already has a `tracking_number`.
 
 ### Deployment
 
@@ -102,7 +117,11 @@ pointing at a different backend means updating those secrets and re-running the 
 
 - TypeScript is deliberately loose (`strictNullChecks: false`, `noImplicitAny: false`) and
   `@typescript-eslint/no-unused-vars` is off. Don't tighten these globally as a side effect of
-  another change.
+  another change. `npm run lint` still reports ~64 `no-explicit-any` errors in app code; that is the
+  known baseline, not a regression you introduced.
+- [eslint.config.js](eslint.config.js) has per-area blocks: `supabase/functions/**` lints as Deno
+  (browser globals and `no-explicit-any` do not apply there) and `src/components/ui/**` is exempt
+  from the empty-interface rule because those files are shadcn-generated.
 - UI is shadcn/ui in [src/components/ui/](src/components/ui/) (generated — edit only when
   intentionally customizing) plus feature folders under `src/components/`. Toasts come in two
   flavors: the shadcn `useToast` and `sonner`; both are mounted.

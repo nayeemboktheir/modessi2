@@ -155,7 +155,7 @@ function RiskBadge({ level }: { level: string }) {
 }
 
 // Global queue to stagger BD Courier requests
-let bdFetchQueue: Array<() => Promise<void>> = [];
+const bdFetchQueue: Array<() => Promise<void>> = [];
 let bdFetchRunning = false;
 
 async function processBdQueue() {

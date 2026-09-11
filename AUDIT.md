@@ -15,15 +15,29 @@ Ordered by severity. Line references are clickable.
 | Critical | 4 | 4 | 0 |
 | High | 10 | 10 | 0 |
 | Medium | 13 | 13 | 0 |
-| Low | 7 | 0 | 7 |
+| Low | 7 | 7 | 0 |
 
 One Medium finding (**#21**) turned out to be half wrong on re-examination — both pages it
 named were in fact guarded. The correction is recorded in place rather than deleted.
 
-Fixed findings carry a `> **Fixed**` note under their heading saying what changed. Three carry
+Fixed findings carry a `> **Fixed**` note under their heading saying what changed. Five carry
 qualifications worth reading: **#1** (the public endpoints still need rate limiting), **#9** (stock
-enforcement ships switched off) and **#19** (the order-email sender must still be pointed at a
-verified domain).
+enforcement ships switched off), **#19** (the order-email sender must still be pointed at a verified
+domain), **#32** (client-side metadata only) and **#34** (64 `any` warnings left in place).
+
+### Deliberately not changed
+
+- **`*` still routes to the home page**, not to `NotFound.tsx`. Sending a mistyped or expired ad
+  link to the storefront rather than a dead end is a plausible product decision, so the file is kept
+  but left unrouted. Switching it is a one-line change in `App.tsx` if you would rather return a
+  real 404.
+- **`ProductLandingPage` still injects raw HTML** for its video embed. That content comes from
+  `admin_settings`, which only an admin can write, and the "paste an Elementor embed" behaviour is
+  the point of the field. The shared `parseIframeHtml` allowlist it bypasses has been tightened for
+  every other caller.
+- **64 `@typescript-eslint/no-explicit-any` errors** remain in application code. CLAUDE.md records
+  that the TypeScript setup is deliberately loose, and retyping 64 call sites is a refactor in its
+  own right rather than a bug fix.
 
 ### Deploying the fixes
 
@@ -362,17 +376,23 @@ their line items in 500-row batches, then filters client-side and caches the who
 
 ### 28. Over-broad phone matching
 
+> **Fixed** — both queries use a suffix match (`like.%<last10>`) instead of a substring match.
+
 `ilike.%<last 10 digits>%` in [customer-history:61](supabase/functions/customer-history/index.ts#L61)
 and [combined-courier-history:170](supabase/functions/combined-courier-history/index.ts#L170) is a
 substring match that can return a different customer's history.
 
 ### 29. Iframe allowlist is bypassable
 
+> **Fixed** — `videoEmbed.ts` matches the exact host or a true subdomain, and rejects non-HTTPS sources. The raw-HTML injection in `ProductLandingPage` is left as-is: it is admin-authored content by design (see note below).
+
 [videoEmbed.ts:35](src/lib/videoEmbed.ts#L35) uses `url.hostname.includes(d)`, so
 `youtube.com.evil.com` passes. [ProductLandingPage.tsx:344](src/pages/ProductLandingPage.tsx#L344)
 skips the helper entirely and injects raw HTML by design.
 
 ### 30. Conditional hook in `SocialChatWidget`
+
+> **Fixed** — the early return now sits after the hook, and the widget is actually mounted in `App.tsx`, so the settings `AdminSocialMedia` already exposes finally do something.
 
 [SocialChatWidget.tsx:21](src/components/SocialChatWidget.tsx#L21) calls `useQuery` after an early
 `return null` — a rules-of-hooks violation and the one real error from `npm run lint`. Currently
@@ -381,11 +401,15 @@ even when an admin enables it.
 
 ### 31. Dead code
 
+> **Fixed** — deleted `HomePage.tsx`, `TulshiLandingPage.tsx`, `AdminSteadfast.tsx`, `mockData.ts`, `supabase/functions/index.ts`, and the five unused landing-builder Row/Widget components, plus the dead `mockData` import in `Header.tsx`. `NotFound.tsx` is kept — see note below.
+
 `HomePage.tsx`, `TulshiLandingPage.tsx`, `NotFound.tsx` (the `*` route renders the home page),
 `AdminSteadfast.tsx`, `supabase/functions/index.ts`, `src/data/mockData.ts`, and the landing-builder
 Row/Widget editors — none reachable from [App.tsx](src/App.tsx).
 
 ### 32. No per-page SEO
+
+> **Partly fixed** — new `useDocumentMeta` hook sets per-page title and Open Graph tags, wired into `ProductDetailPage` and `LandingPage` (whose `meta_title` was being rendered inside a `<div>`, where React 18 ignores it entirely). This only helps crawlers that run JavaScript; real per-page SEO needs prerendering. No sitemap yet.
 
 [index.html](index.html) hardcodes one title, description and `og:image` for all routes and there is
 no react-helmet, so every product and landing page shares a generic Facebook link preview. No
@@ -393,11 +417,15 @@ no react-helmet, so every product and landing page shares a generic Facebook lin
 
 ### 33. Config drift
 
+> **Fixed** — removed `netlify.toml`, `vercel.json`, `public/_redirects`, `bun.lock` and `bun.lockb`. The Resend-key discrepancy is resolved in the other direction: `send-order-email` reads it from `admin_settings`, and the README/CLAUDE.md now say so.
+
 `netlify.toml`, `vercel.json` and `public/_redirects` are all present although deployment is to
 Hostinger via `.htaccess`. The Resend key is read from `admin_settings` while the README says it is a
 container secret. `bun.lock` and `bun.lockb` sit alongside the npm lockfile that CI actually uses.
 
 ### 34. Lint and tooling
+
+> **Partly fixed** — 123 errors → 64. Edge functions now lint under a Deno-appropriate config instead of browser globals, shadcn-generated files are exempt from the empty-interface rule, the Bengali bullet-stripping regexes are valid under the `u` flag, and the vendor pixel snippets are marked rather than rewritten. caniuse-lite updated. The remaining 64 are all `no-explicit-any` in app code — see note below.
 
 `npm run lint` reports 123 errors and 21 warnings. caniuse-lite is 15 months stale.
 

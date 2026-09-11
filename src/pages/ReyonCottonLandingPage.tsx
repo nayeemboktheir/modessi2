@@ -535,7 +535,7 @@ const ProductDescriptionSection = memo(({ products }: { products: ProductData[] 
             <div className="p-6">
               <ul className="space-y-3">
                 {lines.map((line, idx) => {
-                  const cleanLine = line.replace(/^[-•*👉]\s*/, '').trim();
+                  const cleanLine = line.replace(/^[-•*👉]\s*/u, '').trim();
                   if (!cleanLine) return null;
                   return (
                     <li key={idx} className="flex items-start gap-3">
