@@ -1031,6 +1031,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_update_order_with_items: {
+        Args: { p_items: Json; p_order: Json; p_order_id: string }
+        Returns: undefined
+      }
+      apply_order_stock: {
+        Args: { p_enforce?: boolean; p_items: Json }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

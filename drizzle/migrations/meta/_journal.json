@@ -15,6 +15,13 @@
       "when": 1789119620166,
       "tag": "0001_courier_lookup_cache",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789119663572,
+      "tag": "0002_order_integrity_and_stock",
+      "breakpoints": true
     }
   ]
 }
