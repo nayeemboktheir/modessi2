@@ -165,7 +165,7 @@ Deno.serve(async (req) => {
 
   // Anonymous shoppers place orders here, so a request budget per IP is the only
   // thing preventing a script from filling the shop with fake orders.
-  if (!(await withinRateLimit('place-order', clientIp(req), 600, 8))) {
+  if (!(await withinRateLimit('place-order', clientIp(req), 600, 20))) {
     return tooManyRequests(corsHeaders, 60);
   }
 
