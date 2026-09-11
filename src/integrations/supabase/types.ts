@@ -271,6 +271,24 @@ export type Database = {
         }
         Relationships: []
       }
+      courier_lookup_cache: {
+        Row: {
+          cache_key: string
+          fetched_at: string
+          payload: Json
+        }
+        Insert: {
+          cache_key: string
+          fetched_at?: string
+          payload: Json
+        }
+        Update: {
+          cache_key?: string
+          fetched_at?: string
+          payload?: Json
+        }
+        Relationships: []
+      }
       draft_orders: {
         Row: {
           converted_at: string | null

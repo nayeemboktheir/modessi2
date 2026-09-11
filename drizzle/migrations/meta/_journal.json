@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1789119616725,
+      "tag": "0000_restrict_anonymous_table_access",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789119620166,
+      "tag": "0001_courier_lookup_cache",
+      "breakpoints": true
+    }
+  ]
+}
