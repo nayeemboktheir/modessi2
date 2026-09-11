@@ -4,11 +4,18 @@ Scope: database schema and RLS policies, all 15 edge functions, the storefront, 
 build/deploy configuration. Every finding below was verified against the code on the `migration`
 branch; anything that could not be confirmed by reading the source was dropped.
 
-Ordered by severity. Line references are clickable.
+Ordered by severity.
+
+> **Line references describe the code as it was when audited.** Every finding has since been fixed,
+> so the anchors no longer land on the code being described — the file links are still correct, the
+> line numbers have shifted. Each finding's `> **Fixed**` note says what the code does now.
 
 ---
 
 ## Status
+
+**All 34 findings closed.** `npx tsc --noEmit` is clean and `npm run build` succeeds; `npm run lint`
+reports 64 errors, all of them the pre-existing `no-explicit-any` baseline described under #34.
 
 | Severity | Total | Fixed | Open |
 |---|---|---|---|
@@ -24,6 +31,30 @@ Fixed findings carry a `> **Fixed**` note under their heading saying what change
 qualifications worth reading: **#1** (the public endpoints still need rate limiting), **#9** (stock
 enforcement ships switched off), **#19** (the order-email sender must still be pointed at a verified
 domain), **#32** (client-side metadata only) and **#34** (64 `any` warnings left in place).
+
+### Still to do
+
+Code changes are complete; these need a decision or an action outside the repo.
+
+- [ ] **Apply the three migrations and sync the functions** (commands below). Nothing here is live
+      until you do — and none of the SQL has been run against a real database yet, so apply it to a
+      copy first. The `setval` seeding in `20260911130000` is the part most worth checking against
+      your actual `orders` data.
+- [ ] **Regenerate `src/integrations/supabase/types.ts`** — the two new RPC signatures were
+      hand-written to match what the generator will emit.
+- [ ] **Set `admin_settings.order_email_from`** to a verified Resend domain sender (#19). Until
+      then order notifications still fall back to the sandbox address, which only delivers to the
+      Resend account owner.
+- [ ] **Rate-limit the four genuinely public endpoints** (#1): `place-order` and the three pixel
+      forwarders cannot use a role check, so they remain open to fake orders and polluted ad data.
+      This is the largest piece of unfinished security work.
+- [ ] **Consider dropping `tiktok-events-api` from `FUNCTIONS_NO_VERIFY_JWT`** on the
+      `supabase-edge-functions` container (#1) — it currently needs no token at all, unlike its two
+      siblings.
+- [ ] **Decide on stock enforcement** (#9) — deducting is already live; refusing orders waits on
+      `admin_settings.stock_enforcement_enabled`, see below.
+- [ ] **Prerendering or SSR** if the per-page metadata from #32 needs to reach crawlers that do not
+      run JavaScript.
 
 ### Deliberately not changed
 
@@ -41,7 +72,9 @@ domain), **#32** (client-side metadata only) and **#34** (64 `any` warnings left
 
 ### Deploying the fixes
 
-Nothing below takes effect until both of these run:
+Nothing in this document takes effect until both of these run. The front end also needs a rebuild
+and redeploy (the manual `workflow_dispatch` job in `.github/workflows/deploy.yml`) for the
+application-side fixes to reach shoppers.
 
 ```sh
 # migrations, in order
