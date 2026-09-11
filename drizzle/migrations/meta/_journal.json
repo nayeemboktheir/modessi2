@@ -22,6 +22,13 @@
       "when": 1789119663572,
       "tag": "0002_order_integrity_and_stock",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789119698030,
+      "tag": "0003_rate_limit_hits",
+      "breakpoints": true
     }
   ]
 }
