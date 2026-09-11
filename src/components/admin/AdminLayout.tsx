@@ -1,4 +1,4 @@
-import { ReactNode, useEffect } from 'react';
+import { CSSProperties, ReactNode, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
@@ -206,6 +206,8 @@ interface AdminLayoutProps {
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const { user, isLoading, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isLandingPageEditor = /^\/admin\/landing-pages\/[^/]+$/.test(location.pathname);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -232,12 +234,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   return (
-    <SidebarProvider>
+    <SidebarProvider style={{ '--sidebar-width-icon': '4rem' } as CSSProperties}>
       <div className="min-h-screen flex w-full bg-muted/30">
         <AdminSidebar />
         <div className="flex-1 flex flex-col">
           <AdminHeader />
-          <main className="flex-1 p-6 overflow-auto">
+          <main className={`flex-1 overflow-auto ${isLandingPageEditor ? '' : 'p-6'}`}>
             {children}
           </main>
         </div>

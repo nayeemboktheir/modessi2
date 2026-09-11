@@ -205,7 +205,7 @@ const AdminLandingPageEditor = () => {
   return (
     <div className="flex h-full min-h-[680px] flex-col overflow-hidden rounded-2xl border bg-card shadow-sm">
       {/* Header */}
-      <header className="z-10 flex flex-wrap items-center justify-between gap-4 border-b bg-card px-4 py-3 sm:px-5">
+      <header className="z-10 flex flex-wrap items-center gap-4 border-b bg-card px-4 py-3 sm:px-5">
         <div className="flex min-w-0 items-center gap-3">
           <Button variant="ghost" size="icon" className="shrink-0 rounded-lg" asChild>
             <Link to="/admin/landing-pages">
@@ -285,7 +285,19 @@ const AdminLandingPageEditor = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 self-end sm:self-auto">
+        <div className="hidden flex-1 items-center justify-center lg:flex">
+          <div className="flex items-center gap-3 rounded-lg border bg-muted/30 px-3 py-1.5">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">Canvas preview</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">{previewMode === "mobile" ? "Mobile · 375 px" : "Desktop · responsive"}</p>
+            </div>
+            <span className="rounded-full border bg-card px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+              {formData.sections.length} {formData.sections.length === 1 ? "section" : "sections"}
+            </span>
+          </div>
+        </div>
+
+        <div className="ml-auto flex items-center gap-2 self-end sm:self-auto">
           <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-1">
             <Button
               variant={previewMode === "desktop" ? "secondary" : "ghost"}
@@ -494,18 +506,9 @@ const AdminLandingPageEditor = () => {
 
         {/* Right Panel - Preview */}
         <div className="flex min-w-0 flex-1 flex-col overflow-auto bg-[radial-gradient(circle_at_top,_hsl(var(--primary)/0.08),_transparent_32%),linear-gradient(hsl(var(--muted)/0.55),hsl(var(--background)))] p-4 sm:p-6">
-          <div className="mb-3 flex items-center justify-between px-1">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Canvas preview</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">{previewMode === "mobile" ? "Mobile · 375 px" : "Desktop · responsive"}</p>
-            </div>
-            <span className="rounded-full border bg-card/80 px-2.5 py-1 text-[11px] font-medium text-muted-foreground shadow-sm">
-              {formData.sections.length} {formData.sections.length === 1 ? "section" : "sections"}
-            </span>
-          </div>
           <div
             className={`mx-auto w-full overflow-hidden rounded-xl border bg-background shadow-xl transition-all duration-300 ${
-              previewMode === "mobile" ? "max-w-[375px]" : "max-w-[1200px]"
+              previewMode === "mobile" ? "max-w-[375px]" : "max-w-none"
             }`}
             style={{
               fontFamily: formData.theme_settings.fontFamily,
