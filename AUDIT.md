@@ -49,15 +49,17 @@ Code changes are complete; these need a decision or an action outside the repo.
       every request gets a fresh worker); `_shared/rateLimit.ts` wraps them. Budgets per IP:
       `place-order` 20 per 10 minutes, each pixel forwarder 60 per minute. The limiter fails open on
       a counter error — losing an order to our own bookkeeping would be worse than the abuse.
-- [ ] **Set `admin_settings.order_email_from`** to a verified Resend domain sender (#19). Until
-      then order notifications still fall back to the sandbox address, which only delivers to the
-      Resend account owner.
+- [x] **`admin_settings.order_email_from`** set to `order@modessi.shop` (#19). Delivery still
+      depends on `modessi.shop` being a verified sending domain in the Resend account — until it is,
+      Resend rejects the send rather than silently falling back.
 - [x] **`tiktok-events-api` JWT** (#1) — moot on the managed platform: there is no
       `FUNCTIONS_NO_VERIFY_JWT` container variable, all functions deploy with `verify_jwt = false`,
       and each one authorizes in code. The three pixel forwarders are now equally exposed and
       equally rate-limited.
-- [ ] **Decide on stock enforcement** (#9) — deducting is already live; refusing orders waits on
-      `admin_settings.stock_enforcement_enabled`, see below.
+- [x] **Stock enforcement stays off** (#9) — deducting is live, refusing is not:
+      `admin_settings.stock_enforcement_enabled` is now explicitly `'false'`. Oversells surface in
+      Inventory as negative stock instead of turning a customer away. Flip the value to `'true'`
+      once the counts are trusted; no deploy needed.
 - [ ] **Prerendering or SSR** if the per-page metadata from #32 needs to reach crawlers that do not
       run JavaScript.
 
