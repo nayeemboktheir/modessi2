@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Save, Eye, Settings, Palette, Smartphone, Monitor, Pencil, Check, X } from "lucide-react";
+import { ArrowLeft, Save, Eye, Settings, Palette, Smartphone, Monitor, Pencil, Check, X, Layers3, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -203,16 +203,22 @@ const AdminLandingPageEditor = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <div className="flex h-full min-h-[680px] flex-col overflow-hidden rounded-2xl border bg-card shadow-sm">
       {/* Header */}
-      <header className="border-b px-4 py-2 flex items-center justify-between bg-background z-10">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" asChild>
+      <header className="z-10 flex flex-wrap items-center justify-between gap-4 border-b bg-card px-4 py-3 sm:px-5">
+        <div className="flex min-w-0 items-center gap-3">
+          <Button variant="ghost" size="icon" className="shrink-0 rounded-lg" asChild>
             <Link to="/admin/landing-pages">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
-          <div>
+          <div className="min-w-0">
+            <div className="mb-0.5 flex items-center gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.13em] text-muted-foreground">Landing page</span>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${formData.is_published ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+                {formData.is_published ? "Live" : "Draft"}
+              </span>
+            </div>
             <Input
               value={formData.title}
               onChange={(e) => {
@@ -224,7 +230,7 @@ const AdminLandingPageEditor = () => {
                 }));
               }}
               placeholder="Page Title"
-              className="font-semibold text-lg border-none shadow-none px-0 h-auto focus-visible:ring-0"
+              className="h-6 max-w-[220px] border-none px-0 text-lg font-semibold shadow-none focus-visible:ring-0 sm:max-w-[320px]"
             />
             {editingSlug ? (
               <div className="flex items-center gap-1 mt-1">
@@ -279,27 +285,29 @@ const AdminLandingPageEditor = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 border rounded-md p-1">
+        <div className="flex items-center gap-2 self-end sm:self-auto">
+          <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-1">
             <Button
               variant={previewMode === "desktop" ? "secondary" : "ghost"}
               size="icon"
-              className="h-7 w-7"
+              className="h-7 w-7 rounded-md"
               onClick={() => setPreviewMode("desktop")}
+              title="Desktop preview"
             >
               <Monitor className="h-4 w-4" />
             </Button>
             <Button
               variant={previewMode === "mobile" ? "secondary" : "ghost"}
               size="icon"
-              className="h-7 w-7"
+              className="h-7 w-7 rounded-md"
               onClick={() => setPreviewMode("mobile")}
+              title="Mobile preview"
             >
               <Smartphone className="h-4 w-4" />
             </Button>
           </div>
 
-          <div className="flex items-center gap-2 px-2">
+          <div className="flex items-center gap-2 border-l pl-3">
             <Switch
               id="published"
               checked={formData.is_published}
@@ -311,11 +319,11 @@ const AdminLandingPageEditor = () => {
                 }))
               }
             />
-            <Label htmlFor="published" className="text-sm">Publish</Label>
+            <Label htmlFor="published" className="hidden text-sm font-medium sm:inline">Publish</Label>
           </div>
 
           {!isNew && formData.is_published && (
-            <Button variant="outline" size="sm" asChild>
+            <Button variant="outline" size="sm" className="hidden sm:inline-flex" asChild>
               <a href={`/lp/${formData.slug}`} target="_blank" rel="noopener noreferrer">
                 <Eye className="mr-1 h-4 w-4" />
                 View
@@ -325,6 +333,7 @@ const AdminLandingPageEditor = () => {
 
           <Button
             size="sm"
+            className="shadow-sm"
             onClick={() => saveMutation.mutate(formData)}
             disabled={saveMutation.isPending || !formData.title}
           >
@@ -335,38 +344,44 @@ const AdminLandingPageEditor = () => {
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* Left Panel - Editor */}
-        <div className="w-80 border-r flex flex-col bg-muted/30">
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="flex flex-col h-full">
-            <TabsList className="grid w-full grid-cols-3 mx-2 mt-2" style={{ width: "calc(100% - 16px)" }}>
-              <TabsTrigger value="sections" className="text-xs">Sections</TabsTrigger>
-              <TabsTrigger value="theme" className="text-xs">
+        <div className="flex w-[340px] shrink-0 flex-col border-r bg-muted/[0.22] xl:w-[370px]">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="flex h-full min-h-0 flex-col">
+            <TabsList className="mx-3 mt-3 grid h-10 w-auto grid-cols-3 rounded-lg bg-muted/70 p-1">
+              <TabsTrigger value="sections" className="gap-1.5 rounded-md text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                <Layers3 className="h-3.5 w-3.5" />
+                Sections
+              </TabsTrigger>
+              <TabsTrigger value="theme" className="gap-1.5 rounded-md text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm">
                 <Palette className="h-3 w-3 mr-1" />
                 Theme
               </TabsTrigger>
-              <TabsTrigger value="settings" className="text-xs">
+              <TabsTrigger value="settings" className="gap-1.5 rounded-md text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm">
                 <Settings className="h-3 w-3 mr-1" />
                 Settings
               </TabsTrigger>
             </TabsList>
 
-            <ScrollArea className="flex-1">
-              <div className="p-3">
+            <ScrollArea className="flex-1 min-h-0">
+              <div className="p-4">
                 <TabsContent value="sections" className="mt-0 space-y-4">
                   <SectionPalette onAddSection={addSection} />
                   
-                  <Separator />
+                  <Separator className="my-5" />
                   
                   {formData.sections.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <p className="text-sm">No sections yet</p>
-                      <p className="text-xs">Add sections from above</p>
+                    <div className="rounded-xl border border-dashed bg-background/70 px-4 py-6 text-center">
+                      <div className="mx-auto mb-3 flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
+                        <Layers3 className="h-4 w-4" />
+                      </div>
+                      <p className="text-sm font-semibold text-foreground">Your page is empty</p>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">Add a hero section first, then build the story with benefits and proof.</p>
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-                        Page Sections ({formData.sections.length})
+                      <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                        On this page · {formData.sections.length}
                       </h3>
                       {formData.sections.map((section, index) => (
                         <SectionEditor
@@ -478,9 +493,18 @@ const AdminLandingPageEditor = () => {
         </div>
 
         {/* Right Panel - Preview */}
-        <div className="flex-1 bg-muted/50 overflow-auto p-4">
+        <div className="flex min-w-0 flex-1 flex-col overflow-auto bg-[radial-gradient(circle_at_top,_hsl(var(--primary)/0.08),_transparent_32%),linear-gradient(hsl(var(--muted)/0.55),hsl(var(--background)))] p-4 sm:p-6">
+          <div className="mb-3 flex items-center justify-between px-1">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Canvas preview</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{previewMode === "mobile" ? "Mobile · 375 px" : "Desktop · responsive"}</p>
+            </div>
+            <span className="rounded-full border bg-card/80 px-2.5 py-1 text-[11px] font-medium text-muted-foreground shadow-sm">
+              {formData.sections.length} {formData.sections.length === 1 ? "section" : "sections"}
+            </span>
+          </div>
           <div
-            className={`mx-auto bg-background shadow-lg transition-all duration-300 overflow-hidden ${
+            className={`mx-auto w-full overflow-hidden rounded-xl border bg-background shadow-xl transition-all duration-300 ${
               previewMode === "mobile" ? "max-w-[375px]" : "max-w-[1200px]"
             }`}
             style={{
@@ -491,9 +515,16 @@ const AdminLandingPageEditor = () => {
             {formData.custom_css && <style>{formData.custom_css}</style>}
             
             {formData.sections.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-96 text-muted-foreground">
-                <p className="text-lg font-medium">Start building your page</p>
-                <p className="text-sm">Add sections from the left panel</p>
+              <div className="flex min-h-[520px] flex-col items-center justify-center px-6 text-center">
+                <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-sm">
+                  <Sparkles className="h-7 w-7" />
+                </div>
+                <p className="text-xl font-semibold text-foreground">Start with a strong first impression</p>
+                <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">Choose a section from the library to see it here instantly. A hero, benefits grid, and checkout form make a great starting point.</p>
+                <Button className="mt-6" size="sm" onClick={() => setActiveTab("sections")}>
+                  <Layers3 className="mr-2 h-4 w-4" />
+                  Browse sections
+                </Button>
               </div>
             ) : (
               formData.sections.map((section) => (

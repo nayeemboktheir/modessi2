@@ -113,6 +113,7 @@ const defaultVariations: ProductVariation[] = [
 
 export default function AdminProducts() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [variationStockByProduct, setVariationStockByProduct] = useState<Record<string, { total: number; count: number }>>({});
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -139,12 +140,29 @@ export default function AdminProducts() {
 
   const loadData = async () => {
     try {
-      const [productsData, categoriesData] = await Promise.all([
+      const [productsData, categoriesData, variationsResult] = await Promise.all([
         getAllProducts(),
         getAllCategories(),
+        supabase
+          .from('product_variations')
+          .select('product_id, stock')
+          .eq('is_active', true),
       ]);
       setProducts(productsData || []);
       setCategories(categoriesData || []);
+      if (variationsResult.error) throw variationsResult.error;
+
+      const stockByProduct = (variationsResult.data ?? []).reduce<Record<string, { total: number; count: number }>>(
+        (totals, variation) => {
+          const current = totals[variation.product_id] ?? { total: 0, count: 0 };
+          current.total += Number(variation.stock) || 0;
+          current.count += 1;
+          totals[variation.product_id] = current;
+          return totals;
+        },
+        {},
+      );
+      setVariationStockByProduct(stockByProduct);
     } catch (error) {
       toast.error('Failed to load products');
     } finally {
@@ -1019,7 +1037,7 @@ export default function AdminProducts() {
                 <TableHead>Product</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Price</TableHead>
-                <TableHead>Stock</TableHead>
+                <TableHead>Sellable Stock</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -1047,9 +1065,23 @@ export default function AdminProducts() {
                   <TableCell>{product.categories?.name || '-'}</TableCell>
                   <TableCell>৳{product.price.toFixed(0)}</TableCell>
                   <TableCell>
-                    <Badge variant={product.stock < 10 ? 'destructive' : 'secondary'}>
-                      {product.stock}
-                    </Badge>
+                    {(() => {
+                      // A sale with a selected size deducts that variation, not the
+                      // parent product's fallback stock. Show the sum here so this
+                      // list reflects the inventory customers can actually purchase.
+                      const variationStock = variationStockByProduct[product.id];
+                      const stock = variationStock?.total ?? product.stock;
+                      return (
+                        <div className="flex items-center gap-2">
+                          <Badge variant={stock < 10 ? 'destructive' : 'secondary'}>{stock}</Badge>
+                          {variationStock && (
+                            <span className="text-xs text-muted-foreground">
+                              {variationStock.count} sizes
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell>
                     <Badge variant={product.is_active ? 'default' : 'outline'}>
