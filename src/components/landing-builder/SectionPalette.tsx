@@ -18,7 +18,6 @@ import {
   BadgeCheck,
   Shield
 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 import { SectionType, SECTION_TEMPLATES, Section } from "./types";
 
 interface SectionPaletteProps {
@@ -154,22 +153,34 @@ export const SectionPalette = ({ onAddSection }: SectionPaletteProps) => {
   };
 
   return (
-    <div className="space-y-3">
-      <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-        Add Sections
-      </h3>
+    <div className="space-y-4">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Section library</p>
+        <div className="mt-1 flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-base font-semibold text-foreground">Build your page</h3>
+            <p className="text-xs leading-5 text-muted-foreground">Choose a block to add it to your canvas.</p>
+          </div>
+          <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+            {sectionConfig.length} blocks
+          </span>
+        </div>
+      </div>
+
       <div className="grid grid-cols-2 gap-2">
         {sectionConfig.map((config) => (
-          <Card
+          <button
             key={config.type}
-            className="cursor-pointer hover:border-primary hover:bg-accent/50 transition-all"
+            type="button"
+            className="group relative min-h-[104px] rounded-xl border bg-card p-3 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/50 hover:bg-primary/[0.03] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             onClick={() => handleAddSection(config.type)}
           >
-            <CardContent className="p-3 flex flex-col items-center text-center gap-1">
-              <div className="text-muted-foreground">{config.icon}</div>
-              <span className="text-xs font-medium">{config.label}</span>
-            </CardContent>
-          </Card>
+            <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+              {config.icon}
+            </div>
+            <span className="block text-xs font-semibold leading-4 text-foreground">{config.label}</span>
+            <span className="mt-1 block text-[11px] leading-4 text-muted-foreground line-clamp-2">{config.description}</span>
+          </button>
         ))}
       </div>
     </div>

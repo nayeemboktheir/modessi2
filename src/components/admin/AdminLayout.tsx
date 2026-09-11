@@ -1,4 +1,4 @@
-import { ReactNode, useEffect } from 'react';
+import { CSSProperties, ReactNode, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
@@ -13,7 +13,6 @@ import {
   Image,
   LogOut,
   ChevronRight,
-  Menu,
   Truck,
   History,
   Settings,
@@ -119,10 +118,11 @@ function AdminSidebar() {
   };
 
   return (
-    <Sidebar className="border-r border-sidebar-border">
-      <div className="p-4 border-b border-sidebar-border">
-        <h1 className="font-display text-xl font-bold text-sidebar-foreground">
-          Admin Panel
+    <Sidebar collapsible="icon" className="border-r border-sidebar-border">
+      <div className="p-4 border-b border-sidebar-border group-data-[collapsible=icon]:px-2">
+        <h1 className="font-display text-xl font-bold text-sidebar-foreground whitespace-nowrap text-center">
+          <span className="group-data-[collapsible=icon]:hidden">Admin Panel</span>
+          <span className="hidden group-data-[collapsible=icon]:inline">A</span>
         </h1>
       </div>
       <SidebarContent className="px-2">
@@ -138,7 +138,7 @@ function AdminSidebar() {
                 
                 return (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild>
+                    <SidebarMenuButton asChild tooltip={item.title}>
                       <NavLink 
                         to={item.url} 
                         end={item.url === '/admin'}
@@ -152,16 +152,16 @@ function AdminSidebar() {
                         <item.icon className="h-4 w-4" />
                         <span>{item.title}</span>
                         {item.url === '/admin/orders' && pendingOrdersCount > 0 && (
-                          <Badge variant="destructive" className="ml-auto text-xs px-1.5 py-0.5 min-w-[20px] h-5 flex items-center justify-center">
+                          <Badge variant="destructive" className="ml-auto text-xs px-1.5 py-0.5 min-w-[20px] h-5 flex items-center justify-center group-data-[collapsible=icon]:hidden">
                             {pendingOrdersCount}
                           </Badge>
                         )}
                         {item.url === '/admin/contact-submissions' && unreadContactCount > 0 && (
-                          <Badge variant="destructive" className="ml-auto text-xs px-1.5 py-0.5 min-w-[20px] h-5 flex items-center justify-center">
+                          <Badge variant="destructive" className="ml-auto text-xs px-1.5 py-0.5 min-w-[20px] h-5 flex items-center justify-center group-data-[collapsible=icon]:hidden">
                             {unreadContactCount}
                           </Badge>
                         )}
-                        {isActive && item.url !== '/admin/contact-submissions' && item.url !== '/admin/orders' && <ChevronRight className="h-4 w-4 ml-auto" />}
+                        {isActive && item.url !== '/admin/contact-submissions' && item.url !== '/admin/orders' && <ChevronRight className="h-4 w-4 ml-auto group-data-[collapsible=icon]:hidden" />}
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -171,14 +171,14 @@ function AdminSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <div className="mt-auto p-4 border-t border-sidebar-border">
+      <div className="mt-auto p-4 border-t border-sidebar-border group-data-[collapsible=icon]:p-2">
         <Button 
           variant="ghost" 
-          className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-destructive/10 hover:text-destructive"
+          className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-destructive/10 hover:text-destructive group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-2"
           onClick={handleSignOut}
         >
           <LogOut className="h-4 w-4" />
-          Sign Out
+          <span className="group-data-[collapsible=icon]:hidden">Sign Out</span>
         </Button>
       </div>
     </Sidebar>
@@ -188,9 +188,7 @@ function AdminSidebar() {
 function AdminHeader() {
   return (
     <header className="h-14 border-b border-border bg-background flex items-center px-4 gap-4">
-      <SidebarTrigger className="md:hidden">
-        <Menu className="h-5 w-5" />
-      </SidebarTrigger>
+      <SidebarTrigger aria-label="Toggle sidebar" title="Toggle sidebar" />
       <div className="flex-1" />
       <Button variant="outline" size="sm" asChild>
         <a href="/" target="_blank" rel="noopener noreferrer">
@@ -208,6 +206,8 @@ interface AdminLayoutProps {
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const { user, isLoading, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isLandingPageEditor = /^\/admin\/landing-pages\/[^/]+$/.test(location.pathname);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -234,12 +234,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   return (
-    <SidebarProvider>
+    <SidebarProvider style={{ '--sidebar-width-icon': '4rem' } as CSSProperties}>
       <div className="min-h-screen flex w-full bg-muted/30">
         <AdminSidebar />
         <div className="flex-1 flex flex-col">
           <AdminHeader />
-          <main className="flex-1 p-6 overflow-auto">
+          <main className={`flex-1 overflow-auto ${isLandingPageEditor ? '' : 'p-6'}`}>
             {children}
           </main>
         </div>
