@@ -1,0 +1,78 @@
+-- Repoint absolute storage URLs from the old Lovable project to the new stack.
+--
+-- Template: 01-extract-from-backup.sh substitutes @@SRC@@, @@DST@@ and @@BUCKET@@
+-- and writes the result into the generated import file. Pure SQL only - no psql
+-- meta-commands - so it also runs through Coolify's Import Backup.
+--
+-- Only the exact public-object prefix is rewritten. Legacy WordPress images on
+-- https://modessi.shop/wp-content/... are left alone on purpose: Hostinger
+-- serves those and they have nothing to do with this migration.
+--
+-- Idempotent: re-running finds nothing left to change.
+
+SET search_path TO public, pg_catalog;
+-- pg_dump's output sets client_min_messages = warning, which would swallow the
+-- RAISE NOTICE progress report below. Turn it back on so the operator can see
+-- how many rows were actually rewritten.
+SET client_min_messages TO notice;
+
+DO $rewrite$
+DECLARE
+  old_prefix text := '@@SRC@@/storage/v1/object/public/@@BUCKET@@/';
+  new_prefix text := '@@DST@@/storage/v1/object/public/@@BUCKET@@/';
+  n_items    bigint;
+  n_products bigint;
+  n_settings bigint;
+  n_left     bigint;
+BEGIN
+  RAISE NOTICE 'rewriting % -> %', old_prefix, new_prefix;
+
+  -- order_items.product_image: historical order thumbnails (~6,745 rows)
+  UPDATE public.order_items
+     SET product_image = replace(product_image, old_prefix, new_prefix)
+   WHERE product_image LIKE old_prefix || '%';
+  GET DIAGNOSTICS n_items = ROW_COUNT;
+
+  -- products.images is text[]; rewrite element-wise (~113 elements / 27 rows)
+  UPDATE public.products
+     SET images = (
+       SELECT array_agg(replace(elem, old_prefix, new_prefix) ORDER BY ord)
+         FROM unnest(images) WITH ORDINALITY AS u(elem, ord)
+     )
+   WHERE array_to_string(images, ',') LIKE '%' || old_prefix || '%';
+  GET DIAGNOSTICS n_products = ROW_COUNT;
+
+  -- admin_settings: favicon_url, shop_logo_url, site_logo (3 rows)
+  UPDATE public.admin_settings
+     SET value = replace(value, old_prefix, new_prefix)
+   WHERE value LIKE '%' || old_prefix || '%';
+  GET DIAGNOSTICS n_settings = ROW_COUNT;
+
+  RAISE NOTICE 'rewrote: order_items=% products=% admin_settings=%',
+    n_items, n_products, n_settings;
+
+  -- Nothing anywhere should still point at the old project. Fail loudly if it
+  -- does rather than leave images silently served by a project that may be
+  -- paused or deleted later.
+  SELECT
+      (SELECT count(*) FROM public.order_items    WHERE product_image LIKE '%@@SRC@@%')
+    + (SELECT count(*) FROM public.products       WHERE array_to_string(images,',') LIKE '%@@SRC@@%')
+    + (SELECT count(*) FROM public.admin_settings WHERE value LIKE '%@@SRC@@%')
+    + (SELECT count(*) FROM public.categories     WHERE coalesce(image_url,'') LIKE '%@@SRC@@%')
+    + (SELECT count(*) FROM public.banners        WHERE coalesce(image_url,'') LIKE '%@@SRC@@%')
+    + (SELECT count(*) FROM public.home_page_content WHERE coalesce(content::text,'') LIKE '%@@SRC@@%')
+    + (SELECT count(*) FROM public.landing_pages  WHERE coalesce(sections::text,'') LIKE '%@@SRC@@%'
+                                              OR coalesce(hero_image,'')     LIKE '%@@SRC@@%')
+    + (SELECT count(*) FROM public.products       WHERE coalesce(long_description,'') LIKE '%@@SRC@@%'
+                                              OR coalesce(description,'')      LIKE '%@@SRC@@%')
+    + (SELECT count(*) FROM public.profiles       WHERE coalesce(avatar_url,'') LIKE '%@@SRC@@%')
+    + (SELECT count(*) FROM public.reviews        WHERE coalesce(array_to_string(images,','),'') LIKE '%@@SRC@@%')
+    INTO n_left;
+
+  IF n_left > 0 THEN
+    RAISE EXCEPTION 'still % row(s) referencing @@SRC@@ after the rewrite', n_left;
+  END IF;
+
+  RAISE NOTICE 'no remaining references to the old project';
+END
+$rewrite$;

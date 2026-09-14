@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Copy to 00-config.sh and fill in. 00-config.sh is gitignored - it holds secrets.
+#
+#   cp 00-config.sh.example 00-config.sh && $EDITOR 00-config.sh
+#
+# Nothing in this directory writes to the SOURCE. The source is read-only
+# throughout, so the Lovable project stays a working rollback target.
+
+# ---- SOURCE: Lovable-managed Supabase (read-only) --------------------------
+# Direct Postgres URI. Lovable dashboard -> project -> Supabase -> Database ->
+# Connection string -> URI. Use the *direct* connection (port 5432), NOT the
+# pooler: pg_dump needs session-level features the pooler does not offer.
+# This is the same value drizzle.config.ts expects as LOVABLE_DB_MIGRATION_URL.
+SOURCE_DB_URL='postgresql://postgres:PASSWORD@db.kphkbmwycreriandedis.supabase.co:5432/postgres'
+
+SOURCE_URL='https://kphkbmwycreriandedis.supabase.co'
+# Old project's anon key - already present as VITE_SUPABASE_PUBLISHABLE_KEY in .env
+SOURCE_ANON_KEY=''
+
+# ---- TARGET: self-hosted Supabase on the Coolify host ----------------------
+# Coolify -> modessi -> supabase-nul28nblfi7lon4nizr4afdm -> supabase-db.
+# Reachable either by exposing 5432 in Coolify, or from the host itself over SSH.
+TARGET_DB_URL='postgresql://postgres:PASSWORD@72.61.248.65:5432/postgres'
+
+TARGET_URL='https://api.modessi.shop'
+# Target service_role key = SERVICE_SUPABASESERVICE_KEY in the Coolify service env.
+# Needed to WRITE into storage. Treat as root credentials.
+TARGET_SERVICE_KEY=''
+
+BUCKET='shop-assets'
+WORKDIR="${WORKDIR:-$HOME/modessi-migration}"
+
+# Postgres client tools run in Docker so nothing has to be installed locally.
+# Must match the source major version (source is PostgreSQL 17.6).
+PG_IMAGE='postgres:17'
