@@ -4,7 +4,10 @@ FROM node:22-alpine AS build
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci
+
+# The existing lockfile predates several build dependencies. `npm install`
+# reconciles it in the ephemeral build stage, unlike `npm ci`, which aborts.
+RUN npm install --include=dev --no-audit --no-fund
 
 COPY . ./
 
