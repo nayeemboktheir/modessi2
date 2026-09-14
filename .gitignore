@@ -22,8 +22,13 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+lovable database
 
 # Local environment (contains project keys) - never commit
 .env
 .env.local
 .env.*.local
+
+# migration config holds live credentials
+scripts/migrate-to-vps/00-config.sh
+scripts/migrate-to-vps/dump/
