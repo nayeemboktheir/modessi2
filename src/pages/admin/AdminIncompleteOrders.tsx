@@ -31,6 +31,8 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { DataPagination } from '@/components/admin/DataPagination';
+import { usePagination } from '@/hooks/usePagination';
 
 interface DraftOrderItem {
   id: string;
@@ -101,6 +103,16 @@ export default function AdminIncompleteOrders() {
       order.session_id.toLowerCase().includes(searchLower)
     );
   });
+
+  const {
+    page,
+    pageSize,
+    totalPages,
+    pageStart,
+    pageItems: pagedOrders,
+    goToPage,
+    setPageSize,
+  } = usePagination(filteredOrders, { resetKey: searchQuery });
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this incomplete order?')) return;
@@ -219,7 +231,7 @@ export default function AdminIncompleteOrders() {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredOrders.map((order) => (
+              pagedOrders.map((order) => (
                 <TableRow key={order.id}>
                   <TableCell>
                     <div>
@@ -271,6 +283,17 @@ export default function AdminIncompleteOrders() {
           </TableBody>
         </Table>
       </div>
+
+      <DataPagination
+        page={page}
+        totalPages={totalPages}
+        pageSize={pageSize}
+        totalItems={filteredOrders.length}
+        pageStart={pageStart}
+        onPageChange={goToPage}
+        onPageSizeChange={setPageSize}
+        itemLabel="incomplete orders"
+      />
 
       {/* Detail Dialog */}
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>

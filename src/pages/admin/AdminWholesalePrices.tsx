@@ -33,6 +33,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { Search, ChevronDown, ChevronRight, Save, Tags } from 'lucide-react';
+import { DataPagination } from '@/components/admin/DataPagination';
+import { usePagination } from '@/hooks/usePagination';
 
 interface Variation {
   id: string;
@@ -115,6 +117,18 @@ export default function AdminWholesalePrices() {
       return matchesSearch && matchesCategory;
     });
   }, [data, search, categoryId]);
+
+  // Only the table is paged — the bulk "% off retail" action still applies to every
+  // filtered product, not just the visible page.
+  const {
+    page,
+    pageSize,
+    totalPages,
+    pageStart,
+    pageItems: pagedProducts,
+    goToPage,
+    setPageSize,
+  } = usePagination(filteredProducts, { resetKey: [search, categoryId] });
 
   const pricedCount = useMemo(
     () => (data?.products || []).filter((p) => wholesaleMap[keyFor(p.id, null)]).length,
@@ -349,7 +363,7 @@ export default function AdminWholesalePrices() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredProducts.map((product) => {
+              {pagedProducts.map((product) => {
                 const variations = (data?.variations || []).filter((v) => v.product_id === product.id);
                 const k = keyFor(product.id, null);
                 const draft = getDraft(product.id, null);
@@ -499,6 +513,17 @@ export default function AdminWholesalePrices() {
           </Table>
         </CardContent>
       </Card>
+
+      <DataPagination
+        page={page}
+        totalPages={totalPages}
+        pageSize={pageSize}
+        totalItems={filteredProducts.length}
+        pageStart={pageStart}
+        onPageChange={goToPage}
+        onPageSizeChange={setPageSize}
+        itemLabel="products"
+      />
 
       <AlertDialog open={bulkOpen} onOpenChange={setBulkOpen}>
         <AlertDialogContent>

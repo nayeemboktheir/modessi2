@@ -34,6 +34,8 @@ import { Search, Users, Shield, User, Plus, Loader2, KeyRound } from 'lucide-rea
 import { getAllUsers, updateUserRole } from '@/services/adminService';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
+import { DataPagination } from '@/components/admin/DataPagination';
+import { usePagination } from '@/hooks/usePagination';
 
 interface UserProfile {
   id: string;
@@ -91,6 +93,16 @@ export default function AdminUsers() {
     const matchesRole = roleFilter === 'all' || getUserRole(user) === roleFilter;
     return matchesSearch && matchesRole;
   });
+
+  const {
+    page,
+    pageSize,
+    totalPages,
+    pageStart,
+    pageItems: pagedUsers,
+    goToPage,
+    setPageSize,
+  } = usePagination(filteredUsers, { resetKey: [search, roleFilter] });
 
   const handleRoleChange = async (userId: string, newRole: 'admin' | 'user') => {
     setUpdating(userId);
@@ -347,7 +359,7 @@ export default function AdminUsers() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredUsers.map((user) => (
+              {pagedUsers.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell>
                     <div className="flex items-center gap-3">
@@ -414,6 +426,17 @@ export default function AdminUsers() {
           </Table>
         </CardContent>
       </Card>
+
+      <DataPagination
+        page={page}
+        totalPages={totalPages}
+        pageSize={pageSize}
+        totalItems={filteredUsers.length}
+        pageStart={pageStart}
+        onPageChange={goToPage}
+        onPageSizeChange={setPageSize}
+        itemLabel="users"
+      />
 
       {/* Reset Password Dialog */}
       <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>

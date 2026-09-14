@@ -53,6 +53,8 @@ import { InvoicePrintDialog } from '@/components/admin/InvoicePrintDialog';
 import { StickerPrintDialog } from '@/components/admin/StickerPrintDialog';
 import { ManualOrderDialog } from '@/components/admin/ManualOrderDialog';
 import { OrderEditDialog } from '@/components/admin/OrderEditDialog';
+import { DataPagination } from '@/components/admin/DataPagination';
+import { DEFAULT_PAGE_SIZE, usePagination } from '@/hooks/usePagination';
 
 interface SteadfastStatus {
   tracking_code: string;
@@ -139,7 +141,7 @@ const isInsideDhaka = (order: Order): boolean => {
 
 const ORDERS_CACHE_KEY = 'admin_orders_cache_v3';
 const ORDERS_CACHE_TTL = 3 * 60 * 1000; // 3 minutes
-const ORDERS_PAGE_SIZE = 30;
+const ORDERS_PAGE_SIZE = DEFAULT_PAGE_SIZE;
 const ORDER_FETCH_BATCH_SIZE = 500;
 const ORDERS_QUERY_TIMEOUT_MS = 9000;
 // Most recent N orders. Everything older is reachable through the date filters,
@@ -299,7 +301,6 @@ export default function AdminOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [ordersTruncated, setOrdersTruncated] = useState(false);
-  const [visibleRows, setVisibleRows] = useState(ORDERS_PAGE_SIZE);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 200);
   const [statusFilter, setStatusFilter] = useState<string>('pending');
@@ -582,17 +583,28 @@ export default function AdminOrders() {
     return sourceCounts[source] || 0;
   }, [sourceCounts]);
 
+  const {
+    page: currentPage,
+    pageSize,
+    totalPages,
+    pageStart,
+    pageItems: displayedOrders,
+    goToPage: setPageNumber,
+    setPageSize,
+  } = usePagination(filteredOrders, {
+    pageSize: ORDERS_PAGE_SIZE,
+    resetKey: [debouncedSearch, statusFilter, sourceFilter, steadfastFilter, locationFilter, dateFrom, dateTo],
+  });
+
   useEffect(() => {
-    setVisibleRows(ORDERS_PAGE_SIZE);
     setSelectedOrderIds(new Set());
   }, [debouncedSearch, statusFilter, sourceFilter, steadfastFilter, locationFilter, dateFrom, dateTo]);
 
-  const displayedOrders = useMemo(
-    () => filteredOrders.slice(0, visibleRows),
-    [filteredOrders, visibleRows]
-  );
-
-  const hasMoreOrders = displayedOrders.length < filteredOrders.length;
+  // Selection is per page — the header checkbox counts against the visible rows.
+  const goToPage = useCallback((page: number) => {
+    setSelectedOrderIds(new Set());
+    setPageNumber(page);
+  }, [setPageNumber]);
 
   // Count for Steadfast filters (memoized)
   const steadfastCounts = useMemo(() => {
@@ -1341,6 +1353,13 @@ export default function AdminOrders() {
           </Button>
         </div>
       </div>
+      {ordersTruncated && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          Showing the {ORDERS_FETCH_LIMIT.toLocaleString()} most recent orders. Use the date
+          filters to reach older ones.
+        </div>
+      )}
+
       <Card>
         <CardHeader>
         <div className="flex flex-col lg:flex-row gap-4">
@@ -1656,13 +1675,6 @@ export default function AdminOrders() {
                   </TableCell>
                 </TableRow>
               ))}
-              {ordersTruncated && (
-                <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                  Showing the {ORDERS_FETCH_LIMIT.toLocaleString()} most recent orders. Use the date
-                  filters to reach older ones.
-                </div>
-              )}
-
               {filteredOrders.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={13} className="text-center py-8 text-muted-foreground">
@@ -1675,13 +1687,16 @@ export default function AdminOrders() {
         </CardContent>
       </Card>
 
-      {hasMoreOrders && (
-        <div className="flex justify-center">
-          <Button variant="outline" onClick={() => setVisibleRows((prev) => prev + ORDERS_PAGE_SIZE)}>
-            Load More Orders ({filteredOrders.length - displayedOrders.length} remaining)
-          </Button>
-        </div>
-      )}
+      <DataPagination
+        page={currentPage}
+        totalPages={totalPages}
+        pageSize={pageSize}
+        totalItems={filteredOrders.length}
+        pageStart={pageStart}
+        onPageChange={goToPage}
+        onPageSizeChange={setPageSize}
+        itemLabel="orders"
+      />
 
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">

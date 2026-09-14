@@ -21,6 +21,8 @@ import { CalendarIcon, TrendingUp, Package, DollarSign, ShoppingCart, Scale } fr
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { DateRange } from 'react-day-picker';
+import { DataPagination } from '@/components/admin/DataPagination';
+import { usePagination } from '@/hooks/usePagination';
 
 type DateRangePreset = 'today' | 'yesterday' | 'week' | 'month' | 'custom';
 
@@ -199,6 +201,16 @@ export default function AdminReports() {
   productMap.forEach((value) => productSales.push(value));
   productSales.sort((a, b) => b.total_quantity - a.total_quantity);
 
+  const {
+    page,
+    pageSize,
+    totalPages,
+    pageStart,
+    pageItems: pagedProductSales,
+    goToPage,
+    setPageSize,
+  } = usePagination(productSales, { resetKey: [preset, dateRange?.from, dateRange?.to] });
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -367,8 +379,9 @@ export default function AdminReports() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {productSales.map((product, index) => (
-                  <TableRow key={index}>
+                {pagedProductSales.map((product) => (
+                  // Keyed by name, not index — index keys collide across pages.
+                  <TableRow key={product.product_name}>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         {product.product_image && (
@@ -395,6 +408,18 @@ export default function AdminReports() {
               </TableBody>
             </Table>
           )}
+
+          <DataPagination
+            className="mt-4"
+            page={page}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalItems={productSales.length}
+            pageStart={pageStart}
+            onPageChange={goToPage}
+            onPageSizeChange={setPageSize}
+            itemLabel="products"
+          />
         </CardContent>
       </Card>
     </div>

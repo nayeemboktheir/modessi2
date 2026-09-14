@@ -49,6 +49,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { format, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { DateRange } from 'react-day-picker';
+import { DataPagination } from '@/components/admin/DataPagination';
+import { usePagination } from '@/hooks/usePagination';
 
 interface ProductVariation {
   id?: string;
@@ -230,6 +232,16 @@ export default function AdminProducts() {
     
     return matchesSearch;
   });
+
+  const {
+    page,
+    pageSize,
+    totalPages,
+    pageStart,
+    pageItems: pagedProducts,
+    goToPage,
+    setPageSize,
+  } = usePagination(filteredProducts, { resetKey: [search, dateRange?.from, dateRange?.to] });
 
   const openCreateDialog = () => {
     setEditingProduct(null);
@@ -1043,7 +1055,7 @@ export default function AdminProducts() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredProducts.map((product) => (
+              {pagedProducts.map((product) => (
                 <TableRow key={product.id}>
                   <TableCell>
                     <div className="flex items-center gap-3">
@@ -1125,6 +1137,17 @@ export default function AdminProducts() {
           </Table>
         </CardContent>
       </Card>
+
+      <DataPagination
+        page={page}
+        totalPages={totalPages}
+        pageSize={pageSize}
+        totalItems={filteredProducts.length}
+        pageStart={pageStart}
+        onPageChange={goToPage}
+        onPageSizeChange={setPageSize}
+        itemLabel="products"
+      />
     </div>
   );
 }

@@ -36,6 +36,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { format } from 'date-fns';
+import { DataPagination } from '@/components/admin/DataPagination';
+import { usePagination } from '@/hooks/usePagination';
 
 type Coupon = {
   id: string;
@@ -114,6 +116,15 @@ export default function AdminMarketing() {
 
   // Coupon state
   const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const {
+    page: couponsPage,
+    pageSize: couponsPageSize,
+    totalPages: couponsTotalPages,
+    pageStart: couponsPageStart,
+    pageItems: pagedCoupons,
+    goToPage: goToCouponsPage,
+    setPageSize: setCouponsPageSize,
+  } = usePagination(coupons);
   const [loadingCoupons, setLoadingCoupons] = useState(true);
   const [couponDialogOpen, setCouponDialogOpen] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
@@ -1368,7 +1379,7 @@ export default function AdminMarketing() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {coupons.map((coupon) => (
+                      {pagedCoupons.map((coupon) => (
                         <TableRow key={coupon.id}>
                           <TableCell className="font-mono font-semibold">{coupon.code}</TableCell>
                           <TableCell>
@@ -1438,6 +1449,18 @@ export default function AdminMarketing() {
                   </Table>
                 </div>
               )}
+
+              <DataPagination
+                className="mt-4"
+                page={couponsPage}
+                totalPages={couponsTotalPages}
+                pageSize={couponsPageSize}
+                totalItems={coupons.length}
+                pageStart={couponsPageStart}
+                onPageChange={goToCouponsPage}
+                onPageSizeChange={setCouponsPageSize}
+                itemLabel="coupons"
+              />
             </CardContent>
           </Card>
         </TabsContent>

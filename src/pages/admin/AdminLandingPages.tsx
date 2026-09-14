@@ -45,6 +45,8 @@ import { toast } from "sonner";
 import { format, startOfDay, endOfDay, isWithinInterval } from "date-fns";
 import { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
+import { DataPagination } from "@/components/admin/DataPagination";
+import { usePagination } from "@/hooks/usePagination";
 
 interface LandingPage {
   id: string;
@@ -102,11 +104,21 @@ const AdminLandingPages = () => {
         .from("landing_pages")
         .select("*")
         .order("created_at", { ascending: false });
-
       if (error) throw error;
       return data as LandingPage[];
     },
   });
+
+  // `page` is taken by the row variable in this table, so the pager state is prefixed.
+  const {
+    page: pagerPage,
+    pageSize: pagerSize,
+    totalPages: pagerTotalPages,
+    pageStart: pagerStart,
+    pageItems: pagedLandingPages,
+    goToPage: pagerGoToPage,
+    setPageSize: setPagerSize,
+  } = usePagination(landingPages || []);
 
   const { data: products, isLoading: productsLoading } = useQuery({
     queryKey: ["admin-products-for-landing"],
@@ -522,7 +534,7 @@ const AdminLandingPages = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {landingPages.map((page) => {
+                {pagedLandingPages.map((page) => {
                   const stats = salesBySlug[page.slug] || { orders: 0, revenue: 0 };
                   return (
                     <TableRow key={page.id}>
@@ -629,6 +641,18 @@ const AdminLandingPages = () => {
               </TableBody>
             </Table>
           )}
+
+          <DataPagination
+            className="mt-4"
+            page={pagerPage}
+            totalPages={pagerTotalPages}
+            pageSize={pagerSize}
+            totalItems={landingPages?.length || 0}
+            pageStart={pagerStart}
+            onPageChange={pagerGoToPage}
+            onPageSizeChange={setPagerSize}
+            itemLabel="landing pages"
+          />
         </CardContent>
       </Card>
 

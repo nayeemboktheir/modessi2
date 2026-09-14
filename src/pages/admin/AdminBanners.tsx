@@ -17,6 +17,8 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Plus, Pencil, Trash2, Image, ExternalLink, Upload, X, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { DataPagination } from '@/components/admin/DataPagination';
+import { usePagination } from '@/hooks/usePagination';
 import { 
   getAllBanners, 
   createBanner, 
@@ -45,6 +47,15 @@ const initialFormState = {
 
 export default function AdminBanners() {
   const [banners, setBanners] = useState<Banner[]>([]);
+  const {
+    page,
+    pageSize,
+    totalPages,
+    pageStart,
+    pageItems: pagedBanners,
+    goToPage,
+    setPageSize,
+  } = usePagination(banners);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBanner, setEditingBanner] = useState<Banner | null>(null);
@@ -362,7 +373,7 @@ export default function AdminBanners() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {banners.map((banner) => (
+        {pagedBanners.map((banner) => (
           <Card key={banner.id} className="overflow-hidden">
             <div className="relative aspect-[16/9]">
               <img
@@ -423,6 +434,17 @@ export default function AdminBanners() {
           </Card>
         )}
       </div>
+
+      <DataPagination
+        page={page}
+        totalPages={totalPages}
+        pageSize={pageSize}
+        totalItems={banners.length}
+        pageStart={pageStart}
+        onPageChange={goToPage}
+        onPageSizeChange={setPageSize}
+        itemLabel="sliders"
+      />
     </div>
   );
 }

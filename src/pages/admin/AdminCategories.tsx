@@ -28,6 +28,8 @@ import {
   updateCategory, 
   deleteCategory 
 } from '@/services/adminService';
+import { DataPagination } from '@/components/admin/DataPagination';
+import { usePagination } from '@/hooks/usePagination';
 
 interface Category {
   id: string;
@@ -54,6 +56,16 @@ export default function AdminCategories() {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [formData, setFormData] = useState(initialFormState);
   const [submitting, setSubmitting] = useState(false);
+
+  const {
+    page,
+    pageSize,
+    totalPages,
+    pageStart,
+    pageItems: pagedCategories,
+    goToPage,
+    setPageSize,
+  } = usePagination(categories);
 
   useEffect(() => {
     loadCategories();
@@ -252,7 +264,7 @@ export default function AdminCategories() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {categories.map((category) => (
+              {pagedCategories.map((category) => (
                 <TableRow key={category.id}>
                   <TableCell>
                     <div className="flex items-center gap-3">
@@ -306,6 +318,17 @@ export default function AdminCategories() {
           </Table>
         </CardContent>
       </Card>
+
+      <DataPagination
+        page={page}
+        totalPages={totalPages}
+        pageSize={pageSize}
+        totalItems={categories.length}
+        pageStart={pageStart}
+        onPageChange={goToPage}
+        onPageSizeChange={setPageSize}
+        itemLabel="categories"
+      />
     </div>
   );
 }

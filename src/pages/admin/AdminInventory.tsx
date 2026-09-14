@@ -15,6 +15,8 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Search, AlertTriangle, Package, Check } from 'lucide-react';
 import { getAllProducts, updateProductStock } from '@/services/adminService';
+import { DataPagination } from '@/components/admin/DataPagination';
+import { usePagination } from '@/hooks/usePagination';
 
 interface Product {
   id: string;
@@ -51,6 +53,16 @@ export default function AdminInventory() {
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(search.toLowerCase())
   );
+
+  const {
+    page,
+    pageSize,
+    totalPages,
+    pageStart,
+    pageItems: pagedProducts,
+    goToPage,
+    setPageSize,
+  } = usePagination(filteredProducts, { resetKey: search });
 
   const lowStockProducts = products.filter(p => p.stock < 10 && p.is_active);
   const outOfStockProducts = products.filter(p => p.stock === 0 && p.is_active);
@@ -164,7 +176,7 @@ export default function AdminInventory() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredProducts.map((product) => (
+              {pagedProducts.map((product) => (
                 <TableRow key={product.id}>
                   <TableCell>
                     <div className="flex items-center gap-3">
@@ -240,6 +252,17 @@ export default function AdminInventory() {
           </Table>
         </CardContent>
       </Card>
+
+      <DataPagination
+        page={page}
+        totalPages={totalPages}
+        pageSize={pageSize}
+        totalItems={filteredProducts.length}
+        pageStart={pageStart}
+        onPageChange={goToPage}
+        onPageSizeChange={setPageSize}
+        itemLabel="products"
+      />
     </div>
   );
 }

@@ -10,6 +10,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { Mail, Phone, User, MessageSquare, Check, Trash2, Eye, Settings, Save } from 'lucide-react';
 import { format } from 'date-fns';
+import { DataPagination } from '@/components/admin/DataPagination';
+import { usePagination } from '@/hooks/usePagination';
 import {
   Dialog,
   DialogContent,
@@ -149,6 +151,16 @@ const AdminContactSubmissions = () => {
 
   const unreadCount = submissions?.filter(s => !s.is_read).length || 0;
 
+  const {
+    page,
+    pageSize,
+    totalPages,
+    pageStart,
+    pageItems: pagedSubmissions,
+    goToPage,
+    setPageSize,
+  } = usePagination(submissions || []);
+
   return (
     <div className="space-y-6">
         <div className="flex items-center justify-between">
@@ -183,8 +195,9 @@ const AdminContactSubmissions = () => {
             </CardContent>
           </Card>
         ) : (
+          <>
           <div className="grid gap-4">
-            {submissions?.map((submission) => (
+            {pagedSubmissions.map((submission) => (
               <Card
                 key={submission.id}
                 className={`cursor-pointer transition-colors hover:border-primary/50 ${
@@ -270,6 +283,19 @@ const AdminContactSubmissions = () => {
               </Card>
             ))}
           </div>
+
+          <DataPagination
+            className="mt-4"
+            page={page}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalItems={submissions?.length || 0}
+            pageStart={pageStart}
+            onPageChange={goToPage}
+            onPageSizeChange={setPageSize}
+            itemLabel="messages"
+          />
+          </>
         )}
 
         {/* View Submission Dialog */}

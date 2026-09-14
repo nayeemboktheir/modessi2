@@ -13,6 +13,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { MessageSquare, Settings, History, Send, RefreshCw, Save, Pencil, Check, X } from "lucide-react";
 import { format } from "date-fns";
+import { DataPagination } from "@/components/admin/DataPagination";
+import { usePagination } from "@/hooks/usePagination";
 
 interface SmsTemplate {
   id: string;
@@ -85,6 +87,15 @@ export default function AdminSMS() {
   // Logs state
   const [logs, setLogs] = useState<SmsLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
+  const {
+    page: logsPage,
+    pageSize: logsPageSize,
+    totalPages: logsTotalPages,
+    pageStart: logsPageStart,
+    pageItems: pagedLogs,
+    goToPage: goToLogsPage,
+    setPageSize: setLogsPageSize,
+  } = usePagination(logs);
   
   // Test SMS state
   const [testPhone, setTestPhone] = useState("");
@@ -590,7 +601,7 @@ export default function AdminSMS() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {logs.map((log) => (
+                      {pagedLogs.map((log) => (
                         <TableRow key={log.id}>
                           <TableCell className="whitespace-nowrap">
                             {format(new Date(log.created_at), 'dd/MM/yyyy HH:mm')}
@@ -618,6 +629,18 @@ export default function AdminSMS() {
                     </TableBody>
                   </Table>
                 )}
+
+                <DataPagination
+                  className="mt-4"
+                  page={logsPage}
+                  totalPages={logsTotalPages}
+                  pageSize={logsPageSize}
+                  totalItems={logs.length}
+                  pageStart={logsPageStart}
+                  onPageChange={goToLogsPage}
+                  onPageSizeChange={setLogsPageSize}
+                  itemLabel="messages"
+                />
               </CardContent>
             </Card>
           </TabsContent>
