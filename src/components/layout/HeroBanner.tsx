@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -139,7 +139,7 @@ export default function HeroBanner({ compact = false }: HeroBannerProps) {
   return (
     <section className={`relative ${compact ? 'h-[30vh] md:h-[40vh]' : 'h-[50vh] md:h-[70vh]'} overflow-hidden`}>
       <AnimatePresence mode="wait">
-        <motion.div
+        <m.div
           key={currentSlide}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -149,6 +149,9 @@ export default function HeroBanner({ compact = false }: HeroBannerProps) {
         >
           <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/40 to-transparent z-10" />
           <img
+            loading="eager"
+            fetchPriority="high"
+            decoding="async"
             src={heroSlides[currentSlide].image}
             alt={heroSlides[currentSlide].title}
             className="w-full h-full object-cover"
@@ -156,7 +159,7 @@ export default function HeroBanner({ compact = false }: HeroBannerProps) {
           
           <div className="absolute inset-0 z-20 flex items-center">
             <div className="container-custom">
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2, duration: 0.6 }}
@@ -188,10 +191,10 @@ export default function HeroBanner({ compact = false }: HeroBannerProps) {
                     </Button>
                   </Link>
                 </div>
-              </motion.div>
+              </m.div>
             </div>
           </div>
-        </motion.div>
+        </m.div>
       </AnimatePresence>
 
       {/* Navigation Arrows */}

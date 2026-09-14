@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import { Category } from '@/types';
 
@@ -10,7 +10,7 @@ interface CategoryCardProps {
 
 const CategoryCard = ({ category, index = 0 }: CategoryCardProps) => {
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: index * 0.1 }}
@@ -19,6 +19,8 @@ const CategoryCard = ({ category, index = 0 }: CategoryCardProps) => {
         <div className="group relative aspect-[4/3] rounded-xl overflow-hidden">
           {/* Background Image */}
           <img
+            loading="lazy"
+            decoding="async"
             src={category.image}
             alt={category.name}
             className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
@@ -44,7 +46,7 @@ const CategoryCard = ({ category, index = 0 }: CategoryCardProps) => {
           </div>
         </div>
       </Link>
-    </motion.div>
+    </m.div>
   );
 };
 

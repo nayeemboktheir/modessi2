@@ -9,11 +9,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { useToast } from '@/hooks/use-toast';
 import { ShoppingBag, Truck, ArrowLeft, Loader2, CheckCircle, Banknote } from 'lucide-react';
 import { ShippingMethodSelector, ShippingZone, SHIPPING_RATES } from '@/components/checkout/ShippingMethodSelector';
 import { useFacebookPixel } from '@/hooks/useFacebookPixel';
 import { useServerTracking } from '@/hooks/useServerTracking';
+import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { ProductVariation } from '@/types';
 
@@ -64,7 +64,6 @@ const CheckoutPage = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { user, isLoading: authLoading } = useAuth();
-  const { toast } = useToast();
   const { isReady, setUserData } = useFacebookPixel();
   const { trackInitiateCheckout: trackServerCheckout } = useServerTracking();
   
@@ -339,15 +338,15 @@ const CheckoutPage = () => {
 
   const validateForm = (): boolean => {
     if (!shippingForm.name.trim()) {
-      toast({ title: "Name is required", variant: "destructive" });
+      toast.error("Name is required");
       return false;
     }
     if (!shippingForm.phone.trim() || !/^(\+?880)?01[3-9]\d{8}$/.test(shippingForm.phone.replace(/\s/g, ''))) {
-      toast({ title: "Valid Bangladesh phone number is required", variant: "destructive" });
+      toast.error("Valid Bangladesh phone number is required");
       return false;
     }
     if (!shippingForm.address.trim()) {
-      toast({ title: "Address is required", variant: "destructive" });
+      toast.error("Address is required");
       return false;
     }
 
@@ -358,10 +357,8 @@ const CheckoutPage = () => {
     });
 
     if (missingSize) {
-      toast({
-        title: "সাইজ নির্বাচন করুন",
+      toast.error("সাইজ নির্বাচন করুন", {
         description: `${missingSize.product.name} - এর সাইজ সিলেক্ট করুন`,
-        variant: "destructive",
       });
       return false;
     }
@@ -453,10 +450,8 @@ const CheckoutPage = () => {
           : typeof error === 'string'
             ? error
             : JSON.stringify(error);
-      toast({
-        title: "অর্ডার করতে সমস্যা হয়েছে",
+      toast.error("অর্ডার করতে সমস্যা হয়েছে", {
         description: msg || "আবার চেষ্টা করুন।",
-        variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);
@@ -594,6 +589,8 @@ const CheckoutPage = () => {
                       <div key={itemKey} className="flex gap-3">
                         <div className="w-16 h-16 bg-muted rounded-lg overflow-hidden flex-shrink-0">
                           <img
+                            loading="lazy"
+                            decoding="async"
                             src={item.product.images[0] || '/placeholder.svg'}
                             alt={item.product.name}
                             className="w-full h-full object-cover"

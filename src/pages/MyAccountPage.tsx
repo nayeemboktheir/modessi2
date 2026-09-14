@@ -311,7 +311,9 @@ const OrderCard = ({ order }: { order: Order }) => {
                 {order.order_items.map(item => (
                   <div key={item.id} className="flex items-center gap-4 p-3 bg-background rounded-lg">
                     {item.product_image ? (
-                      <img 
+                      <img
+                        loading="lazy"
+                        decoding="async"
                         src={item.product_image} 
                         alt={item.product_name}
                         className="w-16 h-16 object-cover rounded"

@@ -258,29 +258,31 @@ const fetchAllOrderRows = async ({
   retries?: number;
   maxRows?: number;
 }): Promise<{ rows: BaseOrderRow[]; truncated: boolean }> => {
-  const allRows: BaseOrderRow[] = [];
-  let offset = 0;
-
   // Bounded on purpose. This pulls whole orders *with their line items* into the
   // browser to filter them client-side, so an unbounded loop grew with the order
   // table until the page took minutes to load and blew the sessionStorage quota.
-  while (allRows.length < maxRows) {
-    const batch = await fetchOrderRows({
-      from: offset,
-      to: offset + batchSize - 1,
-      timeoutMs,
-      retries,
-    });
+  //
+  // The batches are fixed ranges over one `created_at DESC` ordering, so none of
+  // them depends on the one before it — they go out together instead of as a
+  // chain of round trips. A short table just returns empty tails.
+  const batchCount = Math.ceil(maxRows / batchSize);
+  const batches = await Promise.all(
+    Array.from({ length: batchCount }, (_, i) => {
+      const offset = i * batchSize;
+      return fetchOrderRows({
+        from: offset,
+        to: Math.min(offset + batchSize, maxRows) - 1,
+        timeoutMs,
+        retries,
+      });
+    })
+  );
 
-    if (batch.length === 0) break;
-
+  const allRows: BaseOrderRow[] = [];
+  for (const batch of batches) {
     allRows.push(...batch);
-
-    if (batch.length < batchSize) {
-      return { rows: allRows, truncated: false };
-    }
-
-    offset += batchSize;
+    // A short batch is the end of the table; anything after it is empty.
+    if (batch.length < batchSize) break;
   }
 
   // Hitting the cap means older orders exist beyond what is loaded.

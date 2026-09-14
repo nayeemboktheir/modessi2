@@ -2,7 +2,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Package, Phone, Home, Truck, ArrowRight } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { useFacebookPixel } from '@/hooks/useFacebookPixel';
 import { useServerTracking } from '@/hooks/useServerTracking';
 
@@ -180,7 +180,7 @@ const OrderConfirmationPage = () => {
     <main className="min-h-screen bg-gradient-to-b from-green-50 to-white py-12 px-4">
       <div className="max-w-2xl mx-auto">
         {/* Success Animation */}
-        <motion.div
+        <m.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ type: "spring", stiffness: 200, damping: 15 }}
@@ -189,10 +189,10 @@ const OrderConfirmationPage = () => {
           <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
             <CheckCircle className="h-14 w-14 text-green-600" />
           </div>
-        </motion.div>
+        </m.div>
 
         {/* Main Card */}
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
@@ -308,10 +308,10 @@ const OrderConfirmationPage = () => {
               <ArrowRight className="h-5 w-5" />
             </Button>
           </div>
-        </motion.div>
+        </m.div>
 
         {/* Trust Badges */}
-        <motion.div
+        <m.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
@@ -329,7 +329,7 @@ const OrderConfirmationPage = () => {
             <span className="text-2xl block mb-1">✅</span>
             <p className="text-xs text-gray-600">১০০% গ্যারান্টি</p>
           </div>
-        </motion.div>
+        </m.div>
       </div>
     </main>
   );

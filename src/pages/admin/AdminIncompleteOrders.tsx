@@ -30,7 +30,7 @@ import {
   Package
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { DataPagination } from '@/components/admin/DataPagination';
 import { usePagination } from '@/hooks/usePagination';
 
@@ -68,7 +68,6 @@ export default function AdminIncompleteOrders() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<DraftOrder | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const { toast } = useToast();
 
   useEffect(() => {
     loadDraftOrders();
@@ -86,10 +85,7 @@ export default function AdminIncompleteOrders() {
       setDraftOrders(parsedOrders);
     } catch (error) {
       console.error('Error loading draft orders:', error);
-      toast({
-        title: "Error loading incomplete orders",
-        variant: "destructive"
-      });
+      toast.error("Error loading incomplete orders");
     } finally {
       setIsLoading(false);
     }
@@ -120,13 +116,10 @@ export default function AdminIncompleteOrders() {
     try {
       await deleteDraftOrder(id);
       setDraftOrders(prev => prev.filter(o => o.id !== id));
-      toast({ title: "Incomplete order deleted" });
+      toast.success("Incomplete order deleted");
     } catch (error) {
       console.error('Error deleting draft order:', error);
-      toast({
-        title: "Error deleting order",
-        variant: "destructive"
-      });
+      toast.error("Error deleting order");
     }
   };
 

@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import {
   Search,
@@ -226,7 +226,7 @@ const Header = () => {
         {/* Mobile Search */}
         <AnimatePresence>
           {isSearchOpen && (
-            <motion.div
+            <m.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
@@ -249,7 +249,7 @@ const Header = () => {
                 <Search className="h-5 w-5" />
               </Button>
             </form>
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
       </div>
@@ -297,7 +297,7 @@ const Header = () => {
       {/* Mobile Menu */}
       <AnimatePresence>
         {isMobileMenuOpen && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
@@ -343,7 +343,7 @@ const Header = () => {
                 </li>
               </ul>
             </nav>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </header>

@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { X, Plus, Minus, ShoppingBag, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -27,7 +27,7 @@ const CartDrawer = () => {
       {isOpen && (
         <>
           {/* Backdrop */}
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -36,7 +36,7 @@ const CartDrawer = () => {
           />
 
           {/* Drawer */}
-          <motion.div
+          <m.div
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
@@ -83,7 +83,7 @@ const CartDrawer = () => {
                     const displayPrice = item.variation?.price ?? item.product.price;
                     
                     return (
-                      <motion.div
+                      <m.div
                         key={itemKey}
                         layout
                         initial={{ opacity: 0, y: 20 }}
@@ -92,6 +92,8 @@ const CartDrawer = () => {
                         className="flex gap-4 p-4 bg-muted/50 rounded-lg"
                       >
                         <img
+                          loading="lazy"
+                          decoding="async"
                           src={item.product.images[0]}
                           alt={item.product.name}
                           className="w-20 h-20 object-cover rounded-lg"
@@ -147,7 +149,7 @@ const CartDrawer = () => {
                         >
                           <X className="h-5 w-5" />
                         </Button>
-                      </motion.div>
+                      </m.div>
                     );
                   })}
                 </div>
@@ -191,7 +193,7 @@ const CartDrawer = () => {
                 </div>
               </div>
             )}
-          </motion.div>
+          </m.div>
         </>
       )}
     </AnimatePresence>

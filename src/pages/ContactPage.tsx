@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { Phone, MapPin, Clock, Send, MessageCircle, Truck, Users, Facebook } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -103,7 +103,7 @@ const ContactPage = () => {
         <section className="relative py-16 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-transparent to-primary/5" />
           <div className="container-custom relative z-10">
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className="text-center max-w-3xl mx-auto"
@@ -117,7 +117,7 @@ const ContactPage = () => {
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
                 আমরা সবসময় আপনার পাশে। যেকোনো প্রশ্ন বা অর্ডারের জন্য আমাদের সাথে যোগাযোগ করুন।
               </p>
-            </motion.div>
+            </m.div>
           </div>
         </section>
 
@@ -126,7 +126,7 @@ const ContactPage = () => {
           <div className="container-custom">
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {contactCards.map((card, index) => (
-                <motion.div
+                <m.div
                   key={index}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -146,7 +146,7 @@ const ContactPage = () => {
                   <p className="text-sm text-muted-foreground mt-1">
                     {card.subContent}
                   </p>
-                </motion.div>
+                </m.div>
               ))}
             </div>
           </div>
@@ -157,7 +157,7 @@ const ContactPage = () => {
           <div className="container-custom">
             <div className="grid md:grid-cols-2 gap-6">
               {features.map((feature, index) => (
-                <motion.div
+                <m.div
                   key={index}
                   initial={{ opacity: 0, x: index === 0 ? -20 : 20 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -177,7 +177,7 @@ const ContactPage = () => {
                       </p>
                     </div>
                   </div>
-                </motion.div>
+                </m.div>
               ))}
             </div>
           </div>
@@ -188,7 +188,7 @@ const ContactPage = () => {
           <div className="container-custom">
             <div className="grid lg:grid-cols-5 gap-8">
               {/* Quick Actions */}
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 className="lg:col-span-2 space-y-6"
@@ -258,10 +258,10 @@ const ContactPage = () => {
                     Dhaka, Bangladesh
                   </p>
                 </div>
-              </motion.div>
+              </m.div>
 
               {/* Contact Form */}
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 className="lg:col-span-3"
@@ -329,7 +329,7 @@ const ContactPage = () => {
                     </Button>
                   </form>
                 </div>
-              </motion.div>
+              </m.div>
             </div>
           </div>
         </section>

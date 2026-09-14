@@ -5,7 +5,7 @@ import heroSlide1 from '@/assets/hero-slide-1.jpg';
 import heroSlide2 from '@/assets/hero-slide-2.jpg';
 import heroSlide3 from '@/assets/hero-slide-3.jpg';
 import defaultLogo from '@/assets/site-logo.png';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import {
   ShoppingBag, Heart, User, LayoutDashboard, ChevronRight, ChevronLeft,
   Sparkles, Truck, Shield, RotateCcw, Star, ArrowRight, Headphones,
@@ -21,6 +21,11 @@ import { selectCartCount, toggleCart, addToCart, openCart } from '@/store/slices
 import { selectWishlistItems, toggleWishlist } from '@/store/slices/wishlistSlice';
 import { toast } from 'sonner';
 import { Product as ProductType } from '@/types';
+
+// Only what a product card renders. `description` / `long_description` are the
+// bulk of a product row and are never shown on the home page.
+const PRODUCT_CARD_COLUMNS =
+  'id, name, price, original_price, images, slug, category_id, is_new, is_featured, rating, review_count, stock';
 
 interface Product {
   id: string;
@@ -115,9 +120,9 @@ export default function FashionHomePage() {
           supabase.from('home_page_content').select('*'),
           supabase.from('banners').select('*').eq('is_active', true).order('sort_order', { ascending: true }),
           supabase.from('categories').select('*').order('sort_order', { ascending: true }),
-          supabase.from('products').select('*').eq('is_featured', true).eq('is_active', true).limit(8),
-          supabase.from('products').select('*').eq('is_new', true).eq('is_active', true).limit(8),
-          supabase.from('products').select('*').eq('is_active', true).order('created_at', { ascending: false }).limit(8),
+          supabase.from('products').select(PRODUCT_CARD_COLUMNS).eq('is_featured', true).eq('is_active', true).limit(8),
+          supabase.from('products').select(PRODUCT_CARD_COLUMNS).eq('is_new', true).eq('is_active', true).limit(8),
+          supabase.from('products').select(PRODUCT_CARD_COLUMNS).eq('is_active', true).order('created_at', { ascending: false }).limit(8),
         ]);
 
         if (homePageData) {
@@ -133,30 +138,27 @@ export default function FashionHomePage() {
         }
 
         if (categoriesData) {
-          // For categories without images, fetch first product image in parallel
+          // Categories without their own image borrow the newest product's first
+          // photo. One query covers every such category — this used to be a
+          // request per category, fired only after the batch above had landed.
           const catsNeedingImages = categoriesData.filter(cat => !cat.image_url);
           const productImages: Record<string, string | null> = {};
-          
+
           if (catsNeedingImages.length > 0) {
-            const imageResults = await Promise.all(
-              catsNeedingImages.map(cat =>
-                supabase
-                  .from('products')
-                  .select('images')
-                  .eq('category_id', cat.id)
-                  .eq('is_active', true)
-                  .not('images', 'is', null)
-                  .order('created_at', { ascending: false })
-                  .limit(1)
-                  .maybeSingle()
-                  .then(({ data }) => {
-                    const imgs = (data as any)?.images;
-                    const first = Array.isArray(imgs) ? imgs[0] : null;
-                    return { catId: cat.id, image: first || null };
-                  })
-              )
-            );
-            imageResults.forEach(r => { productImages[r.catId] = r.image; });
+            const { data: imageRows } = await supabase
+              .from('products')
+              .select('category_id, images')
+              .in('category_id', catsNeedingImages.map(cat => cat.id))
+              .eq('is_active', true)
+              .not('images', 'is', null)
+              .order('created_at', { ascending: false });
+
+            // Ordered newest-first, so the first row seen per category wins.
+            (imageRows || []).forEach((row) => {
+              if (!row.category_id || productImages[row.category_id]) return;
+              const first = Array.isArray(row.images) ? row.images[0] : null;
+              if (first) productImages[row.category_id] = first;
+            });
           }
 
           setCategories(categoriesData.map(cat => ({
@@ -491,7 +493,7 @@ export default function FashionHomePage() {
         {/* Mobile Menu */}
         <AnimatePresence>
           {isMobileMenuOpen && (
-            <motion.div
+            <m.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
@@ -544,7 +546,7 @@ export default function FashionHomePage() {
                   </li>
                 </ul>
               </nav>
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
       </header>
@@ -552,7 +554,7 @@ export default function FashionHomePage() {
       {/* Hero Slider */}
       <section className="relative h-[50vh] md:h-[70vh] overflow-hidden">
         <AnimatePresence mode="wait">
-          <motion.div
+          <m.div
             key={currentSlide}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -562,6 +564,9 @@ export default function FashionHomePage() {
           >
             <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/40 to-transparent z-10" />
             <img
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
               src={heroSlides[currentSlide].image}
               alt={heroSlides[currentSlide].title}
               className="w-full h-full object-cover"
@@ -569,7 +574,7 @@ export default function FashionHomePage() {
             
             <div className="absolute inset-0 z-20 flex items-center">
               <div className="container-custom">
-                <motion.div
+                <m.div
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2, duration: 0.5 }}
@@ -601,10 +606,10 @@ export default function FashionHomePage() {
                       সব দেখুন
                     </Button>
                   </div>
-                </motion.div>
+                </m.div>
               </div>
             </div>
-          </motion.div>
+          </m.div>
         </AnimatePresence>
 
         {/* Slider Controls */}
@@ -693,7 +698,7 @@ export default function FashionHomePage() {
               const categoryImage = category.image_url || category.productImage || null;
 
               return (
-                <motion.div
+                <m.div
                   key={category.id}
                   whileHover={{ y: -5 }}
                   className="group cursor-pointer"
@@ -702,6 +707,8 @@ export default function FashionHomePage() {
                   <div className={`relative overflow-hidden rounded-2xl aspect-square bg-gradient-to-br ${gradientColors[index % gradientColors.length]}`}>
                     {categoryImage ? (
                       <img
+                        loading="lazy"
+                        decoding="async"
                         src={categoryImage}
                         alt={category.name}
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
@@ -717,20 +724,22 @@ export default function FashionHomePage() {
                       <p className="text-white/80 text-sm">{category.description || 'প্রোডাক্ট দেখুন'}</p>
                     </div>
                   </div>
-                </motion.div>
+                </m.div>
               );
             })}
 
             {/* Show placeholders if no categories exist */}
             {categories.length === 0 && (
               <>
-                <motion.div
+                <m.div
                   whileHover={{ y: -5 }}
                   className="group cursor-pointer"
                   onClick={() => navigate('/products?category=two-piece')}
                 >
                   <div className="relative overflow-hidden rounded-2xl aspect-square bg-gradient-to-br from-pink-100 to-pink-50">
                     <img
+                      loading="lazy"
+                      decoding="async"
                       src="https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=400&q=80"
                       alt="টু পিস"
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
@@ -741,15 +750,17 @@ export default function FashionHomePage() {
                       <p className="text-white/80 text-sm">১২০+ প্রোডাক্ট</p>
                     </div>
                   </div>
-                </motion.div>
+                </m.div>
 
-                <motion.div
+                <m.div
                   whileHover={{ y: -5 }}
                   className="group cursor-pointer"
                   onClick={() => navigate('/products?category=three-piece')}
                 >
                   <div className="relative overflow-hidden rounded-2xl aspect-square bg-gradient-to-br from-purple-100 to-purple-50">
                     <img
+                      loading="lazy"
+                      decoding="async"
                       src="https://images.unsplash.com/photo-1583391733956-6c78276477e2?w=400&q=80"
                       alt="থ্রি পিস"
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
@@ -760,15 +771,17 @@ export default function FashionHomePage() {
                       <p className="text-white/80 text-sm">৮৫+ প্রোডাক্ট</p>
                     </div>
                   </div>
-                </motion.div>
+                </m.div>
 
-                <motion.div
+                <m.div
                   whileHover={{ y: -5 }}
                   className="group cursor-pointer"
                   onClick={() => navigate('/products?filter=new')}
                 >
                   <div className="relative overflow-hidden rounded-2xl aspect-square bg-gradient-to-br from-amber-100 to-amber-50">
                     <img
+                      loading="lazy"
+                      decoding="async"
                       src="https://images.unsplash.com/photo-1617922001439-4a2e6562f328?w=400&q=80"
                       alt="নতুন আগমন"
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
@@ -779,15 +792,17 @@ export default function FashionHomePage() {
                       <p className="text-white/80 text-sm">এই সপ্তাহে</p>
                     </div>
                   </div>
-                </motion.div>
+                </m.div>
 
-                <motion.div
+                <m.div
                   whileHover={{ y: -5 }}
                   className="group cursor-pointer"
                   onClick={() => navigate('/products?filter=sale')}
                 >
                   <div className="relative overflow-hidden rounded-2xl aspect-square bg-gradient-to-br from-red-100 to-red-50">
                     <img
+                      loading="lazy"
+                      decoding="async"
                       src="https://images.unsplash.com/photo-1596783074918-c84cb06531ca?w=400&q=80"
                       alt="সেল"
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
@@ -798,7 +813,7 @@ export default function FashionHomePage() {
                       <p className="text-white/80 text-sm">৫০% পর্যন্ত ছাড়</p>
                     </div>
                   </div>
-                </motion.div>
+                </m.div>
               </>
             )}
           </div>
@@ -823,7 +838,7 @@ export default function FashionHomePage() {
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
               {recentProducts.slice(0, 8).map((product: any, index) => (
-                <motion.div
+                <m.div
                   key={product.id}
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
@@ -838,6 +853,8 @@ export default function FashionHomePage() {
                     {/* Product Image */}
                     <div className="relative aspect-[3/4] overflow-hidden">
                       <img
+                        loading="lazy"
+                        decoding="async"
                         src={product.images?.[0] || `https://images.unsplash.com/photo-1596783074918-c84cb06531ca?w=400&q=80`}
                         alt={product.name}
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
@@ -912,7 +929,7 @@ export default function FashionHomePage() {
                       </div>
                     </div>
                   </div>
-                </motion.div>
+                </m.div>
               ))}
             </div>
           </div>
@@ -934,7 +951,7 @@ export default function FashionHomePage() {
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
             {displayProducts.slice(0, 8).map((product: any, index) => (
-              <motion.div
+              <m.div
                 key={product.id}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -949,6 +966,8 @@ export default function FashionHomePage() {
                   {/* Product Image */}
                   <div className="relative aspect-[3/4] overflow-hidden">
                     <img
+                      loading="lazy"
+                      decoding="async"
                       src={product.images?.[0] || `https://images.unsplash.com/photo-1596783074918-c84cb06531ca?w=400&q=80`}
                       alt={product.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
@@ -1039,7 +1058,7 @@ export default function FashionHomePage() {
                     </div>
                   </div>
                 </div>
-              </motion.div>
+              </m.div>
             ))}
           </div>
         </div>
@@ -1050,7 +1069,7 @@ export default function FashionHomePage() {
         <div className="container-custom">
           <div className="grid md:grid-cols-2 gap-6">
             {/* Banner 1 */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, x: -30 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
@@ -1068,10 +1087,10 @@ export default function FashionHomePage() {
                 </Button>
               </div>
               <div className="absolute -right-10 -bottom-10 w-48 h-48 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-500" />
-            </motion.div>
+            </m.div>
 
             {/* Banner 2 */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, x: 30 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
@@ -1089,7 +1108,7 @@ export default function FashionHomePage() {
                 </Button>
               </div>
               <div className="absolute -right-10 -bottom-10 w-48 h-48 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-500" />
-            </motion.div>
+            </m.div>
           </div>
         </div>
       </section>
@@ -1111,7 +1130,7 @@ export default function FashionHomePage() {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             {displayNewArrivals.map((product: any, index) => (
-              <motion.div
+              <m.div
                 key={product.id}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -1123,6 +1142,8 @@ export default function FashionHomePage() {
                 <div className="relative overflow-hidden rounded-2xl bg-card mb-3">
                   <div className="aspect-[3/4] overflow-hidden">
                     <img
+                      loading="lazy"
+                      decoding="async"
                       src={product.images?.[0] || `https://images.unsplash.com/photo-1596783074918-c84cb06531ca?w=400&q=80`}
                       alt={product.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
@@ -1167,7 +1188,7 @@ export default function FashionHomePage() {
                     <span className="text-sm text-muted-foreground line-through">{formatPrice(product.original_price)}</span>
                   )}
                 </div>
-              </motion.div>
+              </m.div>
             ))}
           </div>
         </div>
@@ -1176,7 +1197,7 @@ export default function FashionHomePage() {
       {/* Newsletter / CTA */}
       <section className="py-16 md:py-20 bg-background">
         <div className="container-custom">
-          <motion.div
+          <m.div
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
@@ -1208,7 +1229,7 @@ export default function FashionHomePage() {
                 </Button>
               </div>
             </div>
-          </motion.div>
+          </m.div>
         </div>
       </section>
 

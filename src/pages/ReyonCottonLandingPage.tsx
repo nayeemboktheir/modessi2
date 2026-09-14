@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft,
   ChevronRight,
@@ -182,7 +182,7 @@ const HeroSection = memo(({ products, onBuyNow, selectedProductId, onProductSele
           <div className="lg:order-1">
             {/* Mobile title */}
             <div className="text-center lg:hidden mb-4">
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="mb-3"
@@ -191,7 +191,7 @@ const HeroSection = memo(({ products, onBuyNow, selectedProductId, onProductSele
                   <Flame className="h-5 w-5" />
                   হট সেলিং প্রোডাক্ট
                 </span>
-              </motion.div>
+              </m.div>
               <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
                 রেয়ন কটন থ্রি পিস
               </h1>
@@ -203,7 +203,7 @@ const HeroSection = memo(({ products, onBuyNow, selectedProductId, onProductSele
             {/* Color Selector */}
             <div id="product-selector" className="flex justify-center gap-3 mb-4">
               {products.map((product) => (
-                <motion.button
+                <m.button
                   key={product.id}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
@@ -218,13 +218,13 @@ const HeroSection = memo(({ products, onBuyNow, selectedProductId, onProductSele
                     <div className={`w-3 h-3 rounded-full border-2 ${COLOR_DOT[product.slug] || 'bg-gray-300 border-gray-400'}`} />
                     {COLOR_LABEL[product.slug] || product.name}
                   </span>
-                </motion.button>
+                </m.button>
               ))}
             </div>
 
             {/* Image Section */}
             <AnimatePresence mode="wait">
-              <motion.div
+              <m.div
                 key={activeProduct?.id}
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -293,7 +293,7 @@ const HeroSection = memo(({ products, onBuyNow, selectedProductId, onProductSele
                     ))}
                   </div>
                 )}
-              </motion.div>
+              </m.div>
             </AnimatePresence>
 
             {/* Price - Mobile */}
@@ -313,7 +313,7 @@ const HeroSection = memo(({ products, onBuyNow, selectedProductId, onProductSele
 
           {/* Right Column - Desktop */}
           <div className="hidden lg:block lg:order-2 text-center lg:text-left">
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               className="mb-4"
@@ -322,7 +322,7 @@ const HeroSection = memo(({ products, onBuyNow, selectedProductId, onProductSele
                 <Flame className="h-4 w-4" />
                 হট সেলিং প্রোডাক্ট
               </span>
-            </motion.div>
+            </m.div>
 
             <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
               রেয়ন কটন থ্রি পিস
@@ -424,7 +424,7 @@ const ProductsGallery = memo(({ products }: { products: ProductData[] }) => {
             const images = product.images || [];
 
             return (
-              <motion.div
+              <m.div
                 key={product.id}
                 whileHover={{ y: -5 }}
                 className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-3xl p-4 sm:p-6 shadow-lg border border-purple-100"
@@ -470,7 +470,7 @@ const ProductsGallery = memo(({ products }: { products: ProductData[] }) => {
                     ))}
                   </div>
                 )}
-              </motion.div>
+              </m.div>
             );
           })}
         </div>
@@ -980,7 +980,7 @@ CheckoutSection.displayName = 'CheckoutSection';
 const FloatingCTA = memo(({ show, onClick }: { show: boolean; onClick: () => void }) => (
   <AnimatePresence>
     {show && (
-      <motion.div
+      <m.div
         initial={{ y: 100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 100, opacity: 0 }}
@@ -993,7 +993,7 @@ const FloatingCTA = memo(({ show, onClick }: { show: boolean; onClick: () => voi
           <ShoppingBag className="mr-2 h-5 w-5" />
           এখনই অর্ডার করুন
         </Button>
-      </motion.div>
+      </m.div>
     )}
   </AnimatePresence>
 ));
@@ -1041,25 +1041,20 @@ const ReyonCottonLandingPage = () => {
   const { data: products, isLoading, error } = useQuery({
     queryKey: ["reyon-cotton-products"],
     queryFn: async () => {
+      // Variations come back embedded rather than as one request per product.
       const { data, error } = await supabase
         .from("products")
-        .select("*")
+        .select("*, product_variations(*)")
         .in("slug", PRODUCT_SLUGS)
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .eq("product_variations.is_active", true)
+        .order("sort_order", { referencedTable: "product_variations" });
 
       if (error) throw error;
       if (!data || data.length === 0) throw new Error("Products not found");
 
-      const productsWithVariations = await Promise.all(
-        data.map(async (product) => {
-          const { data: variations } = await supabase
-            .from("product_variations")
-            .select("*")
-            .eq("product_id", product.id)
-            .eq("is_active", true)
-            .order("sort_order");
-          return { ...product, variations: variations || [] } as ProductData;
-        })
+      const productsWithVariations = data.map(
+        (product) => ({ ...product, variations: product.product_variations || [] }) as ProductData
       );
 
       // Sort to match PRODUCT_SLUGS order

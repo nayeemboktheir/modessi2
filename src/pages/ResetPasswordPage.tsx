@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { Eye, EyeOff, Lock, ArrowRight, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -72,7 +72,7 @@ const ResetPasswordPage = () => {
     <div className="min-h-screen flex pt-32 pb-16 bg-muted/30">
       <div className="container-custom">
         <div className="max-w-md mx-auto">
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
@@ -157,7 +157,7 @@ const ResetPasswordPage = () => {
                 </Button>
               </form>
             </div>
-          </motion.div>
+          </m.div>
         </div>
       </div>
     </div>

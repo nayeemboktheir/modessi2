@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import {
   Heart,
   ShoppingCart,
@@ -279,13 +279,16 @@ const ProductDetailPage = () => {
 
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
           {/* Image Gallery */}
-          <motion.div
+          <m.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
           >
             <div className="relative aspect-square rounded-lg overflow-hidden bg-muted mb-4 border border-border">
               <img
+                loading="eager"
+                fetchPriority="high"
+                decoding="async"
                 src={product.images[selectedImage]}
                 alt={product.name}
                 className="w-full h-full object-cover"
@@ -328,6 +331,8 @@ const ProductDetailPage = () => {
                     }`}
                   >
                     <img
+                      loading="lazy"
+                      decoding="async"
                       src={image}
                       alt={`${product.name} ${index + 1}`}
                       className="w-full h-full object-cover"
@@ -336,10 +341,10 @@ const ProductDetailPage = () => {
                 ))}
               </div>
             )}
-          </motion.div>
+          </m.div>
 
           {/* Product Info */}
-          <motion.div
+          <m.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
@@ -477,12 +482,12 @@ const ProductDetailPage = () => {
               </Button>
             )}
 
-          </motion.div>
+          </m.div>
         </div>
 
         {/* Product Description Tabs - Only show if long_description exists */}
         {product.long_description && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
@@ -506,7 +511,7 @@ const ProductDetailPage = () => {
                 </div>
               </TabsContent>
             </Tabs>
-          </motion.div>
+          </m.div>
         )}
 
         {/* Related Products */}

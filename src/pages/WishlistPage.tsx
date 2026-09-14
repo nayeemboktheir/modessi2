@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { Trash2, ShoppingBag, ArrowLeft, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
@@ -37,7 +37,7 @@ const WishlistPage = () => {
         </div>
 
         {wishlistItems.length === 0 ? (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="text-center py-16"
@@ -57,11 +57,11 @@ const WishlistPage = () => {
                 Browse Products
               </Link>
             </Button>
-          </motion.div>
+          </m.div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {wishlistItems.map((product, index) => (
-              <motion.div
+              <m.div
                 key={product.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -71,6 +71,8 @@ const WishlistPage = () => {
                 <Link to={`/product/${product.slug}`}>
                   <div className="aspect-square overflow-hidden bg-muted">
                     <img
+                      loading="lazy"
+                      decoding="async"
                       src={product.images[0]}
                       alt={product.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -112,7 +114,7 @@ const WishlistPage = () => {
                     </Button>
                   </div>
                 </div>
-              </motion.div>
+              </m.div>
             ))}
           </div>
         )}

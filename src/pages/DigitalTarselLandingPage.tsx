@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft,
   ChevronRight,
@@ -175,7 +175,7 @@ const HeroSection = memo(({ products, onBuyNow, selectedProductId, onProductSele
           
           <div className="lg:order-1">
             <div className="text-center lg:hidden mb-4">
-              <motion.div 
+              <m.div 
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="mb-3"
@@ -184,7 +184,7 @@ const HeroSection = memo(({ products, onBuyNow, selectedProductId, onProductSele
                   <Sparkles className="h-5 w-5 text-amber-400" />
                   ডিজিটাল টারসেল কালেকশন
                 </span>
-              </motion.div>
+              </m.div>
 
               <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
                 নিউ ডিজিটাল টারসেল
@@ -198,7 +198,7 @@ const HeroSection = memo(({ products, onBuyNow, selectedProductId, onProductSele
               {products.map((product) => {
                 const isOutOfStock = product.stock === 0;
                 return (
-                <motion.button
+                <m.button
                   key={product.id}
                   whileHover={{ scale: isOutOfStock ? 1 : 1.05 }}
                   whileTap={{ scale: isOutOfStock ? 1 : 0.95 }}
@@ -217,13 +217,13 @@ const HeroSection = memo(({ products, onBuyNow, selectedProductId, onProductSele
                     {getColorLabel(product.slug)}
                     {isOutOfStock && <span className="text-xs text-red-500 font-bold">(স্টক আউট)</span>}
                   </span>
-                </motion.button>
+                </m.button>
               );
               })}
             </div>
 
             <AnimatePresence mode="wait">
-              <motion.div
+              <m.div
                 key={activeProduct?.id}
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -291,7 +291,7 @@ const HeroSection = memo(({ products, onBuyNow, selectedProductId, onProductSele
                     ))}
                   </div>
                 )}
-              </motion.div>
+              </m.div>
             </AnimatePresence>
 
             <div className="text-center mt-6 lg:hidden">
@@ -309,7 +309,7 @@ const HeroSection = memo(({ products, onBuyNow, selectedProductId, onProductSele
           </div>
 
           <div className="hidden lg:block lg:order-2 text-center lg:text-left">
-            <motion.div 
+            <m.div 
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               className="mb-4"
@@ -318,7 +318,7 @@ const HeroSection = memo(({ products, onBuyNow, selectedProductId, onProductSele
                 <Sparkles className="h-4 w-4 text-amber-400" />
                 ডিজিটাল টারসেল কালেকশন
               </span>
-            </motion.div>
+            </m.div>
 
             <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
               নিউ ডিজিটাল টারসেল
@@ -1007,25 +1007,20 @@ const DigitalTarselLandingPage = () => {
   const { data: products, isLoading, error } = useQuery({
     queryKey: ["digital-tarsel-products"],
     queryFn: async () => {
+      // Variations come back embedded rather than as one request per product.
       const { data, error } = await supabase
         .from("products")
-        .select("*")
+        .select("*, product_variations(*)")
         .in("slug", PRODUCT_SLUGS)
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .eq("product_variations.is_active", true)
+        .order("sort_order", { referencedTable: "product_variations" });
 
       if (error) throw error;
       if (!data || data.length === 0) throw new Error("Products not found");
 
-      const productsWithVariations = await Promise.all(
-        data.map(async (product) => {
-          const { data: variations } = await supabase
-            .from("product_variations")
-            .select("*")
-            .eq("product_id", product.id)
-            .eq("is_active", true)
-            .order("sort_order");
-          return { ...product, variations: variations || [] } as ProductData;
-        })
+      const productsWithVariations = data.map(
+        (product) => ({ ...product, variations: product.product_variations || [] }) as ProductData
       );
 
       return productsWithVariations;

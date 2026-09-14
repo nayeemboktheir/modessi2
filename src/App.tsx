@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
+import { LazyMotion } from 'framer-motion';
 import { Provider } from 'react-redux';
-import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -62,7 +62,20 @@ const AdminReports = lazy(() => import('@/pages/admin/AdminReports'));
 const AdminHomePageEdit = lazy(() => import('@/pages/admin/AdminHomePageEdit'));
 const AdminLandingVideoSettings = lazy(() => import('@/pages/admin/AdminLandingVideoSettings'));
 
-const queryClient = new QueryClient();
+// Defaults, not per-query tuning. The stock QueryClient treats every result as
+// immediately stale and refetches the whole active set on each window focus —
+// on the admin panel that meant re-pulling orders every time a tab regained
+// focus. Mutations still invalidate explicitly, so freshness is unaffected.
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60 * 1000,
+      gcTime: 5 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 const GlobalAppEffects = () => {
   const location = useLocation();
@@ -83,6 +96,11 @@ const GlobalAppEffects = () => {
   );
 };
 
+// Components animate with `m` rather than `motion`, so framer-motion's feature set
+// is not part of the entry bundle — it is fetched once, in parallel, on first paint.
+// `domMax` rather than `domAnimation` because the cart drawer uses layout animation.
+const loadMotionFeatures = () => import('framer-motion').then((mod) => mod.domMax);
+
 const RouteFallback = () => (
   <div className="min-h-screen flex items-center justify-center">
     <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -93,8 +111,8 @@ const App = () => (
   <Provider store={store}>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <LazyMotion features={loadMotionFeatures}>
         <TooltipProvider>
-          <Toaster />
           <Sonner />
           <BrowserRouter>
             <GlobalAppEffects />
@@ -157,6 +175,7 @@ const App = () => (
             </Suspense>
           </BrowserRouter>
         </TooltipProvider>
+        </LazyMotion>
       </AuthProvider>
     </QueryClientProvider>
   </Provider>

@@ -123,9 +123,18 @@ pointing at a different backend means updating those secrets and re-running the 
   (browser globals and `no-explicit-any` do not apply there) and `src/components/ui/**` is exempt
   from the empty-interface rule because those files are shadcn-generated.
 - UI is shadcn/ui in [src/components/ui/](src/components/ui/) (generated — edit only when
-  intentionally customizing) plus feature folders under `src/components/`. Toasts come in two
-  flavors: the shadcn `useToast` and `sonner`; both are mounted.
+  intentionally customizing) plus feature folders under `src/components/`. Toasts are `sonner`
+  only — `<Sonner />` is the single mount in `App.tsx`. `src/hooks/use-toast.ts` and
+  `src/components/ui/toaster.tsx` are the shadcn variant, left in place but unreferenced, so they
+  no longer reach the bundle; don't reintroduce them.
 - Admin pages are large single files (e.g. `AdminOrders.tsx` ~1900 lines) that hold their queries,
   dialogs, and mutations inline. Follow the local pattern rather than refactoring opportunistically.
 - Phone numbers are Bangladeshi and normalized to local `01XXXXXXXXX` form (see `place-order`);
   currency is BDT and shipping is zoned `inside_dhaka` / `outside_dhaka`.
+- Animations use framer-motion's `m` component, never `motion` — `App.tsx` wraps the tree in
+  `<LazyMotion features={...domMax}>` so the feature bundle loads off the critical path. Importing
+  `motion` anywhere pulls the whole library back into the entry chunk.
+- Admin lists paginate through `usePagination` + `<DataPagination>`
+  ([src/hooks/usePagination.ts](src/hooks/usePagination.ts),
+  [src/components/admin/DataPagination.tsx](src/components/admin/DataPagination.tsx)) rather than
+  per-page implementations.

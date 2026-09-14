@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { Filter, X, ChevronDown, Grid3X3, LayoutGrid, Loader2, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -320,7 +320,7 @@ const ProductsPage = () => {
 
             {/* Mobile Filters */}
             {isFilterOpen && (
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
@@ -379,7 +379,7 @@ const ProductsPage = () => {
                     </Button>
                   </div>
                 </div>
-              </motion.div>
+              </m.div>
             )}
 
             {/* Product Grid */}

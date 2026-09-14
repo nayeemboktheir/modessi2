@@ -176,28 +176,22 @@ const SectionRenderer = ({ section, theme, slug }: SectionRendererProps) => {
     if (productIds.length === 0) return;
 
     const fetchProducts = async () => {
+      // Variations come back embedded rather than as one request per product.
       const { data: productsData } = await supabase
         .from("products")
-        .select("id, name, price, original_price, images")
-        .in("id", productIds);
+        .select(
+          "id, name, price, original_price, images, product_variations(id, name, price, original_price, stock)"
+        )
+        .in("id", productIds)
+        .eq("product_variations.is_active", true)
+        .order("sort_order", { referencedTable: "product_variations" });
 
       if (productsData) {
-        const productsWithVariations = await Promise.all(
-          productsData.map(async (product) => {
-            const { data: variations } = await supabase
-              .from("product_variations")
-              .select("id, name, price, original_price, stock")
-              .eq("product_id", product.id)
-              .eq("is_active", true)
-              .order("sort_order");
-
-            return {
-              ...product,
-              images: product.images || [],
-              variations: variations || [],
-            };
-          })
-        );
+        const productsWithVariations = productsData.map((product) => ({
+          ...product,
+          images: product.images || [],
+          variations: product.product_variations || [],
+        }));
         setProducts(productsWithVariations);
         
         // Auto-select first variation
@@ -340,6 +334,9 @@ const SectionRenderer = ({ section, theme, slug }: SectionRendererProps) => {
           {images.length > 0 ? (
             <div className="relative aspect-[3/4] max-w-md mx-auto">
               <img
+                loading="eager"
+                fetchPriority="high"
+                decoding="async"
                 src={images[currentImage]}
                 alt={settings.title}
                 className="w-full h-full object-cover rounded-lg"
@@ -600,7 +597,9 @@ const SectionRenderer = ({ section, theme, slug }: SectionRendererProps) => {
                           <div className="flex items-center gap-3 w-full md:w-auto md:contents">
                             <div className="w-14 h-14 md:w-16 md:h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
                               {product.images?.[0] && (
-                                <img 
+                                <img
+                                  loading="lazy"
+                                  decoding="async"
                                   src={product.images[0]} 
                                   alt={product.name}
                                   className="w-full h-full object-cover"
@@ -725,7 +724,9 @@ const SectionRenderer = ({ section, theme, slug }: SectionRendererProps) => {
                     <div className="flex justify-between items-center pb-3 border-b">
                       <div className="flex items-center gap-3">
                         {selected.product.images?.[0] && (
-                          <img 
+                          <img
+                            loading="lazy"
+                            decoding="async"
                             src={selected.product.images[0]} 
                             alt="" 
                             className="w-12 h-12 rounded object-cover"
@@ -861,7 +862,7 @@ const SectionRenderer = ({ section, theme, slug }: SectionRendererProps) => {
           >
             {(settings.images || []).map((img, idx) => (
               <div key={idx} className={aspectClass[settings.aspectRatio] || "aspect-square"}>
-                <img src={img} alt="" className="w-full h-full object-cover rounded-lg" />
+                <img src={img} alt="" className="w-full h-full object-cover rounded-lg" loading="lazy" decoding="async" />
               </div>
             ))}
           </div>
@@ -888,7 +889,7 @@ const SectionRenderer = ({ section, theme, slug }: SectionRendererProps) => {
             {isLeft && (
               <div className="aspect-video">
                 {settings.image ? (
-                  <img src={settings.image} alt="" className="w-full h-full object-cover rounded-lg" />
+                  <img src={settings.image} alt="" className="w-full h-full object-cover rounded-lg" loading="lazy" decoding="async" />
                 ) : null}
               </div>
             )}
@@ -902,7 +903,7 @@ const SectionRenderer = ({ section, theme, slug }: SectionRendererProps) => {
             {!isLeft && (
               <div className="aspect-video">
                 {settings.image ? (
-                  <img src={settings.image} alt="" className="w-full h-full object-cover rounded-lg" />
+                  <img src={settings.image} alt="" className="w-full h-full object-cover rounded-lg" loading="lazy" decoding="async" />
                 ) : null}
               </div>
             )}
@@ -937,7 +938,7 @@ const SectionRenderer = ({ section, theme, slug }: SectionRendererProps) => {
                   <p className="mb-4 text-muted-foreground">&ldquo;{item.content}&rdquo;</p>
                   <div className="flex items-center gap-3">
                     {item.avatar ? (
-                      <img src={item.avatar} alt="" className="w-10 h-10 rounded-full object-cover" />
+                      <img src={item.avatar} alt="" className="w-10 h-10 rounded-full object-cover" loading="lazy" decoding="async" />
                     ) : (
                       <div
                         className="w-10 h-10 rounded-full flex items-center justify-center"
@@ -1190,7 +1191,10 @@ const SectionRenderer = ({ section, theme, slug }: SectionRendererProps) => {
               <div className="flex justify-center order-1 md:order-2 w-full">
                 {settings.heroImage && (
                   <div className="relative p-3 md:p-4 bg-white/20 backdrop-blur rounded-2xl max-w-[280px] md:max-w-full">
-                    <img 
+                    <img
+                      loading="eager"
+                      fetchPriority="high"
+                      decoding="async"
                       src={settings.heroImage} 
                       alt={settings.title}
                       className="w-full h-auto rounded-xl"

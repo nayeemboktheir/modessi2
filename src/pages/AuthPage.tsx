@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { Eye, EyeOff, Mail, Lock, User, ArrowRight, ShoppingBag, Phone, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,27 +8,59 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { z } from 'zod';
 
-const emailSchema = z.object({
-  email: z.string().email('সঠিক ইমেইল দিন'),
-  password: z.string().min(6, 'পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে'),
-});
+// These four rules were a zod schema. zod is ~30KB gzipped and this page was the
+// only thing in the app importing it, so the checks are spelled out instead.
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const BD_PHONE_PATTERN = /^01[3-9]\d{8}$/;
 
-const phoneSchema = z.object({
-  phone: z.string().regex(/^01[3-9]\d{8}$/, 'সঠিক ফোন নম্বর দিন (01XXXXXXXXX)'),
-  password: z.string().min(6, 'পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে'),
-});
+const PASSWORD_TOO_SHORT = 'পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে';
+const INVALID_EMAIL = 'সঠিক ইমেইল দিন';
 
-const signUpSchema = z.object({
-  fullName: z.string().min(2, 'নাম কমপক্ষে ২ অক্ষরের হতে হবে').max(100),
-  email: z.string().email('সঠিক ইমেইল দিন').max(255).optional().or(z.literal('')),
-  phone: z.string().regex(/^01[3-9]\d{8}$/, 'সঠিক ফোন নম্বর দিন').optional().or(z.literal('')),
-  password: z.string().min(6, 'পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে').max(100),
-}).refine((data) => data.email || data.phone, {
-  message: 'ইমেইল অথবা ফোন নম্বর অন্তত একটি দিতে হবে',
-  path: ['email'],
-});
+type FieldErrors = Record<string, string>;
+
+const validateEmailLogin = (email: string, password: string): FieldErrors => {
+  const errors: FieldErrors = {};
+  if (!EMAIL_PATTERN.test(email)) errors.email = INVALID_EMAIL;
+  if (password.length < 6) errors.password = PASSWORD_TOO_SHORT;
+  return errors;
+};
+
+const validatePhoneLogin = (phone: string, password: string): FieldErrors => {
+  const errors: FieldErrors = {};
+  if (!BD_PHONE_PATTERN.test(phone)) errors.phone = 'সঠিক ফোন নম্বর দিন (01XXXXXXXXX)';
+  if (password.length < 6) errors.password = PASSWORD_TOO_SHORT;
+  return errors;
+};
+
+const validateSignUp = (data: {
+  fullName: string;
+  email: string;
+  phone: string;
+  password: string;
+}): FieldErrors => {
+  const errors: FieldErrors = {};
+
+  if (data.fullName.length < 2) errors.fullName = 'নাম কমপক্ষে ২ অক্ষরের হতে হবে';
+  else if (data.fullName.length > 100) errors.fullName = 'নাম ১০০ অক্ষরের বেশি হতে পারবে না';
+
+  if (data.email) {
+    if (!EMAIL_PATTERN.test(data.email)) errors.email = INVALID_EMAIL;
+    else if (data.email.length > 255) errors.email = 'ইমেইল ২৫৫ অক্ষরের বেশি হতে পারবে না';
+  }
+
+  if (data.phone && !BD_PHONE_PATTERN.test(data.phone)) errors.phone = 'সঠিক ফোন নম্বর দিন';
+
+  if (data.password.length < 6) errors.password = PASSWORD_TOO_SHORT;
+  else if (data.password.length > 100) errors.password = 'পাসওয়ার্ড ১০০ অক্ষরের বেশি হতে পারবে না';
+
+  // Only checked once the individual fields pass, matching the schema's refine step.
+  if (Object.keys(errors).length === 0 && !data.email && !data.phone) {
+    errors.email = 'ইমেইল অথবা ফোন নম্বর অন্তত একটি দিতে হবে';
+  }
+
+  return errors;
+};
 
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -58,30 +90,19 @@ const AuthPage = () => {
   }, [user, isAdmin, isAuthLoading, navigate]);
 
   const validateForm = () => {
-    try {
-      if (isLogin) {
-        if (loginMethod === 'email') {
-          emailSchema.parse({ email: formData.email, password: formData.password });
-        } else {
-          phoneSchema.parse({ phone: formData.phone, password: formData.password });
-        }
-      } else {
-        signUpSchema.parse(formData);
-      }
-      setErrors({});
-      return true;
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const newErrors: Record<string, string> = {};
-        error.errors.forEach((err) => {
-          if (err.path[0]) {
-            newErrors[err.path[0] as string] = err.message;
-          }
-        });
-        setErrors(newErrors);
-      }
-      return false;
+    let fieldErrors: FieldErrors;
+
+    if (isLogin) {
+      fieldErrors =
+        loginMethod === 'email'
+          ? validateEmailLogin(formData.email, formData.password)
+          : validatePhoneLogin(formData.phone, formData.password);
+    } else {
+      fieldErrors = validateSignUp(formData);
     }
+
+    setErrors(fieldErrors);
+    return Object.keys(fieldErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -166,7 +187,7 @@ const AuthPage = () => {
       <div className="min-h-screen flex pt-32 pb-16 bg-muted/30">
         <div className="container-custom">
           <div className="max-w-md mx-auto">
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
@@ -234,7 +255,7 @@ const AuthPage = () => {
                   </button>
                 </div>
               </div>
-            </motion.div>
+            </m.div>
           </div>
         </div>
       </div>
@@ -245,7 +266,7 @@ const AuthPage = () => {
     <div className="min-h-screen flex pt-32 pb-16 bg-muted/30">
       <div className="container-custom">
         <div className="max-w-md mx-auto">
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
@@ -471,7 +492,7 @@ const AuthPage = () => {
                 </p>
               </div>
             </div>
-          </motion.div>
+          </m.div>
         </div>
       </div>
     </div>

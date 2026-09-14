@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { Heart, ShieldCheck, Truck, RefreshCw, MessageCircle, Users, Sparkles, Package } from 'lucide-react';
 import Header from '@/components/layout/Header';
 
@@ -56,20 +56,20 @@ const AboutPage = () => {
           </div>
           
           <div className="container-custom relative z-10">
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
               className="text-center max-w-4xl mx-auto"
             >
-              <motion.span 
+              <m.span 
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.2 }}
                 className="inline-block px-6 py-3 bg-primary/10 text-primary rounded-full text-sm font-semibold mb-8 border border-primary/20"
               >
                 ✨ আমাদের সম্পর্কে
-              </motion.span>
+              </m.span>
               
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold text-foreground mb-8 leading-tight">
                 সুন্দর পোশাক শুধু ফ্যাশন নয়—
@@ -79,7 +79,7 @@ const AboutPage = () => {
               <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
                 এই বিশ্বাস থেকেই আমাদের যাত্রা।
               </p>
-            </motion.div>
+            </m.div>
           </div>
         </section>
 
@@ -87,7 +87,7 @@ const AboutPage = () => {
         <section className="py-20">
           <div className="container-custom">
             <div className="max-w-4xl mx-auto">
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -107,10 +107,10 @@ const AboutPage = () => {
                     আমাদের সব পণ্য নিজস্ব ফ্যাক্টরি ও বিশ্বস্ত সোর্স থেকে সংগ্রহ করা হয়, যেন কাস্টমার পান <span className="text-primary font-semibold">সেরা মানের কাপড় ন্যায্য দামে</span>।
                   </p>
                 </div>
-              </motion.div>
+              </m.div>
 
               {/* Highlight Box */}
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
@@ -138,7 +138,7 @@ const AboutPage = () => {
                     </span>
                   </div>
                 </div>
-              </motion.div>
+              </m.div>
             </div>
           </div>
         </section>
@@ -146,7 +146,7 @@ const AboutPage = () => {
         {/* Features Section */}
         <section className="py-20 bg-muted/30">
           <div className="container-custom">
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -158,11 +158,11 @@ const AboutPage = () => {
               <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground">
                 আমাদের বৈশিষ্ট্য
               </h2>
-            </motion.div>
+            </m.div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               {features.map((feature, index) => (
-                <motion.div
+                <m.div
                   key={index}
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
@@ -179,7 +179,7 @@ const AboutPage = () => {
                   <p className="text-muted-foreground text-sm">
                     {feature.description}
                   </p>
-                </motion.div>
+                </m.div>
               ))}
             </div>
           </div>
@@ -188,7 +188,7 @@ const AboutPage = () => {
         {/* Goals Section */}
         <section className="py-20">
           <div className="container-custom">
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -200,11 +200,11 @@ const AboutPage = () => {
               <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground mb-4">
                 শুধু পণ্য বিক্রি করা নয়—
               </h2>
-            </motion.div>
+            </m.div>
 
             <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
               {goals.map((goal, index) => (
-                <motion.div
+                <m.div
                   key={index}
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
@@ -221,7 +221,7 @@ const AboutPage = () => {
                   <p className="text-muted-foreground">
                     {goal.description}
                   </p>
-                </motion.div>
+                </m.div>
               ))}
             </div>
           </div>
@@ -235,7 +235,7 @@ const AboutPage = () => {
           </div>
           
           <div className="container-custom relative z-10">
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -260,7 +260,7 @@ const AboutPage = () => {
                   🤝 আমাদের সাথে থাকুন—<span className="font-bold">স্টাইল আর বিশ্বাসের পথে</span>
                 </p>
               </div>
-            </motion.div>
+            </m.div>
           </div>
         </section>
       </div>

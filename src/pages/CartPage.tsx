@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { Trash2, Plus, Minus, ArrowLeft, ArrowRight, ShoppingBag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
@@ -40,7 +40,7 @@ const CartPage = () => {
         </div>
 
         {cartItems.length === 0 ? (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="text-center py-16"
@@ -60,7 +60,7 @@ const CartPage = () => {
                 কেনাকাটা করুন
               </Link>
             </Button>
-          </motion.div>
+          </m.div>
         ) : (
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Cart Items */}
@@ -71,7 +71,7 @@ const CartPage = () => {
                 const originalPrice = item.variation?.original_price ?? item.product.originalPrice;
                 
                 return (
-                  <motion.div
+                  <m.div
                     key={itemKey}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -80,6 +80,8 @@ const CartPage = () => {
                   >
                     <Link to={`/product/${item.product.slug}`}>
                       <img
+                        loading="lazy"
+                        decoding="async"
                         src={item.product.images[0]}
                         alt={item.product.name}
                         className="w-24 h-24 md:w-32 md:h-32 object-cover rounded-lg"
@@ -153,7 +155,7 @@ const CartPage = () => {
                         </div>
                       </div>
                     </div>
-                  </motion.div>
+                  </m.div>
                 );
               })}
 

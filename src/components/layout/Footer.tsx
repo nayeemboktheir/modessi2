@@ -41,7 +41,9 @@ const Footer = () => {
           <div className="space-y-4">
             <div className="flex items-center gap-3">
               {siteLogo ? (
-                <img 
+                <img
+                  loading="lazy"
+                  decoding="async"
                   src={siteLogo} 
                   alt={siteName} 
                   className="h-10 w-auto"
@@ -152,6 +154,16 @@ const Footer = () => {
         <div className="container mx-auto px-4 py-5">
           <p className="text-gray-500 text-sm text-center">
             © {new Date().getFullYear()} {siteName}। সর্বস্বত্ব সংরক্ষিত।
+          </p>
+        </div>
+      </div>
+
+      {/* Developer Credit */}
+      <div className="bg-black/30 border-t border-gray-700/50">
+        <div className="container mx-auto px-4 py-4">
+          <p className="text-center text-xs tracking-[0.2em] text-gray-500 uppercase">
+            Developed by{' '}
+            <span className="font-bold text-pink-400">Platiroll</span>
           </p>
         </div>
       </div>
