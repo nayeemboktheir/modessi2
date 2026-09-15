@@ -289,6 +289,25 @@ const fetchAllOrderRows = async ({
   return { rows: allRows.slice(0, maxRows), truncated: allRows.length >= maxRows };
 };
 
+// The badge on the "All Orders" tab reports the whole table, not just the most
+// recent ORDERS_FETCH_LIMIT rows held in memory, so it stays right once a shop
+// has more orders than the page loads.
+const fetchOrdersTotalCount = async (timeoutMs: number): Promise<number | null> => {
+  try {
+    const { count, error } = await withTimeout(
+      supabase.from('orders').select('id', { count: 'exact', head: true }),
+      timeoutMs,
+      'orders_total_count'
+    );
+
+    if (error) throw error;
+    return count ?? null;
+  } catch (error) {
+    console.error('Failed to load total order count:', error);
+    return null;
+  }
+};
+
 // Debounce hook for search
 function useDebouncedValue<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -303,6 +322,7 @@ export default function AdminOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [ordersTruncated, setOrdersTruncated] = useState(false);
+  const [totalOrderCount, setTotalOrderCount] = useState<number | null>(null);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 200);
   const [statusFilter, setStatusFilter] = useState<string>('pending');
@@ -394,13 +414,17 @@ export default function AdminOrders() {
     if (showLoader) setLoading(true);
 
     try {
-      const { rows: baseOrders, truncated } = await fetchAllOrderRows({
-        batchSize: ORDER_FETCH_BATCH_SIZE,
-        timeoutMs: ORDERS_QUERY_TIMEOUT_MS,
-        retries: 1,
-      });
+      const [{ rows: baseOrders, truncated }, totalCount] = await Promise.all([
+        fetchAllOrderRows({
+          batchSize: ORDER_FETCH_BATCH_SIZE,
+          timeoutMs: ORDERS_QUERY_TIMEOUT_MS,
+          retries: 1,
+        }),
+        fetchOrdersTotalCount(ORDERS_QUERY_TIMEOUT_MS),
+      ]);
 
       setOrdersTruncated(truncated);
+      if (totalCount !== null) setTotalOrderCount(totalCount);
 
       const normalizedOrders: Order[] = baseOrders.map((order) => ({
         ...order,
@@ -447,6 +471,8 @@ export default function AdminOrders() {
         const next = exists
           ? prev.map((order) => (order.id === createdOrder.id ? createdOrder : order))
           : [createdOrder, ...prev];
+
+        if (!exists) setTotalOrderCount((count) => (count === null ? count : count + 1));
 
         persistOrdersCache(next as Order[]);
         return next;
@@ -1217,7 +1243,7 @@ export default function AdminOrders() {
           >
             All Orders
             <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
-              {orders.length}
+              {(totalOrderCount ?? orders.length).toLocaleString()}
             </Badge>
           </TabsTrigger>
           {sourceOptions.map((source) => {
@@ -1357,7 +1383,8 @@ export default function AdminOrders() {
       </div>
       {ordersTruncated && (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          Showing the {ORDERS_FETCH_LIMIT.toLocaleString()} most recent orders. Use the date
+          Showing the {ORDERS_FETCH_LIMIT.toLocaleString()} most recent orders
+          {totalOrderCount !== null ? ` of ${totalOrderCount.toLocaleString()}` : ''}. Use the date
           filters to reach older ones.
         </div>
       )}
