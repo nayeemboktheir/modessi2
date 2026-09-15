@@ -7,6 +7,8 @@
 set -uo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 source ./00-config.sh
+# 00-config.sh normally sets this; derive it if an older copy does not.
+REPO_ROOT="${REPO_ROOT:-$(cd ../.. && pwd)}"
 
 fail=0
 note() { printf '  %-40s %s\n' "$1" "$2"; }
@@ -22,24 +24,36 @@ cnt() {
 }
 
 echo "=== 1. row counts (service_role, RLS bypassed) ==="
-# Expected values are the source figures, confirmed before migration.
-while IFS='=' read -r t want; do
-  got="$(cnt "$t" "$TARGET_SERVICE_KEY")"
-  [ "$got" = "$want" ] && note "$t" "ok ($got)" || bad "$t" "expected $want, got ${got:-<none>}"
-done <<'EOF'
-orders=6665
-order_items=6870
-sms_logs=7169
-products=62
-product_variations=346
-admin_settings=53
-wholesale_prices=75
-draft_orders=140
-categories=3
-home_page_content=10
-sms_templates=4
-user_roles=1
-EOF
+# Expectations come from expected-counts.txt, which 01-extract-from-backup.sh
+# writes by counting the COPY blocks in the very file that was imported. That
+# way they always describe THIS export - hardcoding them means the check breaks
+# the moment a fresher export is used at cutover.
+EXPECTED="${EXPECTED:-}"
+if [ -z "$EXPECTED" ]; then
+  # Most recent expected-counts.txt under the usual export location.
+  EXPECTED=$(ls -t "$REPO_ROOT"/"lovable database"/*/import/expected-counts.txt 2>/dev/null | head -1)
+fi
+
+if [ -z "$EXPECTED" ] || [ ! -s "$EXPECTED" ]; then
+  bad "expected-counts.txt" "not found - re-run 01-extract-from-backup.sh, or set EXPECTED=/path/to/expected-counts.txt"
+else
+  echo "  using $EXPECTED"
+  while IFS='=' read -r t want; do
+    case "$t" in
+      auth.*)            continue ;;  # auth schema is not exposed through PostgREST
+      rate_limit_hits)   continue ;;  # a live counter; drifts by design
+      courier_lookup_cache) continue ;; # a cache the app fills as it runs; the
+                                        # smoke test alone took it 17 -> 44
+      '')                continue ;;
+    esac
+    got="$(cnt "$t" "$TARGET_SERVICE_KEY")"
+    if [ "$got" = "$want" ]; then
+      note "$t" "ok ($got)"
+    else
+      bad "$t" "expected $want, got ${got:-<none>}"
+    fi
+  done < "$EXPECTED"
+fi
 
 echo
 echo "=== 2. RLS actually enforced for anon ==="
@@ -73,18 +87,43 @@ uniq = sorted({u for r in rows for u in (r.get('images') or [])})
 by = collections.Counter(u.split('/')[2] for u in uniq)
 for h, n in by.most_common():
     print("  %-40s %d urls" % (h, n))
-ok, fails = 0, []
-for u in uniq:
+# A 200 is not enough: Hostinger's SPA rewrite answers 200 with index.html for
+# any missing path, so a dead image looks fine unless the content-type is
+# checked too. Only the migrated URLs are asserted on; the legacy
+# modessi.shop/wp-content ones are reported separately because they are
+# ALREADY broken in production (the WordPress files were removed long ago) and
+# are not this migration's business to fix.
+ours = [u for u in uniq if 'api.modessi.shop' in u]
+legacy = [u for u in uniq if u not in ours]
+
+
+def probe(u):
     try:
         with urllib.request.urlopen(urllib.request.Request(u, method='HEAD'), timeout=25) as r:
-            ok += 1 if r.status == 200 else fails.append((r.status, u)) or 0
+            return r.status, (r.headers.get('Content-Type') or '')
     except urllib.error.HTTPError as e:
-        fails.append((e.code, u))
+        return e.code, ''
     except Exception as e:
-        fails.append((type(e).__name__, u))
-print("  %-40s %d/%d resolve 200" % ("product images", ok, len(uniq)))
+        return type(e).__name__, ''
+
+
+ok, fails = 0, []
+for u in ours:
+    st, ct = probe(u)
+    if st == 200 and ct.startswith('image/'):
+        ok += 1
+    else:
+        fails.append(("%s %s" % (st, ct or 'no content-type'), u))
+print("  %-40s %d/%d serve image/* " % ("migrated images", ok, len(ours)))
 for c, u in fails[:10]:
     print("    FAIL %s %s" % (c, u))
+
+if legacy:
+    bad_legacy = sum(1 for u in legacy
+                     if not (lambda r: r[0] == 200 and r[1].startswith('image/'))(probe(u)))
+    print("  %-40s %d of %d not serving an image (pre-existing, informational)"
+          % ("legacy non-api URLs", bad_legacy, len(legacy)))
+
 raise SystemExit(1 if fails else 0)
 PY
 [ $? -eq 0 ] || fail=1

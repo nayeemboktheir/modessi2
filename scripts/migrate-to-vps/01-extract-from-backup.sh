@@ -141,6 +141,41 @@ echo "    ${SOURCE_URL}/storage/v1/object/public/${BUCKET}/ -> ${TARGET_URL}/...
 
 echo
 echo "==> 4/4  assembling single import file"
+
+# Two modes. The default refuses to touch a target that already holds our
+# tables, so a first import cannot half-merge into something. RESET=1 is the
+# cutover mode: it wipes the target's public schema and auth rows first, which
+# is how you re-import a FRESH export over a rehearsal. A live store keeps
+# changing - not just new rows, but status and tracking_number updates to
+# existing orders - so the only correct cutover is a full re-import from an
+# export taken after the store stops writing. Never hand-pick "just the new
+# rows": missing a status transition can make the courier function re-dispatch
+# a parcel that is already in transit.
+if [ "${RESET:-0}" = 1 ]; then
+  echo "    MODE: RESET - the import will WIPE the target's public schema first"
+  RESET_GUARD=$(cat <<'RG'
+  -- RESET mode: this import replaces whatever is already there.
+  RAISE NOTICE 'RESET: dropping and recreating the public schema';
+  DROP SCHEMA IF EXISTS public CASCADE;
+  CREATE SCHEMA public;
+  GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+  -- Dropping the schema also drops the stack's own default ACLs on it; the
+  -- dump's 12 "ALTER DEFAULT PRIVILEGES FOR ROLE postgres" statements below
+  -- re-establish equivalents, which is why they are kept.
+RG
+)
+else
+  echo "    MODE: first import - will refuse if the target already has our tables"
+  RESET_GUARD=$(cat <<'RG'
+  SELECT count(*) INTO n FROM pg_tables
+   WHERE schemaname='public' AND tablename IN ('orders','products','admin_settings');
+  IF n > 0 THEN
+    RAISE EXCEPTION 'public schema already has % of our tables - regenerate with RESET=1 to replace them', n;
+  END IF;
+RG
+)
+fi
+
 {
   cat <<HDR
 -- Modessi: Lovable -> self-hosted import
@@ -176,11 +211,7 @@ BEGIN
     RAISE EXCEPTION 'target has no auth/storage schema - is this a Supabase stack?';
   END IF;
 
-  SELECT count(*) INTO n FROM pg_tables
-   WHERE schemaname='public' AND tablename IN ('orders','products','admin_settings');
-  IF n > 0 THEN
-    RAISE EXCEPTION 'public schema already has % of our tables - drop it first to avoid a half-merge', n;
-  END IF;
+${RESET_GUARD}
 
   -- auth.users must have every column the dump is about to write.
   SELECT string_agg(c, ', ') INTO missing FROM (
@@ -234,6 +265,19 @@ if grep -qE '^\\(restrict|unrestrict)' "$OUT/modessi-import.sql"; then
     && mv -f "$OUT/.tmp" "$OUT/modessi-import.sql"
   echo "    stripped $n \\restrict/\\unrestrict meta-commands"
 fi
+# Record how many rows each COPY block actually carries, so verification can
+# assert against THIS export rather than figures hardcoded from an older one.
+# Counting here - from the assembled file - means the expectations cannot drift
+# away from what was imported.
+awk '
+  /^COPY /{ t=$2; sub(/^public\./,"",t); c=0; inblk=1; next }
+  inblk && /^\\\.$/{ print t "=" c; inblk=0; next }
+  inblk { c++ }
+' "$OUT/modessi-import.sql" | sort > "$OUT/expected-counts.txt"
+printf '    expected-counts.txt: %s tables, %s data rows total\n' \
+  "$(wc -l < "$OUT/expected-counts.txt")" \
+  "$(awk -F= '{s+=$2} END{print s}' "$OUT/expected-counts.txt")"
+
 # "\." is NOT a meta-command: it terminates a COPY ... FROM stdin data block and
 # has to stay. Only flag anything else.
 left=$(grep -cE '^\\[^.]' "$OUT/modessi-import.sql" || true)

@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/react-query';
 import heroSlide1 from '@/assets/hero-slide-1.jpg';
 import heroSlide2 from '@/assets/hero-slide-2.jpg';
 import heroSlide3 from '@/assets/hero-slide-3.jpg';
-import defaultLogo from '@/assets/site-logo.png';
 import { m, AnimatePresence } from 'framer-motion';
 import {
   ShoppingBag, Heart, User, LayoutDashboard, ChevronRight, ChevronLeft,
@@ -103,7 +102,7 @@ export default function FashionHomePage() {
   });
 
   const siteName = headerSettings?.site_name || 'Modessi';
-  const siteLogo = headerSettings?.site_logo || headerSettings?.shop_logo_url || defaultLogo;
+  const siteLogo = headerSettings?.site_logo || headerSettings?.shop_logo_url;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -394,18 +393,17 @@ export default function FashionHomePage() {
 
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2">
-              <img
-                src={siteLogo}
-                alt={siteName}
-                className="h-10 w-auto object-contain"
-                loading="eager"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  if (target.src !== defaultLogo) target.src = defaultLogo;
-                }}
-              />
-              {/* Only show text if logo is missing */}
-              {!siteLogo && (
+              {siteLogo ? (
+                <img
+                  src={siteLogo}
+                  alt={siteName}
+                  className="h-10 w-auto object-contain"
+                  loading="eager"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              ) : (
                 <span className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
                   {siteName}
                 </span>

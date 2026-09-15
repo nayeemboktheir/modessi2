@@ -19,7 +19,6 @@ import { selectCartCount, toggleCart } from '@/store/slices/cartSlice';
 import { selectWishlistItems } from '@/store/slices/wishlistSlice';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import defaultLogo from '@/assets/site-logo.png';
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -57,7 +56,7 @@ const Header = () => {
   });
 
   const siteName = headerSettings?.site_name || 'খেজুর বাজার';
-  const siteLogo = headerSettings?.site_logo || headerSettings?.shop_logo_url || defaultLogo;
+  const siteLogo = headerSettings?.site_logo || headerSettings?.shop_logo_url;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -95,10 +94,7 @@ const Header = () => {
                 alt={siteName || 'Site Logo'}
                 className="h-10 w-auto object-contain"
                 onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  if (target.src !== defaultLogo) {
-                    target.src = defaultLogo;
-                  }
+                  e.currentTarget.style.display = 'none';
                 }}
               />
             ) : (

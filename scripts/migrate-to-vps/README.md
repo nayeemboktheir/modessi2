@@ -135,8 +135,9 @@ the three parts separately for inspection. What it does, and why:
 - Strips the 12 `ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin` statements.
   The import runs as `postgres`, which is **not** a superuser on a Supabase
   stack, so those fail with *permission denied to change default privileges* —
-  and they're redundant, since the stack ships equivalent default ACLs and this
-  import never drops the schema.
+  and they're redundant: the stack ships equivalent default ACLs, and in
+  `RESET=1` mode - the only mode that drops the schema - the dump's 12
+  `FOR ROLE postgres` variants re-establish them.
 - Takes `auth.users` then `auth.identities`, **in that order**. A single
   `pg_restore --table=users --table=identities` emits them alphabetically,
   which puts identities first and fails their foreign key to users.
@@ -399,6 +400,71 @@ Keep `FUNCTIONS_VERIFY_JWT` as it is on this stack. Remember that the router
 only checks the JWT *signature*, and the anon key is a valid signed JWT that
 ships in the browser bundle — so every function still authorizes for itself via
 `_shared/auth.ts`. That is unchanged by the migration.
+
+### 6c. The current target is a REHEARSAL, not the final state
+
+Everything above was done from an export taken **2026-09-14 09:54 UTC**. The
+store never stopped trading, so the target is already behind. Measured on
+2026-09-15:
+
+| | in the import | live on Lovable | drift |
+|---|---|---|---|
+| orders | 6,665 | 6,678 | **+13** |
+| order_items | 6,870 | 6,884 | +14 |
+| sms_logs | 7,169 | 7,182 | +13 |
+| storage objects | 121 | 122 | +1 |
+| products / settings / drafts | - | - | 0 |
+
+**Do not try to sync just the new rows.** Inserts are not the problem; updates
+are. Of the orders that existed in the snapshot, **11 have since been updated** -
+all 11 moved to shipped/delivered and had `tracking_number` set. A row-level
+delta that copies only new orders would leave those 11 looking pending on the
+new backend, and `steadfast-courier` only refuses to re-dispatch an order that
+already has a `tracking_number` - so the missed updates could send parcels to
+the courier twice. That is audit finding #14 reopening itself.
+
+The correct cutover is a **fresh export and a full re-import**, which is what
+`RESET=1` is for.
+
+#### Cutover sequence
+
+Do the slow, reversible parts first, so the window is short.
+
+**Beforehand (no downtime, nothing customer-visible):**
+
+1. Set the GitHub Actions secrets - `VITE_SUPABASE_URL=https://api.modessi.shop`
+   and `VITE_SUPABASE_PUBLISHABLE_KEY=<the new anon key>`. Setting them changes
+   nothing until the workflow runs.
+2. Configure Backups (6b) and confirm a restore works.
+3. Note the newest order, so you can detect anything that slips through:
+   `select max(order_number), max(created_at) from orders;` on Lovable.
+
+**The window itself (~15-20 minutes, mostly the frontend build):**
+
+4. Export from Lovable: **Advanced settings -> Export data**, download, unzip.
+5. Regenerate in cutover mode:
+   ```sh
+   BACKUP=/path/to/modessi2_<today>.backup RESET=1 ./01-extract-from-backup.sh
+   ```
+   `RESET=1` makes the import drop the rehearsal's public schema and auth rows
+   first, inside the same transaction - so it is still all-or-nothing.
+6. Import it exactly as in step 3 (Coolify -> Import Backup, command ending
+   `-f`).
+7. `./03-migrate-storage.sh` - incremental, so it skips the 121 already there
+   and uploads only what is new.
+8. `./06-verify-http.sh` - must be all green. Update the expected counts at the
+   top of section 1 to the fresh figures first.
+9. Run the **Build and Deploy to Hostinger** workflow. This is the only
+   customer-visible moment, and it also ships six weeks of unreleased frontend
+   work.
+10. Smoke-test (step 8).
+
+**Afterwards:** re-query Lovable for anything newer than the order number you
+noted in (3) and re-enter it by hand. At the current rate - 13 orders in 28
+hours, about one every two hours - a 20-minute window should catch nothing, but
+check rather than assume.
+
+Leave the Lovable project running and untouched for a rollback window.
 
 ### 6b. Configure backups — do not skip this
 
