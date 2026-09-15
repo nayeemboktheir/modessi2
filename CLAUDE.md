@@ -107,11 +107,20 @@ integrations (`steadfast-*`, `carrybee-courier`, `bdcourier` via `courier-histor
 
 ### Deployment
 
-The front end is a static bundle on Hostinger. `.github/workflows/deploy.yml` is manual
-(`workflow_dispatch`): it builds with the `VITE_SUPABASE_*` GitHub Actions secrets and force-pushes
-`dist/` to the `deploy` branch. Because the Supabase URL and key are baked in at build time,
-pointing at a different backend means updating those secrets and re-running the workflow — editing
+The front end is a Docker build deployed by **Coolify**, which watches this repo's `main` and
+builds [Dockerfile](Dockerfile): `npm install` then `npm run build` in a `node:22-alpine` stage,
+with the result served by `nginx:1.27-alpine` using [nginx.conf](nginx.conf) (listening on **80** —
+Coolify's "Ports Exposes" must say 80, not its 3000 default, or Traefik returns 502). `try_files
+$uri /index.html` is what makes React Router deep links work.
+
+`VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` are declared as `ARG`s in the Dockerfile
+because Vite substitutes them at build time — including the `%VITE_SUPABASE_URL%` placeholders in
+[index.html](index.html) for the favicon and `og:image`. In Coolify they must be marked as **build**
+variables, not runtime-only, and changing either needs a redeploy rather than a restart. Editing
 `.env` only affects local dev.
+
+There is no GitHub Actions workflow and no `deploy` branch any more; the previous Hostinger
+static-bundle pipeline was removed once Coolify took over. `dist/` is a local build artifact only.
 
 ## Conventions
 

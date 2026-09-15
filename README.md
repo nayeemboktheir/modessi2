@@ -73,9 +73,10 @@ JWT verification is enforced by the router, not by `supabase/config.toml`. Funct
 
 ## Deployment
 
-The front end is a static bundle hosted on Hostinger. `.github/workflows/deploy.yml` is a manual
-(`workflow_dispatch`) job that builds with the `VITE_SUPABASE_*` GitHub Actions secrets and force-pushes
-`dist/` to the `deploy` branch, which Hostinger serves.
+The front end is built and served by **Coolify** from this repo's `Dockerfile` — a `node:22-alpine`
+build stage running `npm run build`, then `nginx:1.27-alpine` serving `dist/` on port 80 with
+`nginx.conf`. Coolify watches `main`.
 
-Because the Supabase URL and key are baked in at build time, changing backends means updating the
-GitHub Actions secrets and re-running the workflow — not just editing `.env`.
+`VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` are Dockerfile `ARG`s, because Vite bakes
+them in at build time, so they must be configured as **build** variables in Coolify and a change
+requires a redeploy. Editing `.env` only affects local dev.

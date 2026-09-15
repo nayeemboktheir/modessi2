@@ -4,10 +4,11 @@ import { useQuery } from '@tanstack/react-query';
 import heroSlide1 from '@/assets/hero-slide-1.jpg';
 import heroSlide2 from '@/assets/hero-slide-2.jpg';
 import heroSlide3 from '@/assets/hero-slide-3.jpg';
+import shopLogo from '@/assets/shop-logo.png';
 import { m, AnimatePresence } from 'framer-motion';
 import {
   ShoppingBag, Heart, User, LayoutDashboard, ChevronRight, ChevronLeft,
-  Sparkles, Truck, Shield, RotateCcw, Star, ArrowRight, Headphones,
+  Truck, Shield, RotateCcw, Star, ArrowRight, Headphones,
   Search, Menu, X, Eye, Zap
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -101,8 +102,8 @@ export default function FashionHomePage() {
     refetchOnWindowFocus: false,
   });
 
-  const siteName = headerSettings?.site_name || 'Modessi';
-  const siteLogo = headerSettings?.site_logo || headerSettings?.shop_logo_url;
+  const siteName = 'Modessi';
+  const siteLogo = shopLogo;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -1232,15 +1233,18 @@ export default function FashionHomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-[#1a1a2e] text-white py-12 md:py-16">
+      <footer className="bg-[#1a1a2e] pt-12 text-white md:pt-16">
         <div className="container-custom">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
             <div className="col-span-2 md:col-span-1">
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-500 to-orange-400 flex items-center justify-center">
-                  <Sparkles className="w-5 h-5 text-white" />
-                </div>
-                <span className="text-2xl font-bold bg-gradient-to-r from-pink-400 to-orange-400 bg-clip-text text-transparent">এলিগ্যান্স</span>
+                <img
+                  src={shopLogo}
+                  alt={siteName}
+                  className="h-10 w-auto object-contain"
+                  loading="lazy"
+                  decoding="async"
+                />
               </div>
               <p className="text-gray-400 text-sm">
                 প্রিমিয়াম কোয়ালিটি টু পিস ও থ্রি পিস কালেকশন। <span className="text-pink-400">আপনার স্টাইল, আপনার পছন্দ।</span>
@@ -1286,8 +1290,14 @@ export default function FashionHomePage() {
             </div>
           </div>
           
-          <div className="border-t border-gray-700/50 pt-8 text-center text-sm text-gray-500">
-            <p>© {new Date().getFullYear()} এলিগ্যান্স। সর্বস্বত্ব সংরক্ষিত।</p>
+          <div className="border-t border-gray-700/50 py-8 text-center text-sm text-gray-500">
+            <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
+              <span>© {new Date().getFullYear()} {siteName}. সর্বস্বত্ব সংরক্ষিত।</span>
+              <span className="text-gray-700" aria-hidden="true">|</span>
+              <span className="text-xs uppercase tracking-[0.2em]">
+                Developed by <span className="font-bold text-pink-400">PlatiRoll</span>
+              </span>
+            </p>
           </div>
         </div>
       </footer>

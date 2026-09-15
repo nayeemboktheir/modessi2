@@ -46,9 +46,17 @@ Lovable. It breaks silently on the day that project is paused or deleted.
 `04-rewrite-storage-urls.sql.tmpl` is baked into the import file by step 2 and
 runs at the end of step 3. It rewrites exactly that one prefix, reports the
 row counts it changed, and **raises an exception if any reference survives** —
-so a partial rewrite fails the import rather than passing quietly. A further 152
-image URLs point at `https://modessi.shop/wp-content/...` — legacy WordPress
-files on Hostinger, deliberately left alone.
+so a partial rewrite fails the import rather than passing quietly.
+
+A further 152 entries (43 distinct files) point at
+`https://modessi.shop/wp-content/...` and are **deliberately not touched** -
+there is nothing to migrate, because they are **already broken in production**.
+Every one returns HTTP 200 with `Content-Type: text/html`, byte-identical to the
+site root: Hostinger's SPA rewrite serves `index.html` for any missing path, and
+the WordPress files were removed long ago. 35 of 62 products therefore show a
+broken image today, independently of this migration. Worth a separate data
+cleanup; not a cutover blocker. Note the lesson for verification: a 200 proves
+nothing behind an SPA rewrite - `06-verify-http.sh` checks `Content-Type` too.
 
 ## Prerequisites
 
@@ -478,24 +486,42 @@ The database is 25 MB, so a daily dump costs essentially nothing. Set this up
 *before* step 7, not after — and confirm one restore actually works, because an
 untested backup is a guess.
 
-### 7. Repoint and redeploy the frontend — the only customer-visible step
+### 7. Move the frontend onto Coolify — the only customer-visible step
 
-The Supabase URL and key are baked in at build time, so this is a rebuild, not
-a config flip.
+The plan changed: the Coolify app `modessi` (`myoqtph0gmcbvgx5yjrhyj4b`), currently
+on `modessi.botbhai.net`, becomes production. Hostinger and the GitHub Actions
+workflow are both retired - `.github/workflows/deploy.yml` has been deleted and
+the `deploy` branch is dead.
 
-1. Update the GitHub Actions secrets on `nayeemboktheir/modessi2`:
-   - `VITE_SUPABASE_URL` → `https://api.modessi.shop`
-   - `VITE_SUPABASE_PUBLISHABLE_KEY` → the target's **anon** key
-     (`SERVICE_SUPABASEANON_KEY`)
-   - `VITE_SUPABASE_PROJECT_ID` → any stable identifier; nothing authorizes on it
-2. Update local `.env` to match, so dev points at the new backend too.
-3. Run the **Build and Deploy to Hostinger** workflow (`workflow_dispatch`).
+Coolify builds the repo's `Dockerfile` from `main`: `npm run build`, then
+`nginx:1.27-alpine` serving `dist/` on **port 80**. Coolify's *Ports Exposes*
+must say `80`; its 3000 default gives a 502 with the container running happily.
+`VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` must be **build**
+variables, since Vite bakes them in - including the `%VITE_SUPABASE_URL%`
+placeholders in `index.html` for the favicon and `og:image`.
 
-> **This deploy also ships six weeks of unreleased work.** `origin/deploy` is
-> 569 commits behind `origin/main` — it was last built 2026-08-04. The cutover
-> build carries the entire audit remediation and the code-splitting change along
-> with the backend switch. The two cannot be separated, so treat step 7 as both
-> a backend cutover *and* a large frontend release, and smoke-test accordingly.
+1. **Domains:** add `https://modessi.shop` and `https://www.modessi.shop` to the
+   app. Keep `modessi.botbhai.net` as a permanent staging URL.
+2. **Redeploy** so the bundle is current.
+3. **DNS** (managed at Hostinger - `ns1/ns2.dns-parking.com`):
+   - `A` `modessi.shop` -> **72.61.248.65** (was `185.187.241.146`)
+   - **DELETE the `AAAA` record** (`2a02:4780:3:2287:0:29e9:ca34:f`). The Coolify
+     host is IPv4-only, so leaving a stale AAAA sends every IPv6-capable visitor
+     to Hostinger - an intermittent split-brain where some users see the old site
+     still talking to Lovable.
+   - **Leave `MX` alone** (`mx1/mx2.hostinger.com`); email stays on Hostinger and
+     is unaffected by an A/AAAA change.
+   - Lower the TTL to 300s a day ahead if you can.
+4. Wait for propagation, let Traefik issue the certificate, then confirm
+   `https://modessi.shop` serves the new build and talks to `api.modessi.shop`.
+
+Two things this fixes on its own: the live site's favicon currently points at
+`slyfjylwulirkipicizq.supabase.co`, a long-dead third project, so the favicon and
+the `og:image` used in Facebook shares are broken today. The new build resolves
+both to `api.modessi.shop`, verified as `image/png`.
+
+> Anything Lovable has pushed to `main` by then ships with this deploy. Treat it
+> as a release, not a config flip.
 
 ### 8. Smoke-test against the real store
 

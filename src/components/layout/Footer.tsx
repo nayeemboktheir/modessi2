@@ -6,6 +6,7 @@ import {
   MapPin
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import shopLogo from '@/assets/shop-logo.png';
 
 const Footer = () => {
   // Fetch site settings
@@ -29,8 +30,8 @@ const Footer = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  const siteName = siteSettings?.site_name || 'এলিগ্যান্স';
-  const siteLogo = siteSettings?.site_logo;
+  const siteName = 'Modessi';
+  const siteLogo = shopLogo;
 
   return (
     <footer className="bg-[#1a1a2e] text-white">
@@ -163,7 +164,7 @@ const Footer = () => {
         <div className="container mx-auto px-4 py-4">
           <p className="text-center text-xs tracking-[0.2em] text-gray-500 uppercase">
             Developed by{' '}
-            <span className="font-bold text-pink-400">Platiroll</span>
+            <span className="font-bold text-pink-400">PlatiRoll</span>
           </p>
         </div>
       </div>
