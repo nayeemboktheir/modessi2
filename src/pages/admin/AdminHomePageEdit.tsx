@@ -21,6 +21,8 @@ interface HeroSlide {
   title: string;
   subtitle: string;
   image: string;
+  desktopImage?: string;
+  mobileImage?: string;
   link: string;
   badge: string;
 }
@@ -116,6 +118,8 @@ const AdminHomePageEdit = () => {
         title: 'নতুন স্লাইড',
         subtitle: 'সাবটাইটেল এখানে',
         image: '',
+        desktopImage: '',
+        mobileImage: '',
         link: '/products',
         badge: 'নতুন'
       });
@@ -424,8 +428,28 @@ const AdminHomePageEdit = () => {
                       </Button>
                     </div>
                     
+                    <div className="rounded-md border border-dashed bg-background/60 p-3 text-xs text-muted-foreground">
+                      নতুন হিরো ডিজাইনের জন্য একটি ওয়াইড ডেস্কটপ ব্যানার (১৯২০×৮৫০ বা বড়) এবং একটি আলাদা মোবাইল ক্রপ দিন। মডেল ডানদিকে ও বাম পাশে লেখার জায়গা রাখুন।
+                    </div>
+
                     <ImageUploadField
-                      label="স্লাইড ছবি"
+                      label="ডেস্কটপ ক্যাম্পেইন ব্যানার (Recommended)"
+                      currentImage={slide.desktopImage || ''}
+                      sectionKey="hero_slides"
+                      imageField="desktopImage"
+                      slideIndex={index}
+                    />
+
+                    <ImageUploadField
+                      label="মোবাইল ক্যাম্পেইন ব্যানার (Recommended)"
+                      currentImage={slide.mobileImage || ''}
+                      sectionKey="hero_slides"
+                      imageField="mobileImage"
+                      slideIndex={index}
+                    />
+
+                    <ImageUploadField
+                      label="লিগ্যাসি স্লাইড ছবি (পুরোনো সেটআপের জন্য)"
                       currentImage={slide.image || ''}
                       sectionKey="hero_slides"
                       imageField="image"
