@@ -66,6 +66,59 @@ interface SteadfastStatus {
   error?: string;
 }
 
+interface SteadfastBulkResult {
+  orderId?: string;
+  success: boolean;
+  tracking_code?: string;
+  error?: string;
+}
+
+type SteadfastReturnRequest = Record<string, unknown>;
+
+const isRecord = (value: unknown): value is SteadfastReturnRequest =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+const extractSteadfastReturnRequests = (value: unknown, depth = 0): SteadfastReturnRequest[] => {
+  if (depth > 3) return [];
+  if (Array.isArray(value)) return value.filter(isRecord);
+  if (!isRecord(value)) return [];
+
+  for (const key of ['data', 'return_requests', 'returns', 'requests', 'items']) {
+    if (!(key in value)) continue;
+    const requests = extractSteadfastReturnRequests(value[key], depth + 1);
+    if (requests.length > 0 || Array.isArray(value[key])) return requests;
+  }
+
+  return 'id' in value ? [value] : [];
+};
+
+const normalizeCourierKey = (value: unknown): string =>
+  String(value ?? '').trim().toLowerCase();
+
+const collectReturnRequestKeys = (requests: SteadfastReturnRequest[]): Set<string> => {
+  const keys = new Set<string>();
+
+  for (const request of requests) {
+    if (normalizeCourierKey(request.status) === 'cancelled') continue;
+    const consignment = isRecord(request.consignment) ? request.consignment : {};
+
+    for (const value of [
+      request.consignment_id,
+      request.invoice,
+      request.tracking_code,
+      consignment.id,
+      consignment.consignment_id,
+      consignment.invoice,
+      consignment.tracking_code,
+    ]) {
+      const key = normalizeCourierKey(value);
+      if (key) keys.add(key);
+    }
+  }
+
+  return keys;
+};
+
 interface OrderItem {
   id: string;
   product_name: string;
@@ -346,6 +399,7 @@ export default function AdminOrders() {
   const [isEditOrderOpen, setIsEditOrderOpen] = useState(false);
   const [orderToEdit, setOrderToEdit] = useState<Order | null>(null);
   const [steadfastStatuses, setSteadfastStatuses] = useState<Record<string, SteadfastStatus>>({});
+  const [steadfastReturnKeys, setSteadfastReturnKeys] = useState<Set<string>>(new Set());
   const [loadingStatuses, setLoadingStatuses] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -528,8 +582,31 @@ export default function AdminOrders() {
     },
   });
 
+  const fetchSteadfastReturns = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('steadfast-management', {
+        body: { action: 'get_return_requests' },
+      });
+
+      if (error) {
+        console.error('Failed to fetch Steadfast return requests:', error);
+        return;
+      }
+      if (!data?.success) {
+        console.error('Steadfast return request API error:', data?.error);
+        return;
+      }
+
+      const requests = extractSteadfastReturnRequests(data.data);
+      setSteadfastReturnKeys(collectReturnRequestKeys(requests));
+    } catch (error) {
+      console.error('Error fetching Steadfast return requests:', error);
+    }
+  }, []);
+
   // Fetch Steadfast statuses only for filtered/visible orders with tracking numbers
   const fetchSteadfastStatuses = useCallback(async (ordersToCheck?: Order[]) => {
+    void fetchSteadfastReturns();
     const targetOrders = ordersToCheck || orders;
     const ordersWithTracking = targetOrders.filter(o => o.tracking_number && !steadfastStatuses[o.tracking_number!]);
     if (ordersWithTracking.length === 0) return;
@@ -563,14 +640,44 @@ export default function AdminOrders() {
     } finally {
       setLoadingStatuses(false);
     }
-  }, [orders, steadfastStatuses]);
+  }, [orders, steadfastStatuses, fetchSteadfastReturns]);
 
-  // Don't auto-fetch statuses on load - only on manual refresh
+  // Return requests are lightweight enough to load once so the main Returned tab
+  // is useful immediately. Delivery statuses remain manual because they require
+  // one courier API call per visible order.
+  useEffect(() => {
+    void fetchSteadfastReturns();
+  }, [fetchSteadfastReturns]);
+
+  const isSteadfastReturnedOrder = useCallback((order: Order) => {
+    const keys = [
+      order.steadfast_consignment_id,
+      order.tracking_number,
+      order.order_number,
+    ].map(normalizeCourierKey).filter(Boolean);
+
+    if (keys.some((key) => steadfastReturnKeys.has(key))) return true;
+    if (!order.tracking_number) return false;
+
+    const courierStatus = steadfastStatuses[order.tracking_number];
+    const deliveryStatus = (
+      courierStatus?.delivery_status
+      || courierStatus?.current_status
+      || ''
+    ).toLowerCase();
+    return deliveryStatus.includes('return');
+  }, [steadfastReturnKeys, steadfastStatuses]);
+
+  const getDisplayedOrderStatus = useCallback((order: Order) => {
+    return order.status === 'returned' || isSteadfastReturnedOrder(order)
+      ? 'returned'
+      : order.status;
+  }, [isSteadfastReturnedOrder]);
 
   const ordersBeforeLocation = useMemo(() => {
     const searchLower = debouncedSearch.toLowerCase();
     return orders.filter(order => {
-      if (statusFilter !== 'all' && order.status !== statusFilter) return false;
+      if (statusFilter !== 'all' && getDisplayedOrderStatus(order) !== statusFilter) return false;
       if (sourceFilter !== 'all' && order.order_source !== sourceFilter) return false;
       if (searchLower && !(
         order.order_number.toLowerCase().includes(searchLower) ||
@@ -601,7 +708,7 @@ export default function AdminOrders() {
       }
       return true;
     });
-  }, [orders, debouncedSearch, statusFilter, sourceFilter, steadfastFilter, dateFrom, dateTo, steadfastStatuses]);
+  }, [orders, debouncedSearch, statusFilter, sourceFilter, steadfastFilter, dateFrom, dateTo, steadfastStatuses, getDisplayedOrderStatus]);
 
   const filteredOrders = useMemo(() => {
     if (locationFilter === 'all') return ordersBeforeLocation;
@@ -620,18 +727,19 @@ export default function AdminOrders() {
     const tbs: Record<string, Record<string, number>> = {};
 
     for (const order of orders) {
+      const displayedStatus = getDisplayedOrderStatus(order);
       src[order.order_source] = (src[order.order_source] || 0) + 1;
 
       // Status counts filtered by source
       if (!tbs[order.order_source]) tbs[order.order_source] = {};
-      tbs[order.order_source][order.status] = (tbs[order.order_source][order.status] || 0) + 1;
+      tbs[order.order_source][displayedStatus] = (tbs[order.order_source][displayedStatus] || 0) + 1;
 
       // Global status counts
-      sc[order.status] = (sc[order.status] || 0) + 1;
+      sc[displayedStatus] = (sc[displayedStatus] || 0) + 1;
     }
 
     return { statusCounts: sc, sourceCounts: src, totalBySource: tbs };
-  }, [orders]);
+  }, [orders, getDisplayedOrderStatus]);
 
   const getStatusCount = useCallback((status: string) => {
     if (sourceFilter === 'all') return statusCounts[status] || 0;
@@ -931,12 +1039,14 @@ export default function AdminOrders() {
         return;
       }
 
-      if (data?.results) {
-        const successCount = data.results.filter((r: { success: boolean }) => r.success).length;
-        const failCount = data.results.filter((r: { success: boolean }) => !r.success).length;
+      const results: SteadfastBulkResult[] = Array.isArray(data?.results) ? data.results : [];
+      if (results.length > 0) {
+        const successCount = results.filter((result) => result.success).length;
+        const failCount = results.length - successCount;
         
         if (failCount > 0) {
-          toast.warning(`Sent ${successCount} orders, ${failCount} failed`);
+          const firstError = results.find((result) => !result.success)?.error;
+          toast.warning(`Sent ${successCount} orders, ${failCount} failed${firstError ? `: ${firstError}` : ''}`);
         } else {
           toast.success(`Successfully sent ${successCount} orders to Steadfast`);
         }
@@ -944,10 +1054,10 @@ export default function AdminOrders() {
 
       setSelectedOrderIds(new Set());
       // Update local state with tracking codes from results
-      if (data?.results) {
+      if (results.length > 0) {
         setOrders(prev => {
           const updated = [...prev];
-          data.results.forEach((r: any) => {
+          results.forEach((r) => {
             if (r.success && r.tracking_code) {
               const idx = updated.findIndex(o => o.id === r.orderId);
               if (idx !== -1) updated[idx] = { ...updated[idx], tracking_number: r.tracking_code };
@@ -1062,7 +1172,7 @@ export default function AdminOrders() {
       if (data?.results) {
         setOrders(prev => {
           const updated = [...prev];
-          data.results.forEach((r: any) => {
+          (data.results as Array<{ success: boolean; consignment_id?: string; orderId?: string }>).forEach((r) => {
             if (r.success && r.consignment_id) {
               const idx = updated.findIndex(o => o.id === r.orderId);
               if (idx !== -1) updated[idx] = { ...updated[idx], tracking_number: r.consignment_id };
@@ -1652,7 +1762,7 @@ export default function AdminOrders() {
                       {order.payment_status}
                     </Badge>
                   </TableCell>
-                  <TableCell>{getStatusBadge(order.status)}</TableCell>
+                  <TableCell>{getStatusBadge(getDisplayedOrderStatus(order))}</TableCell>
                   <TableCell>{getSteadfastStatusBadge(order.tracking_number)}</TableCell>
                   <TableCell>
                     <button

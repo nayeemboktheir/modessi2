@@ -173,11 +173,12 @@ Deno.serve(async (req) => {
         return json({ success: true, message: 'All selected orders were already dispatched', results: skipped }, 200);
       }
 
-      // This deliberately uses the documented bulk endpoint instead of looping
-      // over create_order, so the merchant gets Steadfast's per-order bulk result.
+      // Steadfast documents `data` as a JSON-encoded array. It must therefore be
+      // a string inside the outer request JSON, not an array nested directly in it.
+      const encodedOrders = JSON.stringify(pendingOrders.map(toSteadfastPayload));
       const upstream = await requestSteadfast('/create_order/bulk-order', credentials, {
         method: 'POST',
-        body: JSON.stringify({ data: pendingOrders.map(toSteadfastPayload) }),
+        body: JSON.stringify({ data: encodedOrders }),
       }, 45_000);
 
       const upstreamResults = unpackBulkResults(upstream.data);
