@@ -66,10 +66,11 @@ interface SteadfastStatus {
   error?: string;
 }
 
-interface SteadfastBulkResult {
-  orderId?: string;
+interface SteadfastSelectedSendResult {
+  orderId: string;
   success: boolean;
   tracking_code?: string;
+  consignment_id?: string;
   error?: string;
 }
 
@@ -388,10 +389,10 @@ export default function AdminOrders() {
   const [trackingNumber, setTrackingNumber] = useState('');
   const [updating, setUpdating] = useState(false);
   const [sendingToSteadfast, setSendingToSteadfast] = useState(false);
+  const [sendingSelectedToSteadfast, setSendingSelectedToSteadfast] = useState(false);
   const [sendingToCarrybee, setSendingToCarrybee] = useState(false);
   const [bulkSendingCarrybee, setBulkSendingCarrybee] = useState(false);
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
-  const [bulkSending, setBulkSending] = useState(false);
   const [bulkStatusChanging, setBulkStatusChanging] = useState(false);
   const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
   const [isStickerDialogOpen, setIsStickerDialogOpen] = useState(false);
@@ -1004,73 +1005,87 @@ export default function AdminOrders() {
     }
   };
 
-  const handleBulkSendToSteadfast = async () => {
-    if (selectedOrderIds.size === 0) {
+  const handleSendSelectedToSteadfast = async () => {
+    const ordersToSend = orders.filter((order) => selectedOrderIds.has(order.id));
+    if (ordersToSend.length === 0) {
       toast.error('Please select orders to send');
       return;
     }
 
-    setBulkSending(true);
+    setSendingSelectedToSteadfast(true);
     try {
-      const ordersToSend = orders.filter(o => selectedOrderIds.has(o.id));
-      
-      const orderPayloads = ordersToSend.map(order => {
-        const fullAddress = `${order.shipping_street}, ${order.shipping_district}, ${order.shipping_city}${order.shipping_postal_code ? `, ${order.shipping_postal_code}` : ''}`;
-        // Use steadfast_note if available, otherwise fall back to notes, then to item list
-        const noteToSend = order.steadfast_note || order.notes || `Order items: ${order.order_items.map(i => `${i.product_name}${i.variation_name ? ` (${i.variation_name})` : ''} x${i.quantity}`).join(', ')}`;
-        return {
-          orderId: order.id,
-          invoice: order.order_number,
-          recipient_name: order.shipping_name,
-          recipient_phone: order.shipping_phone,
-          recipient_address: fullAddress,
-          cod_amount: order.payment_method === 'cod' ? Number(order.total) : 0,
-          note: noteToSend,
-        };
-      });
+      const results: SteadfastSelectedSendResult[] = [];
+      const concurrency = 5;
 
-      const { data, error } = await supabase.functions.invoke('steadfast-courier', {
-        body: { orders: orderPayloads },
-      });
+      for (let index = 0; index < ordersToSend.length; index += concurrency) {
+        const batch = ordersToSend.slice(index, index + concurrency);
+        const batchResults = await Promise.all(batch.map(async (order): Promise<SteadfastSelectedSendResult> => {
+          const fullAddress = `${order.shipping_street}, ${order.shipping_district}, ${order.shipping_city}${order.shipping_postal_code ? `, ${order.shipping_postal_code}` : ''}`;
+          const noteToSend = order.steadfast_note || order.notes || `Order items: ${order.order_items.map((item) => `${item.product_name}${item.variation_name ? ` (${item.variation_name})` : ''} x${item.quantity}`).join(', ')}`;
 
-      if (error) {
-        console.error('Bulk Steadfast error:', error);
-        toast.error(error.message || 'Failed to send orders to Steadfast');
-        return;
-      }
+          try {
+            const { data, error } = await supabase.functions.invoke('steadfast-courier', {
+              body: {
+                orderId: order.id,
+                invoice: order.order_number,
+                recipient_name: order.shipping_name,
+                recipient_phone: order.shipping_phone,
+                recipient_address: fullAddress,
+                cod_amount: order.payment_method === 'cod' ? Number(order.total) : 0,
+                note: noteToSend,
+              },
+            });
 
-      const results: SteadfastBulkResult[] = Array.isArray(data?.results) ? data.results : [];
-      if (results.length > 0) {
-        const successCount = results.filter((result) => result.success).length;
-        const failCount = results.length - successCount;
-        
-        if (failCount > 0) {
-          const firstError = results.find((result) => !result.success)?.error;
-          toast.warning(`Sent ${successCount} orders, ${failCount} failed${firstError ? `: ${firstError}` : ''}`);
-        } else {
-          toast.success(`Successfully sent ${successCount} orders to Steadfast`);
-        }
-      }
-
-      setSelectedOrderIds(new Set());
-      // Update local state with tracking codes from results
-      if (results.length > 0) {
-        setOrders(prev => {
-          const updated = [...prev];
-          results.forEach((r) => {
-            if (r.success && r.tracking_code) {
-              const idx = updated.findIndex(o => o.id === r.orderId);
-              if (idx !== -1) updated[idx] = { ...updated[idx], tracking_number: r.tracking_code };
+            if (error || data?.error || !data?.success || !data?.tracking_code) {
+              return {
+                orderId: order.id,
+                success: false,
+                error: data?.error || error?.message || 'Failed to send order to Steadfast',
+              };
             }
-          });
-          return updated;
-        });
+
+            return {
+              orderId: order.id,
+              success: true,
+              tracking_code: String(data.tracking_code),
+              consignment_id: data.consignment_id ? String(data.consignment_id) : undefined,
+            };
+          } catch (error) {
+            return {
+              orderId: order.id,
+              success: false,
+              error: error instanceof Error ? error.message : 'Failed to send order to Steadfast',
+            };
+          }
+        }));
+
+        results.push(...batchResults);
       }
-    } catch (error) {
-      console.error('Failed to bulk send to Steadfast:', error);
-      toast.error('Failed to send orders to Steadfast');
+
+      const successful = results.filter((result) => result.success);
+      const failed = results.filter((result) => !result.success);
+      const trackingByOrder = new Map(successful.map((result) => [result.orderId, result]));
+
+      setOrders((previous) => previous.map((order) => {
+        const result = trackingByOrder.get(order.id);
+        return result?.tracking_code
+          ? {
+            ...order,
+            tracking_number: result.tracking_code,
+            steadfast_consignment_id: result.consignment_id ?? result.tracking_code,
+            status: 'processing',
+          }
+          : order;
+      }));
+      setSelectedOrderIds(new Set());
+
+      if (failed.length > 0) {
+        toast.warning(`Sent ${successful.length} orders, ${failed.length} failed: ${failed[0].error}`);
+      } else {
+        toast.success(`Successfully sent ${successful.length} orders to Steadfast`);
+      }
     } finally {
-      setBulkSending(false);
+      setSendingSelectedToSteadfast(false);
     }
   };
 
@@ -1633,13 +1648,13 @@ export default function AdminOrders() {
                     <Tag className="h-4 w-4" />
                     Print {selectedOrderIds.size} Sticker{selectedOrderIds.size > 1 ? 's' : ''}
                   </Button>
-                   <Button
-                    onClick={handleBulkSendToSteadfast}
-                    disabled={bulkSending}
+                  <Button
+                    onClick={handleSendSelectedToSteadfast}
+                    disabled={sendingSelectedToSteadfast}
                     className="gap-2"
                   >
                     <Send className="h-4 w-4" />
-                    {bulkSending ? 'Sending...' : `Send ${selectedOrderIds.size} to Steadfast`}
+                    {sendingSelectedToSteadfast ? 'Sending...' : `Send ${selectedOrderIds.size} to Steadfast`}
                   </Button>
                   <Button
                     onClick={handleBulkSendToCarrybee}

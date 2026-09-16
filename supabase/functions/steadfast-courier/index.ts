@@ -22,10 +22,6 @@ interface SteadfastOrderRequest {
   delivery_type?: 0 | 1;
 }
 
-interface BulkOrderRequest {
-  orders: SteadfastOrderRequest[];
-}
-
 interface UpstreamConsignment {
   consignment_id?: string | number;
   tracking_code?: string;
@@ -116,16 +112,6 @@ async function saveConsignment(
   if (error) console.error(`Could not save Steadfast consignment for order ${orderId}:`, error.message);
 }
 
-function unpackBulkResults(data: unknown): unknown[] {
-  if (Array.isArray(data)) return data;
-  if (data && typeof data === 'object') {
-    const candidate = (data as { data?: unknown; results?: unknown }).data
-      ?? (data as { results?: unknown }).results;
-    if (Array.isArray(candidate)) return candidate;
-  }
-  return [];
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
@@ -144,78 +130,6 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const bulkRequest = body as BulkOrderRequest;
-
-    if (Array.isArray(bulkRequest.orders)) {
-      if (bulkRequest.orders.length === 0) return json({ error: 'At least one order is required' }, 400);
-      if (bulkRequest.orders.length > 500) return json({ error: 'Steadfast accepts a maximum of 500 orders per bulk request' }, 400);
-
-      const validationError = bulkRequest.orders.map(validateOrder).find(Boolean);
-      if (validationError) return json({ error: validationError }, 400);
-
-      const alreadySent = await findAlreadyDispatched(
-        supabase,
-        bulkRequest.orders.map((order) => order.orderId ?? ''),
-      );
-      const pendingOrders = bulkRequest.orders.filter((order) => !order.orderId || !alreadySent.has(order.orderId));
-
-      const skipped = bulkRequest.orders
-        .filter((order) => order.orderId && alreadySent.has(order.orderId))
-        .map((order) => ({
-          orderId: order.orderId,
-          invoice: order.invoice,
-          success: true,
-          alreadyDispatched: true,
-          tracking_code: alreadySent.get(order.orderId!),
-        }));
-
-      if (pendingOrders.length === 0) {
-        return json({ success: true, message: 'All selected orders were already dispatched', results: skipped }, 200);
-      }
-
-      // Steadfast documents `data` as a JSON-encoded array. It must therefore be
-      // a string inside the outer request JSON, not an array nested directly in it.
-      const encodedOrders = JSON.stringify(pendingOrders.map(toSteadfastPayload));
-      const upstream = await requestSteadfast('/create_order/bulk-order', credentials, {
-        method: 'POST',
-        body: JSON.stringify({ data: encodedOrders }),
-      }, 45_000);
-
-      const upstreamResults = unpackBulkResults(upstream.data);
-      const results = await Promise.all(pendingOrders.map(async (order, index) => {
-        const result = upstreamResults[index] as (Record<string, unknown> | undefined);
-        const successful = upstream.ok && (
-          result?.status === 'success'
-          || Boolean(result?.tracking_code)
-          || Boolean(result?.consignment_id)
-        );
-        const consignment: UpstreamConsignment | undefined = successful && result
-          ? {
-            consignment_id: result.consignment_id as string | number | undefined,
-            tracking_code: result.tracking_code as string | undefined,
-          }
-          : undefined;
-        if (successful) await saveConsignment(supabase, order.orderId, consignment);
-
-        return {
-          orderId: order.orderId,
-          invoice: order.invoice,
-          success: successful,
-          ...(successful ? consignment : { error: upstreamMessage(result ?? upstream.data, 'Failed to create Steadfast order') }),
-          upstream: result,
-        };
-      }));
-
-      const allResults = [...skipped, ...results];
-      const failed = allResults.filter((result) => !result.success).length;
-      return json({
-        success: upstream.ok && failed === 0,
-        message: `Sent ${allResults.length - failed} orders, ${failed} failed`,
-        results: allResults,
-        upstream_status: upstream.status,
-      }, upstream.ok ? 200 : 502);
-    }
-
     const order = body as SteadfastOrderRequest;
     const validationError = validateOrder(order);
     if (validationError) return json({ error: validationError }, 400);
