@@ -28,8 +28,15 @@ docker inspect "$CID" --format '{{range .Mounts}}{{.Source}} -> {{.Destination}}
 interactively. Run it on the **host** shell (Coolify → Workspace → Terminal → pick the server):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/nayeemboktheir/modessi2/main/scripts/deploy-function.sh | bash
+curl -fsSL \
+  https://raw.githubusercontent.com/nayeemboktheir/modessi2/main/scripts/deploy-function.sh \
+  -o /tmp/deploy-function.sh
+bash /tmp/deploy-function.sh
 ```
+
+Do **not** use `curl ... | bash` for this script. It is interactive, and piping its source into
+Bash also consumes Bash's standard input. The menu will be printed, but the script receives
+end-of-file instead of waiting for a choice and exits with `nothing done`.
 
 It finds the container and its bind mount itself, fetches `main`, then shows what actually differs:
 
@@ -48,6 +55,25 @@ It writes `main/index.ts` in place rather than replacing it, restarts the contai
 router changed, and then checks each deployed function landed. Export `ANON_KEY=...` first and it
 will also call each endpoint — a 401/403 there is success, since it proves the worker booted and the
 auth guard did its job.
+
+For the complete Steadfast integration, select the numbers currently shown for these four entries:
+
+```
+_shared
+steadfast-courier
+steadfast-management
+steadfast-status
+```
+
+For example, if the displayed numbers are `1`, `14`, `15`, and `16`, enter:
+
+```
+choice: 1 14 15 16
+```
+
+Menu numbers can change as functions are added, so match the displayed names instead of blindly
+reusing old numbers. No restart is needed after deploying only these entries. If `main` is selected
+and changed, the script restarts the Edge Functions container automatically.
 
 Read the rest of this document when something goes wrong, or when writing a new function (step 1 is
 the part that matters for correctness).
@@ -254,3 +280,5 @@ about six seconds, so when in doubt, restart rather than wonder.
 | A new env var has no effect | Container was restarted, not recreated. Use Coolify → Actions → Restart. |
 | `403 Admin access required` when you expected internal access | `requireAdmin` rejects the service-role key; use `requireAdminOrInternal`. |
 | Host file is 4140 bytes but the checkout says 4252 | CRLF normalisation (112 lines × 1 byte), not truncation. |
+| The menu appears and immediately says `nothing done` | The interactive script was piped into Bash. Download it to `/tmp` first, then run `bash /tmp/deploy-function.sh`. |
+| `supabase/functions not found in the archive` | The function changes are not on the fetched branch yet, or the script is pointed at the wrong repository/branch. Push or merge them into `main`, then retry. |
