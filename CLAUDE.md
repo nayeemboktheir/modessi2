@@ -23,8 +23,14 @@ supabase gen types typescript --db-url "$SUPABASE_DB_URL" > src/integrations/sup
 Deploy edge functions (see "Edge functions" below — `supabase functions deploy` does not work here):
 
 ```sh
-SSH_HOST=root@server FUNCTIONS_DIR=/data/coolify/.../volumes/functions ./scripts/deploy-functions.sh
+SSH_HOST=root@72.61.248.65 FUNCTIONS_DIR=/data/coolify/services/nul28nblfi7lon4nizr4afdm/volumes/functions   ./scripts/deploy-functions.sh
 ```
+
+Without an SSH key, do it from Coolify -> Workspace -> Terminal -> the **server** (not the service's
+container terminal, which has no `curl`, `wget`, `git` or `deno` — only `tar`): fetch
+`https://codeload.github.com/nayeemboktheir/modessi2/tar.gz/refs/heads/main`, `cp -r` each function
+directory into `$FUNCTIONS_DIR`, then `docker restart` the edge-functions container. See
+[scripts/migrate-to-vps/README.md](scripts/migrate-to-vps/README.md) step 6 for the traps.
 
 ## Architecture
 
@@ -64,6 +70,23 @@ admin panel from one bundle, against a **self-hosted** Supabase stack (Coolify),
 `VITE_SUPABASE_URL` points at the stack's Kong gateway (`/auth/v1`, `/rest/v1`, `/storage/v1` —
 MinIO bucket `shop-assets` —, `/functions/v1`). Schema history is in `supabase/migrations`.
 
+The stack is **`https://api.modessi.shop`** — Coolify service `supabase-modessi`
+(`nul28nblfi7lon4nizr4afdm`), Postgres `supabase/postgres:17.6.1.169`, on the Coolify host
+`72.61.248.65` alongside ~16 unrelated applications. Postgres is on *"Use the stack network only"*,
+so there is **no direct DB connection from outside**: inspect the database through PostgREST with
+the service-role key, or `psql` inside Coolify's terminal on `supabase-db`. Migrated off
+Lovable-managed Supabase in September 2026; that project (`kphkbmwycreriandedis`) is paused and
+nothing references it — `scripts/migrate-to-vps/` holds the toolkit and a full account of how it was
+done, including `06-verify-http.sh`, which verifies the whole stack over HTTP alone. Its row-count
+assertions are a **post-import** check: once the store is trading they drift by design.
+
+**A second application shares this database.** `wholesale.modessi.shop` is a separate React app
+(private repo `tanviralamtusar/Modessi-Wholesale`, deployed as its own Coolify app) that reads
+`products`, `product_variations`, `categories` and `wholesale_prices` **anonymously** — which is why
+`wholesale_prices` carries an `"Anyone can view active wholesale prices"` SELECT policy. It holds
+only the anon key and cannot write. Schema or RLS changes to those four tables break it, and it has
+to be redeployed separately whenever the backend URL or anon key changes.
+
 **Authorization is entirely in Postgres.** Every table has RLS; admin access is gated by
 `public.has_role(auth.uid(), 'admin')` against `user_roles` (enum `app_role`: `admin` | `user`).
 There is no application-layer fallback — treat policy changes with care.
@@ -79,8 +102,22 @@ Core tables: `products` / `product_variations` / `categories`, `orders` / `order
 Self-hosted Edge Runtime runs [supabase/functions/main/index.ts](supabase/functions/main/index.ts)
 as a single long-lived router that verifies the JWT and spawns a user worker per request. Consequences:
 
-- **Deploying is an rsync**, not `supabase functions deploy`. Individual functions reload per
-  request; changes to `main/index.ts` need a container restart.
+- **Deploying is a file copy**, not `supabase functions deploy`. The runtime serves whatever is in
+  `/data/coolify/services/<uuid>/volumes/functions`, bind-mounted at `/home/deno/functions`.
+  Individual functions reload per request; changes to `main/index.ts` need a container restart. Three
+  traps, all of which have bitten:
+  - **Coolify ships its own `main/index.ts`** (3917 bytes) and it must be overwritten with this
+    repo's router, which carries `WORKER_TIMEOUT_MS = 150_000` and the `jose` JWT verification. On
+    Coolify's default router `place-order`'s `EdgeRuntime.waitUntil` work is killed early.
+  - `main/index.ts` and `hello/index.ts` are mounted as **individual files**, not just through the
+    directory, so they must be written **in place** (`cat src > dest`) — replacing the inode with
+    `mv`, or `rm` then create, does not propagate into the container. Every other function is a
+    plain directory and can be `cp -r`'d.
+  - `InvalidWorkerCreation: could not find an appropriate entrypoint` alongside
+    `main function started` in the logs is **not** about the router — it is the per-request *user
+    worker* failing because that function's directory is missing.
+  - A file reading 4140 bytes on the host against 4252 in a Windows checkout is CRLF normalisation
+    (112 lines x 1 byte), not truncation.
 - **The router only checks that the JWT is signed**, driven by the `FUNCTIONS_VERIFY_JWT` and
   `FUNCTIONS_NO_VERIFY_JWT` env vars on the `supabase-edge-functions` container (`verify_jwt` in
   `supabase/config.toml` is documentation only — nothing reads it). The publishable anon key is a
@@ -96,6 +133,13 @@ as a single long-lived router that verifies the JWT and spawns a user worker per
 - Secrets (courier keys, SMS credentials) are container env vars in Coolify. The Resend key and the
   order-email sender are the exception: they live in `admin_settings`
   (`resend_api_key`, `order_email_from`).
+- Courier functions read `admin_settings` **first** and fall back to the environment, so Steadfast
+  and Carrybee work with no env vars at all. The exception is
+  [`courier-history`](supabase/functions/courier-history/index.ts), which reads
+  `BDCOURIER_API_KEY` from the environment **only** and returns 400 without it — so that one
+  variable must be set on the `supabase-edge-functions` container. Env changes need the container
+  *recreated* (Coolify -> Actions -> Restart), not `docker restart`, since environment is fixed at
+  creation.
 
 `place-order` is the checkout path: it uses the service-role key so guests can order, responds
 immediately, and defers SMS / email work to `EdgeRuntime.waitUntil` — which is why the router allows
@@ -121,6 +165,14 @@ variables, not runtime-only, and changing either needs a redeploy rather than a 
 
 There is no GitHub Actions workflow and no `deploy` branch any more; the previous Hostinger
 static-bundle pipeline was removed once Coolify took over. `dist/` is a local build artifact only.
+Hostinger still serves DNS and email for `modessi.shop` (MX, SPF, DKIM, DMARC — untouched by the
+migration); the `ftp` and `sales` records are dead leftovers.
+
+The header, footer and home page logo is a **bundled import** (`@/assets/shop-logo.png`), not an
+`admin_settings` value, so the admin Site Settings logo upload no longer affects them — only
+`index.html`'s favicon and `og:image`, which come from storage. Because Coolify builds from git, a
+new asset under `src/assets/` must be **committed**, or the build fails on the missing module while
+Coolify keeps serving the last good image.
 
 ## Conventions
 
@@ -147,3 +199,24 @@ static-bundle pipeline was removed once Coolify took over. `dist/` is a local bu
   ([src/hooks/usePagination.ts](src/hooks/usePagination.ts),
   [src/components/admin/DataPagination.tsx](src/components/admin/DataPagination.tsx)) rather than
   per-page implementations.
+
+## Known gaps and deliberate non-fixes
+
+- **No database backups are configured.** Every order lives solely on the Coolify host, which is
+  shared with ~16 other applications. Coolify's Backups + S3 Storage panels are the place to fix
+  this; the database is ~25 MB. This is the largest outstanding risk in the setup.
+- **39 product image URLs point at `https://modessi.shop/wp-content/...` and are already broken**,
+  affecting 35 of 62 products. They predate the Supabase migration: Hostinger's SPA rewrite answers
+  those paths with `index.html` (HTTP **200**, `Content-Type: text/html`), so a status check alone
+  looks healthy — check `Content-Type` when validating images. Fixing this means re-uploading
+  replacements into `shop-assets` and rewriting the rows; nothing in the migration caused it.
+- **`npm run lint` reports 64 `no-explicit-any` errors.** Known baseline, not a regression.
+- **`NotFound.tsx` is unrouted** — `*` deliberately falls through to the home page so stale ad links
+  land on the storefront rather than a dead end.
+- **`ProductLandingPage` injects raw HTML** for its video embed, bypassing the `parseIframeHtml`
+  allowlist. That content is admin-only (`admin_settings`) and pasting an Elementor embed is the
+  point of the field.
+- **Stock enforcement is off** (`admin_settings.stock_enforcement_enabled = 'false'`). Stock is
+  deducted but an order is never refused; oversells surface as negative stock in Inventory.
+- `AUDIT.md` records a closed 34-finding security audit. Its line numbers have shifted, but each
+  finding's `> **Fixed**` note still describes what the code does now.

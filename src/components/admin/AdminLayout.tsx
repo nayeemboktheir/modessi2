@@ -1,8 +1,9 @@
 import { CSSProperties, ReactNode, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 import { 
   LayoutDashboard, 
   Package, 
@@ -72,7 +73,8 @@ const adminNavItems = [
 ];
 
 function AdminSidebar() {
-  const { signOut } = useAuth();
+  const { signOut, isAdmin } = useAuth();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -109,7 +111,20 @@ function AdminSidebar() {
     staleTime: 60000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    refetchInterval: 120000, // Refresh every 2 minutes
+    // Realtime drives the badge; this is the fallback for a dropped socket.
+    refetchInterval: 120000,
+  });
+
+  // Any write to orders can change the pending count -- a new order, a status change
+  // moving one out of pending, a deletion -- so re-count rather than adjusting locally.
+  // Debounced because a bulk status change fires one event per row.
+  useRealtimeTable({
+    table: 'orders',
+    enabled: isAdmin,
+    debounceMs: 500,
+    onChange: () => {
+      void queryClient.invalidateQueries({ queryKey: ['pending-orders-count'] });
+    },
   });
 
   const handleSignOut = async () => {

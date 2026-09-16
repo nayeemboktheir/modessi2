@@ -55,6 +55,7 @@ import { ManualOrderDialog } from '@/components/admin/ManualOrderDialog';
 import { OrderEditDialog } from '@/components/admin/OrderEditDialog';
 import { DataPagination } from '@/components/admin/DataPagination';
 import { DEFAULT_PAGE_SIZE, usePagination } from '@/hooks/usePagination';
+import { useRealtimeTable } from '@/hooks/useRealtimeTable';
 
 interface SteadfastStatus {
   tracking_code: string;
@@ -496,6 +497,36 @@ export default function AdminOrders() {
       setOrderToEdit(updatedOrder);
     }
   }, [selectedOrder, orderToEdit]);
+
+  // A customer placing an order while this page is open. Only INSERTs are handled:
+  // loadOrders() pulls every order row in batches, far too heavy to run per event,
+  // so the new row is fetched on its own and prepended the way a manual order is.
+  // Updates and deletes made by another admin still need a manual refresh.
+  useRealtimeTable({
+    table: 'orders',
+    event: 'INSERT',
+    onChange: (payload) => {
+      const newId = (payload.new as { id?: string })?.id;
+      if (!newId) return;
+
+      void (async () => {
+        try {
+          const createdOrder = await getOrderById(newId) as Order;
+          setOrders((prev) => {
+            // The admin's own manual order has already been inserted locally.
+            if (prev.some((order) => order.id === createdOrder.id)) return prev;
+
+            const next = [createdOrder, ...prev];
+            setTotalOrderCount((count) => (count === null ? count : count + 1));
+            persistOrdersCache(next as Order[]);
+            return next;
+          });
+        } catch (error) {
+          console.error('Failed to load realtime order:', error);
+        }
+      })();
+    },
+  });
 
   // Fetch Steadfast statuses only for filtered/visible orders with tracking numbers
   const fetchSteadfastStatuses = useCallback(async (ordersToCheck?: Order[]) => {
