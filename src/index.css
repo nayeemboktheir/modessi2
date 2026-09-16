@@ -260,3 +260,7 @@ footer > div:last-child > div > span:nth-child(2)::after {
     font-size: 0.8125rem;
   }
 }
+/* Hide the ModessiLooks community strip. */
+main > section:has(> div > a[href="https://instagram.com"]) {
+  display: none;
+}
