@@ -247,8 +247,9 @@ export default function FashionHomePage() {
     load();
   }, []);
 
-  const slides = content.hero_slides?.slides?.length
-    ? content.hero_slides.slides
+  const configuredSlides = (content.hero_slides?.slides || []).filter((slide) => Boolean(slide.image || slide.desktopImage || slide.mobileImage));
+  const slides = configuredSlides.length
+    ? configuredSlides
     : legacyBanners.length
       ? legacyBanners.map((banner, index) => ({ id: banner.id, eyebrow: index === 0 ? 'MODESSI COLLECTION' : 'NEW SEASON', title: banner.title, subtitle: banner.subtitle || '', link: banner.link_url || '/products', image: banner.image_url }))
       : defaultSlides;
