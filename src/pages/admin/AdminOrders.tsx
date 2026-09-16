@@ -96,8 +96,8 @@ const extractSteadfastReturnRequests = (value: unknown, depth = 0): SteadfastRet
 const normalizeCourierKey = (value: unknown): string =>
   String(value ?? '').trim().toLowerCase();
 
-const collectReturnRequestKeys = (requests: SteadfastReturnRequest[]): Set<string> => {
-  const keys = new Set<string>();
+const collectReturnRequestValues = (requests: SteadfastReturnRequest[]): string[] => {
+  const values = new Set<string>();
 
   for (const request of requests) {
     if (normalizeCourierKey(request.status) === 'cancelled') continue;
@@ -112,13 +112,16 @@ const collectReturnRequestKeys = (requests: SteadfastReturnRequest[]): Set<strin
       consignment.invoice,
       consignment.tracking_code,
     ]) {
-      const key = normalizeCourierKey(value);
-      if (key) keys.add(key);
+      const identifier = String(value ?? '').trim();
+      if (identifier) values.add(identifier);
     }
   }
 
-  return keys;
+  return Array.from(values);
 };
+
+const collectReturnRequestKeys = (requests: SteadfastReturnRequest[]): Set<string> =>
+  new Set(collectReturnRequestValues(requests).map(normalizeCourierKey));
 
 interface OrderItem {
   id: string;
@@ -214,6 +217,26 @@ const ORDER_SELECT = `
 `;
 
 type BaseOrderRow = Order;
+
+const normalizeOrderRow = (order: BaseOrderRow): Order => ({
+  ...order,
+  total: Number(order.total),
+  subtotal: Number(order.subtotal),
+  shipping_cost: order.shipping_cost !== null ? Number(order.shipping_cost) : null,
+  discount: order.discount !== null ? Number(order.discount) : null,
+  order_items: (order.order_items || []).map((item) => ({
+    ...item,
+    price: Number(item.price),
+  })),
+});
+
+const mergeUniqueOrders = (primary: BaseOrderRow[], additional: BaseOrderRow[]): Order[] => {
+  const merged = new Map<string, Order>();
+  for (const order of [...primary, ...additional]) {
+    if (!merged.has(order.id)) merged.set(order.id, normalizeOrderRow(order));
+  }
+  return Array.from(merged.values());
+};
 
 const persistOrdersCache = (orders: Order[]) => {
   try {
@@ -363,6 +386,62 @@ const fetchOrdersTotalCount = async (timeoutMs: number): Promise<number | null> 
   }
 };
 
+const fetchReturnedOrderRows = async (timeoutMs: number): Promise<BaseOrderRow[]> => {
+  try {
+    const { data, error } = await withTimeout(
+      supabase
+        .from('orders')
+        .select(ORDER_SELECT)
+        .eq('status', 'returned')
+        .order('created_at', { ascending: false })
+        .range(0, ORDERS_FETCH_LIMIT - 1),
+      timeoutMs,
+      'returned_orders_fetch'
+    );
+
+    if (error) throw error;
+    return (data || []) as BaseOrderRow[];
+  } catch (error) {
+    console.error('Failed to load older returned orders:', error);
+    return [];
+  }
+};
+
+const fetchOrdersMatchingReturnValues = async (
+  values: string[],
+  timeoutMs: number,
+): Promise<BaseOrderRow[]> => {
+  if (values.length === 0) return [];
+
+  const fields = ['steadfast_consignment_id', 'tracking_number', 'order_number'] as const;
+  const chunks: string[][] = [];
+  for (let index = 0; index < values.length; index += 50) {
+    chunks.push(values.slice(index, index + 50));
+  }
+
+  const queries = fields.flatMap((field) => chunks.map(async (chunk) => {
+    const { data, error } = await withTimeout(
+      supabase
+        .from('orders')
+        .select(ORDER_SELECT)
+        .in(field, chunk),
+      timeoutMs,
+      `returned_orders_${field}`
+    );
+
+    if (error) throw error;
+    return (data || []) as BaseOrderRow[];
+  }));
+
+  try {
+    const rows = (await Promise.all(queries)).flat();
+    return Array.from(new Map(rows.map((order) => [order.id, order])).values());
+  } catch (error) {
+    console.error('Failed to match Steadfast returns to orders:', error);
+    return [];
+  }
+};
+
 // Debounce hook for search
 function useDebouncedValue<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -470,29 +549,20 @@ export default function AdminOrders() {
     if (showLoader) setLoading(true);
 
     try {
-      const [{ rows: baseOrders, truncated }, totalCount] = await Promise.all([
+      const [{ rows: baseOrders, truncated }, totalCount, returnedOrders] = await Promise.all([
         fetchAllOrderRows({
           batchSize: ORDER_FETCH_BATCH_SIZE,
           timeoutMs: ORDERS_QUERY_TIMEOUT_MS,
           retries: 1,
         }),
         fetchOrdersTotalCount(ORDERS_QUERY_TIMEOUT_MS),
+        fetchReturnedOrderRows(ORDERS_QUERY_TIMEOUT_MS),
       ]);
 
       setOrdersTruncated(truncated);
       if (totalCount !== null) setTotalOrderCount(totalCount);
 
-      const normalizedOrders: Order[] = baseOrders.map((order) => ({
-        ...order,
-        total: Number(order.total),
-        subtotal: Number(order.subtotal),
-        shipping_cost: order.shipping_cost !== null ? Number(order.shipping_cost) : null,
-        discount: order.discount !== null ? Number(order.discount) : null,
-        order_items: (order.order_items || []).map((item) => ({
-          ...item,
-          price: Number(item.price),
-        })),
-      }));
+      const normalizedOrders = mergeUniqueOrders(baseOrders, returnedOrders);
 
       setOrders(normalizedOrders);
       persistOrdersCache(normalizedOrders);
@@ -599,7 +669,16 @@ export default function AdminOrders() {
       }
 
       const requests = extractSteadfastReturnRequests(data.data);
+      const returnValues = collectReturnRequestValues(requests);
       setSteadfastReturnKeys(collectReturnRequestKeys(requests));
+
+      const matchedOrders = await fetchOrdersMatchingReturnValues(
+        returnValues,
+        ORDERS_QUERY_TIMEOUT_MS,
+      );
+      if (matchedOrders.length > 0) {
+        setOrders((previous) => mergeUniqueOrders(previous, matchedOrders));
+      }
     } catch (error) {
       console.error('Error fetching Steadfast return requests:', error);
     }
@@ -699,17 +778,17 @@ export default function AdminOrders() {
         }
       }
       if (steadfastFilter !== 'all') {
-        if (!order.tracking_number) return false;
-        const sfStatus = steadfastStatuses[order.tracking_number];
+        const sfStatus = order.tracking_number ? steadfastStatuses[order.tracking_number] : undefined;
         const deliveryStatus = (sfStatus?.delivery_status || sfStatus?.current_status || '').toLowerCase();
-        if (steadfastFilter === 'returned' && !(deliveryStatus.includes('return') || deliveryStatus.includes('cancelled'))) return false;
+        if (steadfastFilter === 'returned' && !(isSteadfastReturnedOrder(order) || deliveryStatus.includes('cancelled'))) return false;
+        if (steadfastFilter !== 'returned' && !order.tracking_number) return false;
         if (steadfastFilter === 'delivered' && !deliveryStatus.includes('delivered')) return false;
         if (steadfastFilter === 'in_transit' && !(deliveryStatus.includes('transit') || deliveryStatus.includes('picked') || deliveryStatus.includes('hub'))) return false;
         if (steadfastFilter === 'pending_delivery' && !(deliveryStatus.includes('pending') || deliveryStatus === '')) return false;
       }
       return true;
     });
-  }, [orders, debouncedSearch, statusFilter, sourceFilter, steadfastFilter, dateFrom, dateTo, steadfastStatuses, getDisplayedOrderStatus]);
+  }, [orders, debouncedSearch, statusFilter, sourceFilter, steadfastFilter, dateFrom, dateTo, steadfastStatuses, getDisplayedOrderStatus, isSteadfastReturnedOrder]);
 
   const filteredOrders = useMemo(() => {
     if (locationFilter === 'all') return ordersBeforeLocation;
@@ -783,11 +862,10 @@ export default function AdminOrders() {
     };
 
     for (const order of orders) {
-      if (!order.tracking_number) continue;
-      const sfStatus = steadfastStatuses[order.tracking_number];
+      const sfStatus = order.tracking_number ? steadfastStatuses[order.tracking_number] : undefined;
       const deliveryStatus = sfStatus?.delivery_status?.toLowerCase() || sfStatus?.current_status?.toLowerCase() || '';
 
-      if (deliveryStatus.includes('return') || deliveryStatus.includes('cancelled')) {
+      if (isSteadfastReturnedOrder(order) || deliveryStatus.includes('cancelled')) {
         counts.returned += 1;
       }
       if (deliveryStatus.includes('delivered')) {
@@ -799,7 +877,7 @@ export default function AdminOrders() {
     }
 
     return counts;
-  }, [orders, steadfastStatuses]);
+  }, [orders, steadfastStatuses, isSteadfastReturnedOrder]);
 
   const getSteadfastCount = useCallback((filterType: 'returned' | 'delivered' | 'in_transit') => {
     return steadfastCounts[filterType] || 0;
@@ -1540,8 +1618,8 @@ export default function AdminOrders() {
       {ordersTruncated && (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
           Showing the {ORDERS_FETCH_LIMIT.toLocaleString()} most recent orders
-          {totalOrderCount !== null ? ` of ${totalOrderCount.toLocaleString()}` : ''}. Use the date
-          filters to reach older ones.
+          {totalOrderCount !== null ? ` of ${totalOrderCount.toLocaleString()}` : ''}. Returned orders
+          are loaded separately, including older records.
         </div>
       )}
 
