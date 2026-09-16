@@ -59,6 +59,7 @@ const adminNavItems = [
   { title: 'Landing Pages', url: '/admin/landing-pages', icon: Megaphone },
   { title: 'Courier History', url: '/admin/courier-history', icon: History },
   { title: 'Courier Settings', url: '/admin/courier-settings', icon: Truck },
+  { title: 'Steadfast Operations', url: '/admin/steadfast', icon: Truck },
   { title: 'Users', url: '/admin/users', icon: Users },
   { title: 'Inventory', url: '/admin/inventory', icon: Boxes },
   { title: 'Slider Settings', url: '/admin/banners', icon: Image },

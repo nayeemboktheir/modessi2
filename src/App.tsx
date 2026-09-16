@@ -47,6 +47,7 @@ const AdminIncompleteOrders = lazy(() => import('@/pages/admin/AdminIncompleteOr
 const AdminOrderProtection = lazy(() => import('@/pages/admin/AdminOrderProtection'));
 const AdminCourierHistory = lazy(() => import('@/pages/admin/AdminCourierHistory'));
 const AdminCourierSettings = lazy(() => import('@/pages/admin/AdminCourierSettings'));
+const AdminSteadfast = lazy(() => import('@/pages/admin/AdminSteadfast'));
 const AdminUsers = lazy(() => import('@/pages/admin/AdminUsers'));
 const AdminInventory = lazy(() => import('@/pages/admin/AdminInventory'));
 const AdminBanners = lazy(() => import('@/pages/admin/AdminBanners'));
@@ -157,6 +158,7 @@ const App = () => (
               <Route path="/admin/landing-pages/:id" element={<AdminLayout><AdminLandingPageEditor /></AdminLayout>} />
               <Route path="/admin/courier-history" element={<AdminLayout><AdminCourierHistory /></AdminLayout>} />
               <Route path="/admin/courier-settings" element={<AdminLayout><AdminCourierSettings /></AdminLayout>} />
+              <Route path="/admin/steadfast" element={<AdminLayout><AdminSteadfast /></AdminLayout>} />
               <Route path="/admin/users" element={<AdminLayout><AdminUsers /></AdminLayout>} />
               <Route path="/admin/inventory" element={<AdminLayout><AdminInventory /></AdminLayout>} />
               <Route path="/admin/banners" element={<AdminLayout><AdminBanners /></AdminLayout>} />

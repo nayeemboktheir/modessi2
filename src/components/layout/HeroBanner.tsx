@@ -5,9 +5,9 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import heroSlide1 from '@/assets/hero-slide-1.jpg';
-import heroSlide2 from '@/assets/hero-slide-2.jpg';
-import heroSlide3 from '@/assets/hero-slide-3.jpg';
+import heroSlide1 from '@/assets/hero-slide-1.png';
+import heroSlide2 from '@/assets/hero-slide-2.png';
+import heroSlide3 from '@/assets/hero-slide-3.png';
 
 interface HeroSlide {
   id: string;

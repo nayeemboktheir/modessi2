@@ -1,0 +1,2 @@
+[mcp_servers.supabase]
+url = "https://api.modessi.shop/mcp?features=database%2Cdebugging%2Cdevelopment%2Cdocs"

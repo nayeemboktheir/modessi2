@@ -1,111 +1,76 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { requireAdmin } from '../_shared/auth.ts';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { corsHeaders, requireAdmin } from '../_shared/auth.ts';
+import {
+  getSteadfastCredentials,
+  hasSteadfastCredentials,
+  requestSteadfast,
+  upstreamMessage,
+} from '../_shared/steadfast.ts';
 
 interface SteadfastOrderRequest {
-  orderId: string;
+  orderId?: string;
   invoice: string;
   recipient_name: string;
   recipient_phone: string;
+  alternative_phone?: string;
+  recipient_email?: string;
   recipient_address: string;
   cod_amount: number;
   note?: string;
+  item_description?: string;
+  total_lot?: number;
+  delivery_type?: 0 | 1;
 }
 
 interface BulkOrderRequest {
   orders: SteadfastOrderRequest[];
 }
 
-// Courier APIs occasionally hang. Without a deadline one stalled call blocks the whole
-// request — and inside a bulk loop, every order behind it — until the router kills the
-// worker at 150s.
-const UPSTREAM_TIMEOUT_MS = 20_000;
+interface UpstreamConsignment {
+  consignment_id?: string | number;
+  tracking_code?: string;
+}
 
-async function fetchWithTimeout(input: string, init: RequestInit): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
+const json = (body: unknown, status: number) => new Response(JSON.stringify(body), {
+  status,
+  headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+});
 
-  try {
-    return await fetch(input, { ...init, signal: controller.signal });
-  } finally {
-    clearTimeout(timer);
+function validateOrder(order: SteadfastOrderRequest): string | null {
+  if (!order || typeof order !== 'object') return 'Order payload is required';
+  if (!String(order.invoice ?? '').trim()) return 'Invoice is required';
+  if (!String(order.recipient_name ?? '').trim()) return 'Recipient name is required';
+  if (!String(order.recipient_phone ?? '').trim()) return 'Recipient phone is required';
+  if (!String(order.recipient_address ?? '').trim()) return 'Recipient address is required';
+  if (!Number.isFinite(Number(order.cod_amount)) || Number(order.cod_amount) < 0) {
+    return 'COD amount must be a non-negative number';
   }
-}
-
-async function getCredentials(supabase: any) {
-  // First try to get from admin_settings table
-  const { data: settings } = await supabase
-    .from('admin_settings')
-    .select('key, value')
-    .in('key', ['steadfast_api_key', 'steadfast_secret_key']);
-
-  let apiKey = '';
-  let secretKey = '';
-
-  settings?.forEach((setting: { key: string; value: string }) => {
-    if (setting.key === 'steadfast_api_key') {
-      apiKey = setting.value;
-    } else if (setting.key === 'steadfast_secret_key') {
-      secretKey = setting.value;
-    }
-  });
-
-  // Fallback to environment variables
-  if (!apiKey) apiKey = Deno.env.get('STEADFAST_API_KEY') || '';
-  if (!secretKey) secretKey = Deno.env.get('STEADFAST_SECRET_KEY') || '';
-
-  return { apiKey, secretKey };
-}
-
-async function sendToSteadfast(
-  order: SteadfastOrderRequest,
-  apiKey: string,
-  secretKey: string
-): Promise<{ success: boolean; data?: unknown; error?: string }> {
-  try {
-    const response = await fetchWithTimeout('https://portal.packzy.com/api/v1/create_order', {
-      method: 'POST',
-      headers: {
-        'Api-Key': apiKey,
-        'Secret-Key': secretKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        invoice: order.invoice,
-        recipient_name: order.recipient_name,
-        recipient_phone: order.recipient_phone,
-        recipient_address: order.recipient_address,
-        cod_amount: order.cod_amount,
-        note: order.note || '',
-      }),
-    });
-
-    const data = await response.json();
-    
-    if (!response.ok || data.status !== 200) {
-      return { 
-        success: false, 
-        error: data.message || 'Failed to create Steadfast order',
-        data 
-      };
-    }
-
-    return { success: true, data };
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return { success: false, error: errorMessage };
+  if (order.delivery_type !== undefined && order.delivery_type !== 0 && order.delivery_type !== 1) {
+    return 'Delivery type must be 0 (home) or 1 (hub pickup)';
   }
+  return null;
 }
 
-// Orders that already carry a tracking number were sent to a courier before. Sending
-// again books — and bills — a second physical delivery, which a double-click, a retry
-// after a slow response, or a re-selected bulk batch would otherwise do silently.
+function toSteadfastPayload(order: SteadfastOrderRequest) {
+  // Do not forward our local order ID. Every other field maps directly to the
+  // documented Steadfast create-order payload.
+  return {
+    invoice: String(order.invoice).trim(),
+    recipient_name: String(order.recipient_name).trim(),
+    recipient_phone: String(order.recipient_phone).trim(),
+    ...(order.alternative_phone?.trim() ? { alternative_phone: order.alternative_phone.trim() } : {}),
+    ...(order.recipient_email?.trim() ? { recipient_email: order.recipient_email.trim() } : {}),
+    recipient_address: String(order.recipient_address).trim(),
+    cod_amount: Number(order.cod_amount),
+    ...(order.note?.trim() ? { note: order.note.trim() } : {}),
+    ...(order.item_description?.trim() ? { item_description: order.item_description.trim() } : {}),
+    ...(order.total_lot !== undefined ? { total_lot: Number(order.total_lot) } : {}),
+    ...(order.delivery_type !== undefined ? { delivery_type: order.delivery_type } : {}),
+  };
+}
+
 async function findAlreadyDispatched(
-  supabase: { from: (t: string) => any },
+  supabase: { from: (table: string) => any },
   orderIds: string[],
 ): Promise<Map<string, string>> {
   const ids = orderIds.filter(Boolean);
@@ -124,169 +89,174 @@ async function findAlreadyDispatched(
 
   return new Map(
     (data ?? [])
-      .filter((row: { tracking_number: string | null }) => !!row.tracking_number)
+      .filter((row: { tracking_number: string | null }) => Boolean(row.tracking_number))
       .map((row: { id: string; tracking_number: string }) => [row.id, row.tracking_number]),
   );
 }
 
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+async function saveConsignment(
+  supabase: { from: (table: string) => any },
+  orderId: string | undefined,
+  consignment: UpstreamConsignment | undefined,
+) {
+  if (!orderId || !consignment) return;
+  const consignmentId = consignment.consignment_id ? String(consignment.consignment_id) : undefined;
+  const trackingCode = consignment.tracking_code ?? consignmentId;
+  if (!trackingCode) return;
 
-  if (req.method !== 'POST') {
-    return new Response(
-      JSON.stringify({ error: 'Method not allowed' }),
-      { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+  const { error } = await supabase
+    .from('orders')
+    .update({
+      tracking_number: trackingCode,
+      steadfast_consignment_id: consignmentId ?? trackingCode,
+      status: 'processing',
+    })
+    .eq('id', orderId);
+
+  if (error) console.error(`Could not save Steadfast consignment for order ${orderId}:`, error.message);
+}
+
+function unpackBulkResults(data: unknown): unknown[] {
+  if (Array.isArray(data)) return data;
+  if (data && typeof data === 'object') {
+    const candidate = (data as { data?: unknown; results?: unknown }).data
+      ?? (data as { results?: unknown }).results;
+    if (Array.isArray(candidate)) return candidate;
   }
+  return [];
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
   try {
     const auth = await requireAdmin(req);
     if (!auth.ok) return auth.response;
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    const { apiKey, secretKey } = await getCredentials(supabase);
-
-    if (!apiKey || !secretKey) {
-      console.error('Steadfast credentials not configured');
-      return new Response(
-        JSON.stringify({ error: 'Steadfast credentials not configured. Please add them in Admin → Steadfast settings.' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+    const credentials = await getSteadfastCredentials(supabase);
+    if (!hasSteadfastCredentials(credentials)) {
+      return json({ error: 'Steadfast credentials not configured. Please add them in Admin → Steadfast settings.' }, 500);
     }
 
     const body = await req.json();
-    
-    // Check if it's a bulk request
-    if (body.orders && Array.isArray(body.orders)) {
-      console.log(`Processing bulk order: ${body.orders.length} orders`);
-      
-      const results: { orderId: string; success: boolean; tracking_code?: string; consignment_id?: string; error?: string }[] = [];
+    const bulkRequest = body as BulkOrderRequest;
+
+    if (Array.isArray(bulkRequest.orders)) {
+      if (bulkRequest.orders.length === 0) return json({ error: 'At least one order is required' }, 400);
+      if (bulkRequest.orders.length > 500) return json({ error: 'Steadfast accepts a maximum of 500 orders per bulk request' }, 400);
+
+      const validationError = bulkRequest.orders.map(validateOrder).find(Boolean);
+      if (validationError) return json({ error: validationError }, 400);
 
       const alreadySent = await findAlreadyDispatched(
         supabase,
-        (body.orders as SteadfastOrderRequest[]).map((o) => o.orderId),
+        bulkRequest.orders.map((order) => order.orderId ?? ''),
       );
+      const pendingOrders = bulkRequest.orders.filter((order) => !order.orderId || !alreadySent.has(order.orderId));
 
-      for (const order of body.orders as SteadfastOrderRequest[]) {
-        const existing = order.orderId ? alreadySent.get(order.orderId) : undefined;
-        if (existing) {
-          console.log(`Skipping order ${order.orderId}: already dispatched as ${existing}`);
-          results.push({ orderId: order.orderId, success: true, tracking_code: existing, consignment_id: existing });
-          continue;
-        }
+      const skipped = bulkRequest.orders
+        .filter((order) => order.orderId && alreadySent.has(order.orderId))
+        .map((order) => ({
+          orderId: order.orderId,
+          invoice: order.invoice,
+          success: true,
+          alreadyDispatched: true,
+          tracking_code: alreadySent.get(order.orderId!),
+        }));
 
-        const result = await sendToSteadfast(order, apiKey, secretKey);
-        
-        if (result.success && result.data) {
-          const consignmentData = result.data as { consignment?: { consignment_id?: string; tracking_code?: string } };
-          const consignmentId = consignmentData.consignment?.consignment_id;
-          const trackingCode = consignmentData.consignment?.tracking_code || consignmentId;
-          
-          // Update order with tracking and consignment ID
-          if (order.orderId) {
-            await supabase
-              .from('orders')
-              .update({ 
-                tracking_number: trackingCode, 
-                steadfast_consignment_id: consignmentId,
-                status: 'processing' 
-              })
-              .eq('id', order.orderId);
-          }
-          
-          results.push({ orderId: order.orderId, success: true, tracking_code: trackingCode, consignment_id: consignmentId });
-        } else {
-          results.push({ orderId: order.orderId, success: false, error: result.error });
-        }
+      if (pendingOrders.length === 0) {
+        return json({ success: true, message: 'All selected orders were already dispatched', results: skipped }, 200);
       }
-      
-      const successCount = results.filter(r => r.success).length;
-      const failCount = results.filter(r => !r.success).length;
-      
-      return new Response(
-        JSON.stringify({ 
-          success: failCount === 0,
-          message: `Sent ${successCount} orders, ${failCount} failed`,
-          results 
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+
+      // This deliberately uses the documented bulk endpoint instead of looping
+      // over create_order, so the merchant gets Steadfast's per-order bulk result.
+      const upstream = await requestSteadfast('/create_order/bulk-order', credentials, {
+        method: 'POST',
+        body: JSON.stringify({ data: pendingOrders.map(toSteadfastPayload) }),
+      }, 45_000);
+
+      const upstreamResults = unpackBulkResults(upstream.data);
+      const results = await Promise.all(pendingOrders.map(async (order, index) => {
+        const result = upstreamResults[index] as (Record<string, unknown> | undefined);
+        const successful = upstream.ok && (
+          result?.status === 'success'
+          || Boolean(result?.tracking_code)
+          || Boolean(result?.consignment_id)
+        );
+        const consignment: UpstreamConsignment | undefined = successful && result
+          ? {
+            consignment_id: result.consignment_id as string | number | undefined,
+            tracking_code: result.tracking_code as string | undefined,
+          }
+          : undefined;
+        if (successful) await saveConsignment(supabase, order.orderId, consignment);
+
+        return {
+          orderId: order.orderId,
+          invoice: order.invoice,
+          success: successful,
+          ...(successful ? consignment : { error: upstreamMessage(result ?? upstream.data, 'Failed to create Steadfast order') }),
+          upstream: result,
+        };
+      }));
+
+      const allResults = [...skipped, ...results];
+      const failed = allResults.filter((result) => !result.success).length;
+      return json({
+        success: upstream.ok && failed === 0,
+        message: `Sent ${allResults.length - failed} orders, ${failed} failed`,
+        results: allResults,
+        upstream_status: upstream.status,
+      }, upstream.ok ? 200 : 502);
     }
 
-    // Single order request
     const order = body as SteadfastOrderRequest;
-    console.log('Creating Steadfast order for:', order.invoice);
+    const validationError = validateOrder(order);
+    if (validationError) return json({ error: validationError }, 400);
 
     if (order.orderId) {
       const existing = (await findAlreadyDispatched(supabase, [order.orderId])).get(order.orderId);
       if (existing) {
-        return new Response(
-          JSON.stringify({
-            success: true,
-            alreadyDispatched: true,
-            message: 'Order was already sent to a courier',
-            consignment_id: existing,
-            tracking_code: existing,
-          }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        return json({
+          success: true,
+          alreadyDispatched: true,
+          message: 'Order was already sent to Steadfast',
+          consignment_id: existing,
+          tracking_code: existing,
+        }, 200);
       }
     }
 
-    if (!order.invoice || !order.recipient_name || !order.recipient_phone || !order.recipient_address || order.cod_amount === undefined) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required fields' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    const upstream = await requestSteadfast('/create_order', credentials, {
+      method: 'POST',
+      body: JSON.stringify(toSteadfastPayload(order)),
+    });
+    const response = upstream.data as { status?: number; consignment?: UpstreamConsignment } | undefined;
+    const successful = upstream.ok && response?.status === 200 && Boolean(response.consignment);
+
+    if (!successful) {
+      return json({
+        error: upstreamMessage(upstream.data, 'Failed to create Steadfast order'),
+        details: upstream.data,
+      }, upstream.ok ? 400 : 502);
     }
 
-    const result = await sendToSteadfast(order, apiKey, secretKey);
-    
-    if (!result.success) {
-      console.error('Steadfast API error:', result.error);
-      return new Response(
-        JSON.stringify({ error: result.error, details: result.data }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const consignmentData = result.data as { consignment?: { consignment_id?: string; tracking_code?: string } };
-    const consignmentId = consignmentData.consignment?.consignment_id;
-    const trackingCode = consignmentData.consignment?.tracking_code;
-
-    if ((consignmentId || trackingCode) && order.orderId) {
-      await supabase
-        .from('orders')
-        .update({ 
-          tracking_number: trackingCode || consignmentId, 
-          steadfast_consignment_id: consignmentId,
-          status: 'processing' 
-        })
-        .eq('id', order.orderId);
-    }
-
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: 'Order sent to Steadfast successfully',
-        consignment_id: consignmentId,
-        tracking_code: trackingCode,
-        data: result.data
-      }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-
+    await saveConsignment(supabase, order.orderId, response.consignment);
+    return json({
+      success: true,
+      message: 'Order sent to Steadfast successfully',
+      consignment_id: response.consignment?.consignment_id,
+      tracking_code: response.consignment?.tracking_code,
+      data: upstream.data,
+    }, 200);
   } catch (error: unknown) {
-    console.error('Error in steadfast-courier function:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    console.error('steadfast-courier failed:', message);
+    return json({ error: message }, 500);
   }
 });

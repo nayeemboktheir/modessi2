@@ -29,8 +29,12 @@ SSH_HOST=root@72.61.248.65 FUNCTIONS_DIR=/data/coolify/services/nul28nblfi7lon4n
 Without an SSH key, do it from Coolify -> Workspace -> Terminal -> the **server** (not the service's
 container terminal, which has no `curl`, `wget`, `git` or `deno` — only `tar`): fetch
 `https://codeload.github.com/nayeemboktheir/modessi2/tar.gz/refs/heads/main`, `cp -r` each function
-directory into `$FUNCTIONS_DIR`, then `docker restart` the edge-functions container. See
-[scripts/migrate-to-vps/README.md](scripts/migrate-to-vps/README.md) step 6 for the traps.
+directory into `$FUNCTIONS_DIR`, then `docker restart` the edge-functions container.
+
+Easiest is [scripts/deploy-function.sh](scripts/deploy-function.sh) run on the host shell — it
+resolves the container and mount itself, shows which functions differ from `main`, copies only what
+you pick, and restarts only if the router changed. Full procedure and failure signatures:
+[supabase/functions/DEPLOYING.md](supabase/functions/DEPLOYING.md).
 
 ## Architecture
 

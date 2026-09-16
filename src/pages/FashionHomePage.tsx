@@ -12,9 +12,9 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { addToCart, openCart, selectCartCount, toggleCart } from '@/store/slices/cartSlice';
 import { selectWishlistItems, toggleWishlist } from '@/store/slices/wishlistSlice';
 import type { Product as CartProduct } from '@/types';
-import heroSlide1 from '@/assets/hero-slide-1.jpg';
-import heroSlide2 from '@/assets/hero-slide-2.jpg';
-import heroSlide3 from '@/assets/hero-slide-3.jpg';
+import heroSlide1 from '@/assets/hero-slide-1.png';
+import heroSlide2 from '@/assets/hero-slide-2.png';
+import heroSlide3 from '@/assets/hero-slide-3.png';
 import shopLogo from '@/assets/shop-logo.png';
 import { toast } from 'sonner';
 
@@ -299,9 +299,12 @@ export default function FashionHomePage() {
     setMobileMenu(false);
   };
 
-  const campaign = Boolean(current.desktopImage || current.mobileImage);
+  // Every hero image is a banner surface. Older slides only populated `image`,
+  // so treating that field as a campaign image prevents it from being confined
+  // to the right-hand half of the hero.
   const desktopImage = current.desktopImage || current.image || heroSlide1;
   const mobileImage = current.mobileImage || desktopImage;
+  const campaign = Boolean(desktopImage);
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#fcfaf7] text-[#382c2a]">
@@ -347,7 +350,7 @@ export default function FashionHomePage() {
         <section className="bg-[#f0e7df] px-4 py-11 sm:px-6 lg:px-8"><div className="mx-auto max-w-2xl text-center"><p className="text-[11px] font-bold tracking-[0.14em] text-[#994057]">MODESSI LETTER</p><h2 className="mt-2 text-xl font-semibold text-[#493a36] sm:text-2xl">সর্বশেষ কালেকশন ও অফার আপডেট পেতে সাবস্ক্রাইব করুন</h2><form className="mx-auto mt-5 flex max-w-xl rounded-full bg-white p-1.5 shadow-[0_6px_20px_rgba(89,57,44,0.08)]" onSubmit={(event) => { event.preventDefault(); toast.success('আপনার আগ্রহ নথিভুক্ত করা হয়েছে'); }}><input required aria-label="ইমেইল বা ফোন নম্বর" placeholder="আপনার ইমেইল বা ফোন নম্বর" className="min-w-0 flex-1 rounded-full bg-transparent px-4 text-xs outline-none placeholder:text-[#a99a92]" /><button type="submit" className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#941e3d] px-4 py-2.5 text-xs font-bold text-white transition hover:bg-[#74142e] sm:px-6">সাবস্ক্রাইব <ArrowRight className="hidden h-3.5 w-3.5 sm:block" /></button></form></div></section>
       </main>
 
-      <footer className="bg-[#fffdfa] pt-11 text-[#6d5e58]"><div className="mx-auto grid max-w-[1280px] gap-9 px-4 pb-10 sm:px-6 md:grid-cols-[1.3fr_0.8fr_0.9fr_1fr] lg:px-8"><div><img src={shopLogo} alt="Modessi" className="h-12 w-auto" loading="lazy" /><p className="mt-4 max-w-xs text-xs leading-5 text-[#7e706a]">বাংলাদেশী নারীর জন্য আরামদায়ক, মানসম্মত ও সমসাময়িক পোশাকের নির্ভরযোগ্য ঠিকানা।</p><div className="mt-4 flex gap-2"><FooterSocial icon={Facebook} label="Facebook" /><FooterSocial icon={Instagram} label="Instagram" /><FooterSocial icon={Youtube} label="YouTube" /></div></div><FooterColumn title="দ্রুত লিংক" links={[['সব কালেকশন', '/products'], ['থ্রি পিস', '/products?category=three-piece'], ['শাড়ি', '/products?category=saree'], ['আমাদের গল্প', '/about']]} /><FooterColumn title="কাস্টমার সেবা" links={[['আমার অ্যাকাউন্ট', '/my-account'], ['ডেলিভারি তথ্য', '/contact'], ['রিটার্ন পলিসি', '/contact'], ['সচরাচর জিজ্ঞাসা', '/contact']]} /><div><h3 className="text-sm font-bold text-[#4c3d38]">যোগাযোগ</h3><ul className="mt-4 space-y-3 text-xs"><li className="flex gap-2"><Phone className="h-4 w-4 shrink-0 text-[#96213f]" /><a href="tel:01812-345678">01812-345678</a></li><li className="flex gap-2"><Mail className="h-4 w-4 shrink-0 text-[#96213f]" /><a href="mailto:support@modessi.com">support@modessi.com</a></li><li className="flex gap-2"><MapPin className="h-4 w-4 shrink-0 text-[#96213f]" /><span>ঢাকা, বাংলাদেশ</span></li></ul></div></div><div className="border-t border-[#eee5de]"><div className="mx-auto flex max-w-[1280px] flex-col gap-2 px-4 py-4 text-[10px] text-[#9d8f88] sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8"><span>© {new Date().getFullYear()} Modessi. All rights reserved.</span><span>Designed with <span className="text-[#9e2646]">♥</span> for stronger women</span></div></div></footer>
+      <footer className="bg-[#fffdfa] pt-11 text-[#6d5e58]"><div className="mx-auto grid max-w-[1280px] gap-9 px-4 pb-10 sm:px-6 md:grid-cols-[1.3fr_0.8fr_0.9fr_1fr] lg:px-8"><div><img src={shopLogo} alt="Modessi" className="h-12 w-auto" loading="lazy" /><p className="mt-4 max-w-xs text-xs leading-5 text-[#7e706a]">বাংলাদেশী নারীর জন্য আরামদায়ক, মানসম্মত ও সমসাময়িক পোশাকের নির্ভরযোগ্য ঠিকানা।</p><div className="mt-4 flex gap-2"><FooterSocial icon={Facebook} label="Facebook" /><FooterSocial icon={Instagram} label="Instagram" /><FooterSocial icon={Youtube} label="YouTube" /></div></div><FooterColumn title="দ্রুত লিংক" links={[['সব কালেকশন', '/products'], ['থ্রি পিস', '/products?category=three-piece'], ['শাড়ি', '/products?category=saree'], ['আমাদের গল্প', '/about']]} /><FooterColumn title="কাস্টমার সেবা" links={[['আমার অ্যাকাউন্ট', '/my-account'], ['ডেলিভারি তথ্য', '/contact'], ['রিটার্ন পলিসি', '/contact'], ['সচরাচর জিজ্ঞাসা', '/contact']]} /><div><h3 className="text-sm font-bold text-[#4c3d38]">যোগাযোগ</h3><ul className="mt-4 space-y-3 text-xs"><li className="flex gap-2"><Phone className="h-4 w-4 shrink-0 text-[#96213f]" /><a href="tel:01812-345678">01812-345678</a></li><li className="flex gap-2"><Mail className="h-4 w-4 shrink-0 text-[#96213f]" /><a href="mailto:support@modessi.com">support@modessi.com</a></li><li className="flex gap-2"><MapPin className="h-4 w-4 shrink-0 text-[#96213f]" /><span>ঢাকা, বাংলাদেশ</span></li></ul></div></div><div className="border-t border-[#eee5de]"><div className="mx-auto flex max-w-[1280px] flex-col gap-2 px-4 py-4 text-[10px] text-[#9d8f88] sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8"><span>© {new Date().getFullYear()} Modessi. All rights reserved.</span><span>Developed by Platiroll</span><span>Designed with <span className="text-[#9e2646]">♥</span> for stronger women</span></div></div></footer>
     </div>
   );
 }

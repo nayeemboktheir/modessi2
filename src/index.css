@@ -194,6 +194,18 @@
     animation: shimmer 3s linear infinite;
   }
 
+
+/* Hero banner copy */
+main > section:first-child > article > div.relative.z-10 > div > p:nth-of-type(2),
+main > section:first-child > article > div.relative.z-10 > div > div:last-child {
+  color: rgba(255, 255, 255, 0.92);
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.42);
+}
+
+main > section:first-child > article > div.relative.z-10 > div > div:last-child strong {
+  color: #fff;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.42);
+}
   @keyframes float {
     0%, 100% { transform: translateY(0px); }
     50% { transform: translateY(-10px); }
@@ -218,5 +230,33 @@
     0% { background-position: 0% 50%; }
     50% { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
+  }
+}
+
+/* Footer credit bar */
+footer > div:last-child > div {
+  font-size: 0.75rem;
+}
+
+footer > div:last-child > div > span:nth-child(2) {
+  font-size: 0;
+}
+
+footer > div:last-child > div > span:nth-child(2)::before {
+  color: #9d8f88;
+  content: 'Developed by ';
+  font-size: 0.75rem;
+}
+
+footer > div:last-child > div > span:nth-child(2)::after {
+  color: #9e2646;
+  content: 'PlatiRoll';
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+@media (min-width: 640px) {
+  footer > div:last-child > div {
+    font-size: 0.8125rem;
   }
 }
