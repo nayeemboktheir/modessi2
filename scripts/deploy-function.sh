@@ -42,8 +42,16 @@ dim "fetching $REPO@$BRANCH ..."
 curl -fsSL "https://codeload.github.com/$REPO/tar.gz/refs/heads/$BRANCH" -o "$TMP/r.tar.gz" \
   || { err "download failed"; exit 1; }
 tar -xzf "$TMP/r.tar.gz" -C "$TMP"
-SRC="$(find "$TMP" -maxdepth 2 -type d -name functions -path '*/supabase/*' | head -1)"
-[ -d "$SRC" ] || { err "supabase/functions not found in the archive"; exit 1; }
+# The archive has a single top-level directory named <repo>-<branch>, so resolve
+# it rather than guessing a depth.
+TOP="$(find "$TMP" -mindepth 1 -maxdepth 1 -type d ! -name '*.tar.gz' | head -1)"
+SRC="$TOP/supabase/functions"
+if [ ! -d "$SRC" ]; then
+  err "supabase/functions not found in the archive"
+  dim "  archive top level: ${TOP:-<none>}"
+  dim "  looked for:        $SRC"
+  exit 1
+fi
 
 # ---- 3. compare repo vs host ---------------------------------------------
 # A directory's fingerprint is the sorted list of its files' checksums, so a
