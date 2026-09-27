@@ -251,7 +251,7 @@ export default function FashionHomePage() {
   const slides = configuredSlides.length
     ? configuredSlides
     : legacyBanners.length
-      ? legacyBanners.map((banner, index) => ({ id: banner.id, eyebrow: index === 0 ? 'MODESSI COLLECTION' : 'NEW SEASON', title: banner.title, subtitle: banner.subtitle || '', link: banner.link_url || '/products', image: banner.image_url }))
+      ? legacyBanners.map((banner, index): HeroSlide => ({ id: banner.id, eyebrow: index === 0 ? 'MODESSI COLLECTION' : 'NEW SEASON', title: banner.title, subtitle: banner.subtitle || '', link: banner.link_url || '/products', image: banner.image_url }))
       : defaultSlides;
   const current = slides[slideIndex] || slides[0];
   const products = featured.length ? featured : newArrivals.length ? newArrivals : recent;
