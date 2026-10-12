@@ -400,6 +400,7 @@ export async function pushOrder(
 
   const cache = new Map<string, any[]>();
   const items: Array<{ sku: string; quantity: number; variation_id?: string }> = [];
+  const sizeNotes: string[] = [];
 
   for (const it of o.order_items ?? []) {
     // Custom (non-catalogue) lines have no SKU on BotBhai's side.
@@ -421,6 +422,16 @@ export async function pushOrder(
       }
       if (!match?.id) throw new Error(`Variation "${it.variation_name}" of ${it.product_id} is not on BotBhai`);
       line.variation_id = match.id;
+    } else {
+      // BotBhai refuses a line without a size for a product that has sizes. Older
+      // website orders (or ones placed before sizes were added) have none recorded,
+      // so send the first size and say so on the BotBhai order.
+      const sizes = (await remoteVariations(it.product_id, cache)).filter((r) => r?.id && r.is_active !== false);
+      if (sizes.length > 0) {
+        const chosen = sizes.find((r) => sameName(r.name, it.variation_name)) ?? sizes[0];
+        line.variation_id = chosen.id;
+        sizeNotes.push(`${it.product_id}: no size on the website order, sent as "${chosen.name}"`);
+      }
     }
 
     items.push(line);
@@ -456,7 +467,7 @@ export async function pushOrder(
 
   try {
     await botbhai('POST', `/orders/${enc(botbhaiOrderNumber)}/notes`, {
-      note: `Website order #${o.order_number} on modessi.shop`,
+      note: [`Website order #${o.order_number} on modessi.shop`, ...sizeNotes].join('\n'),
     });
   } catch (err) {
     console.warn('BotBhai note failed (order was pushed):', (err as Error).message);
