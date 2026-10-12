@@ -25,6 +25,7 @@ import {
   Video,
   Shield,
   Tags,
+  Bot,
 
   
 } from 'lucide-react';
@@ -60,6 +61,7 @@ const adminNavItems = [
   { title: 'Courier History', url: '/admin/courier-history', icon: History },
   { title: 'Courier Settings', url: '/admin/courier-settings', icon: Truck },
   { title: 'Steadfast Operations', url: '/admin/steadfast', icon: Truck },
+  { title: 'BotBhai', url: '/admin/botbhai', icon: Bot },
   { title: 'Users', url: '/admin/users', icon: Users },
   { title: 'Inventory', url: '/admin/inventory', icon: Boxes },
   { title: 'Slider Settings', url: '/admin/banners', icon: Image },

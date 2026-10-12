@@ -6,6 +6,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.89.0';
 import { callerIsAdmin } from '../_shared/auth.ts';
 import { maskPhone } from '../_shared/redact.ts';
 import { clientIp, tooManyRequests, withinRateLimit } from '../_shared/rateLimit.ts';
+import { mirrorNewOrder } from '../_shared/botbhai.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -653,6 +654,8 @@ Deno.serve(async (req) => {
     const backgroundTasks = Promise.all([
       sendOrderSms(supabaseUrl, serviceKey, phone, name, orderNumber, total, orderId),
       sendOrderEmail(supabaseUrl, serviceKey, orderId, orderNumber, name, phone, address, subtotal, shippingCost, total, itemsFinal, notes),
+      // No-op unless BOTBHAI_API_KEY is set and admin_settings.botbhai_auto_sync is 'true'.
+      mirrorNewOrder(supabase, orderId, shippingZone, itemsFinal),
     ]);
 
     // Use EdgeRuntime.waitUntil to run tasks in background after response

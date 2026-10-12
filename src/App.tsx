@@ -62,6 +62,7 @@ const AdminSocialMedia = lazy(() => import('@/pages/admin/AdminSocialMedia'));
 const AdminReports = lazy(() => import('@/pages/admin/AdminReports'));
 const AdminHomePageEdit = lazy(() => import('@/pages/admin/AdminHomePageEdit'));
 const AdminLandingVideoSettings = lazy(() => import('@/pages/admin/AdminLandingVideoSettings'));
+const AdminBotBhai = lazy(() => import('@/pages/admin/AdminBotBhai'));
 
 // Defaults, not per-query tuning. The stock QueryClient treats every result as
 // immediately stale and refetches the whole active set on each window focus —
@@ -158,6 +159,7 @@ const App = () => (
               <Route path="/admin/landing-pages/:id" element={<AdminLayout><AdminLandingPageEditor /></AdminLayout>} />
               <Route path="/admin/courier-history" element={<AdminLayout><AdminCourierHistory /></AdminLayout>} />
               <Route path="/admin/courier-settings" element={<AdminLayout><AdminCourierSettings /></AdminLayout>} />
+              <Route path="/admin/botbhai" element={<AdminLayout><AdminBotBhai /></AdminLayout>} />
               <Route path="/admin/steadfast" element={<AdminLayout><AdminSteadfast /></AdminLayout>} />
               <Route path="/admin/users" element={<AdminLayout><AdminUsers /></AdminLayout>} />
               <Route path="/admin/inventory" element={<AdminLayout><AdminInventory /></AdminLayout>} />
