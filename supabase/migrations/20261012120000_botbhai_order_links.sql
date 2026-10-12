@@ -13,8 +13,13 @@ CREATE TABLE IF NOT EXISTS public.botbhai_order_links (
 );
 
 -- Written only by the botbhai-sync and place-order edge functions with the
--- service-role key, which bypasses RLS; admins may read it.
+-- service-role key, which bypasses RLS; admins may read it. Granted explicitly:
+-- tables created from Studio on this stack get no default privileges, and
+-- bypassing RLS does not bypass a missing GRANT.
 ALTER TABLE public.botbhai_order_links ENABLE ROW LEVEL SECURITY;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.botbhai_order_links TO service_role;
+GRANT SELECT ON public.botbhai_order_links TO authenticated;
 
 DROP POLICY IF EXISTS "Admins can view botbhai order links" ON public.botbhai_order_links;
 CREATE POLICY "Admins can view botbhai order links"

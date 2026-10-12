@@ -105,10 +105,13 @@ export async function botbhai(
     }
 
     if (!res.ok) {
+      // validation_failed says *that* a field is wrong; the details say which.
+      const details = data?.details ?? data?.errors ?? data?.fields;
+      const message = data?.error ?? `BotBhai ${method} ${path} answered HTTP ${res.status}`;
       throw new BotbhaiError(
         res.status,
         data?.code ?? null,
-        data?.error ?? `BotBhai ${method} ${path} answered HTTP ${res.status}`,
+        details ? `${message}: ${typeof details === 'string' ? details : JSON.stringify(details)}` : message,
       );
     }
 
@@ -177,6 +180,11 @@ const activeVariations = (p: ProductRow) =>
     .filter((v) => v.is_active !== false)
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 
+function cheapestVariationPrice(p: ProductRow): number {
+  const prices = activeVariations(p).map((v) => Number(v.price)).filter((n) => n > 0);
+  return prices.length > 0 ? Math.min(...prices) : 0;
+}
+
 function productPayload(p: ProductRow) {
   // The old WordPress image URLs answer with the SPA's index.html, not an image;
   // don't hand those to the chatbot.
@@ -187,7 +195,9 @@ function productPayload(p: ProductRow) {
   return {
     product_id: p.id,
     product_name: p.name,
-    selling_price: Number(p.price),
+    // Some products carry their real prices only on their sizes and 0 here;
+    // BotBhai rejects a zero price, so fall back to the cheapest size.
+    selling_price: Number(p.price) > 0 ? Number(p.price) : cheapestVariationPrice(p),
     description: p.short_description || p.description || undefined,
     category: p.categories?.name ?? undefined,
     images,
@@ -255,10 +265,22 @@ export async function pushProducts(products: ProductRow[]): Promise<{ synced: nu
         });
       }
     } catch (err) {
-      chunk.forEach((p) => {
-        failedIds.add(p.id);
-        fail(p, err);
-      });
+      // A validation error on a bulk call rejects the whole batch for one bad
+      // product; retry one by one so only that product is reported.
+      const rejectedAsBatch = err instanceof BotbhaiError && (err.status === 400 || err.status === 422);
+      for (const p of chunk) {
+        if (!rejectedAsBatch || chunk.length === 1) {
+          failedIds.add(p.id);
+          fail(p, err);
+          continue;
+        }
+        try {
+          await botbhai('POST', '/products', productPayload(p));
+        } catch (single) {
+          failedIds.add(p.id);
+          fail(p, single);
+        }
+      }
     }
   }
 
