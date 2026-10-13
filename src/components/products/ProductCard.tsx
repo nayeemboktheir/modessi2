@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AnimatePresence, m, useReducedMotion } from 'framer-motion';
 import { Heart, ShoppingBag, Star, Eye, Zap } from 'lucide-react';
@@ -15,9 +15,11 @@ import { cn } from '@/lib/utils';
 interface ProductCardProps {
   product: Product;
   index?: number;
+  /** Cycle through the product's photos inside the card. */
+  slideImages?: boolean;
 }
 
-const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
+const ProductCard = ({ product, index = 0, slideImages = false }: ProductCardProps) => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const reduce = useReducedMotion();
@@ -47,6 +49,24 @@ const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
 
   const primaryImage = !imageFailed && product.images?.[0];
   const hoverImage = product.images?.[1];
+
+  // Photo slideshow (opt-in per section): step to the next photo every 3s, and on
+  // reaching the last one walk back to the first, then forward again.
+  const imageCount = product.images?.length || 0;
+  const slideshow = slideImages && imageCount > 1;
+  const [slide, setSlide] = useState(0);
+  const slideDirection = useRef<1 | -1>(1);
+  useEffect(() => {
+    if (!slideshow || reduce) return;
+    const timer = window.setInterval(() => {
+      setSlide((current) => {
+        if (current >= imageCount - 1) slideDirection.current = -1;
+        else if (current <= 0) slideDirection.current = 1;
+        return current + slideDirection.current;
+      });
+    }, 3000);
+    return () => window.clearInterval(timer);
+  }, [slideshow, reduce, imageCount]);
 
   const formatPrice = (price: number) => {
     return `৳${price.toLocaleString('en-BD')}`;
@@ -166,7 +186,25 @@ const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
         <Link to={`/product/${product.slug}`} className="group flex h-full flex-col">
           {/* Image */}
           <div className="relative aspect-[0.77] overflow-hidden rounded-2xl bg-surface-sand shadow-[0_4px_14px_-6px_rgba(74,46,39,0.12)] transition-shadow duration-500 group-hover:shadow-[0_22px_40px_-18px_rgba(110,25,50,0.45)]">
-            {primaryImage ? (
+            {primaryImage && slideshow ? (
+              // Photo track: slides one photo every few seconds, forward then back.
+              <div
+                className="flex h-full w-full transition-transform duration-700 ease-out"
+                style={{ transform: `translateX(-${slide * 100}%)` }}
+              >
+                {product.images.map((image, imageIndex) => (
+                  <img
+                    key={image + imageIndex}
+                    src={image}
+                    alt={imageIndex === 0 ? product.name : ''}
+                    aria-hidden={imageIndex === 0 ? undefined : true}
+                    className="h-full w-full shrink-0 object-cover"
+                    loading="lazy"
+                    onError={imageIndex === 0 ? () => setImageFailed(true) : undefined}
+                  />
+                ))}
+              </div>
+            ) : primaryImage ? (
               <>
                 <img
                   src={primaryImage}

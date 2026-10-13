@@ -12,13 +12,15 @@ type ProductShelfProps = {
   products: Product[];
   loading?: boolean;
   className?: string;
+  /** Each card cycles through its own product photos. */
+  slideImages?: boolean;
 };
 
 /**
  * Product section: a swipeable snap rail on phones (so the next card peeks in
  * and invites a swipe), a five-up grid from `lg`.
  */
-export function ProductShelf({ eyebrow, title, action, onAction, products, loading = false, className }: ProductShelfProps) {
+export function ProductShelf({ eyebrow, title, action, onAction, products, loading = false, className, slideImages = false }: ProductShelfProps) {
   return (
     <section className={cn('py-14 sm:py-20', className)}>
       <div className="shell">
@@ -31,7 +33,7 @@ export function ProductShelf({ eyebrow, title, action, onAction, products, loadi
           <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-5 sm:overflow-visible sm:px-0 lg:grid-cols-5">
             {products.map((product, index) => (
               <div key={product.id} className="w-[46%] shrink-0 snap-start sm:w-auto">
-                <ProductCard product={product} index={index} />
+                <ProductCard product={product} index={index} slideImages={slideImages} />
               </div>
             ))}
           </div>

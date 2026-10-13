@@ -93,6 +93,7 @@ export default function FashionHomePage() {
         action={content.featured_products?.buttonText || 'সব দেখুন'}
         onAction={() => navigate('/products')}
         products={asStore(products.slice(0, 5))}
+        slideImages
         loading={loading}
       />
 
