@@ -24,8 +24,16 @@ for c in docker curl tar; do
 done
 
 # ---- 1. find the container and the directory it serves ---------------------
-CID="$(docker ps --filter name=edge-functions --format '{{.Names}}' | head -1)"
-[ -n "$CID" ] || { err "no running edge-functions container found"; exit 1; }
+# Pinned by name: this host runs more than one Supabase stack, and matching on
+# "edge-functions" alone picked another app's container and offered to overwrite
+# its router. Override with CID=... only if the Modessi service is ever recreated.
+CID="${CID:-supabase-edge-functions-nul28nblfi7lon4nizr4afdm}"
+docker ps --format '{{.Names}}' | grep -qx "$CID" || {
+  err "container $CID is not running"
+  dim "  edge-functions containers on this host:"
+  docker ps --filter name=edge-functions --format '    {{.Names}}' >&2
+  exit 1
+}
 
 FUNCS="$(docker inspect "$CID" \
   --format '{{range .Mounts}}{{if eq .Destination "/home/deno/functions"}}{{.Source}}{{end}}{{end}}')"

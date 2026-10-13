@@ -145,6 +145,16 @@ as a single long-lived router that verifies the JWT and spawns a user worker per
   *recreated* (Coolify -> Actions -> Restart), not `docker restart`, since environment is fixed at
   creation.
 
+**BotBhai** (`chat.botbhai.net`, the chat-commerce bot) syncs through
+[`_shared/botbhai.ts`](supabase/functions/_shared/botbhai.ts) and the admin-only `botbhai-sync`
+function, driven from `/admin/botbhai`. Unlike the couriers, its key is **env-only**
+(`BOTBHAI_API_KEY` on the edge-functions container, scopes `products:*` + `orders:*`) and never
+lives in `admin_settings`. Modessi is the source of truth for catalogue and stock (pushed as
+absolute figures); orders cross both ways and `botbhai_order_links` records each one so imports are
+never duplicated or echoed back. Imported orders get `order_source = 'botbhai'`. `place-order`
+mirrors new orders only while `admin_settings.botbhai_auto_sync` is `'true'`; there is no
+scheduler, so importing chatbot orders is a button press.
+
 `place-order` is the checkout path: it uses the service-role key so guests can order, responds
 immediately, and defers SMS / email work to `EdgeRuntime.waitUntil` — which is why the router allows
 a 150s worker timeout. It also deducts stock through the `apply_order_stock` RPC, but only *refuses*

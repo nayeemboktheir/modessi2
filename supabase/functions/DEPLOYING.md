@@ -16,7 +16,9 @@ Confirm the directory rather than trusting the path above — Coolify does not l
 the service's volumes, so it can only be read off the container:
 
 ```sh
-CID=$(docker ps --filter name=edge-functions --format '{{.Names}}' | head -1)
+# Not `docker ps --filter name=edge-functions | head -1`: this host runs other
+# Supabase stacks too, and that picks whichever comes first.
+CID=supabase-edge-functions-nul28nblfi7lon4nizr4afdm
 docker inspect "$CID" --format '{{range .Mounts}}{{.Source}} -> {{.Destination}}{{"\n"}}{{end}}'
 ```
 
