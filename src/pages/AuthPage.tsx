@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { AuthShell } from '@/components/layout/AuthShell';
 
 // These four rules were a zod schema. zod is ~30KB gzipped and this page was the
 // only thing in the app importing it, so the checks are spelled out instead.
@@ -184,23 +185,22 @@ const AuthPage = () => {
   // Forgot Password View
   if (isForgotPassword) {
     return (
-      <div className="min-h-screen flex pt-32 pb-16 bg-muted/30">
-        <div className="container-custom">
-          <div className="max-w-md mx-auto">
+      <AuthShell>
             <m.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="bg-card rounded-2xl shadow-xl border border-border overflow-hidden"
+              initial={{ opacity: 0, x: 40 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              className="overflow-hidden rounded-[2rem] border border-line bg-white shadow-[0_30px_60px_-35px_rgba(74,30,40,0.5)]"
             >
-              <div className="gradient-hero p-8 text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary-foreground/10 mb-4">
+              <div className="relative overflow-hidden bg-gradient-to-br from-brand to-brand-soft p-8 text-center">
+                <span className="pointer-events-none absolute -right-10 -top-12 h-36 w-36 animate-spin-slow rounded-full border-[18px] border-dashed border-white/10" />
+                <div className="relative mb-4 inline-flex h-16 w-16 animate-float items-center justify-center rounded-full bg-primary-foreground/10">
                   <Mail className="h-8 w-8 text-primary-foreground" />
                 </div>
-                <h1 className="text-2xl font-display font-bold text-primary-foreground mb-2">
+                <h1 className="relative text-2xl font-display font-bold text-primary-foreground mb-2">
                   পাসওয়ার্ড ভুলে গেছেন?
                 </h1>
-                <p className="text-primary-foreground/80">
+                <p className="relative text-primary-foreground/80">
                   আপনার ইমেইলে রিসেট লিংক পাঠানো হবে
                 </p>
               </div>
@@ -256,31 +256,29 @@ const AuthPage = () => {
                 </div>
               </div>
             </m.div>
-          </div>
-        </div>
-      </div>
+      </AuthShell>
     );
   }
 
   return (
-    <div className="min-h-screen flex pt-32 pb-16 bg-muted/30">
-      <div className="container-custom">
-        <div className="max-w-md mx-auto">
+    <AuthShell>
           <m.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="bg-card rounded-2xl shadow-xl border border-border overflow-hidden"
+            key={isLogin ? 'login' : 'signup'}
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            className="overflow-hidden rounded-[2rem] border border-line bg-white shadow-[0_30px_60px_-35px_rgba(74,30,40,0.5)]"
           >
             {/* Header */}
-            <div className="gradient-hero p-8 text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary-foreground/10 mb-4">
+            <div className="relative overflow-hidden bg-gradient-to-br from-brand to-brand-soft p-8 text-center">
+              <span className="pointer-events-none absolute -right-10 -top-12 h-36 w-36 animate-spin-slow rounded-full border-[18px] border-dashed border-white/10" />
+              <div className="relative mb-4 inline-flex h-16 w-16 animate-float items-center justify-center rounded-full bg-primary-foreground/10">
                 <ShoppingBag className="h-8 w-8 text-primary-foreground" />
               </div>
-              <h1 className="text-2xl font-display font-bold text-primary-foreground mb-2">
+              <h1 className="relative text-2xl font-display font-bold text-primary-foreground mb-2">
                 {isLogin ? 'লগইন করুন' : 'অ্যাকাউন্ট তৈরি করুন'}
               </h1>
-              <p className="text-primary-foreground/80">
+              <p className="relative text-primary-foreground/80">
                 {isLogin 
                   ? 'আপনার অ্যাকাউন্টে প্রবেশ করুন'
                   : 'নতুন অ্যাকাউন্ট তৈরি করতে তথ্য দিন'
@@ -493,9 +491,7 @@ const AuthPage = () => {
               </div>
             </div>
           </m.div>
-        </div>
-      </div>
-    </div>
+    </AuthShell>
   );
 };
 

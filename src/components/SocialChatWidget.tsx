@@ -74,8 +74,12 @@ const SocialChatWidget = () => {
     }
   };
 
+  // Storefront pages carry a phone tab bar (MobileBottomNav); sit above it there.
+  const standaloneLanding = ['/cotton-tarsel', '/digital-tarsel', '/reyon-cotton'].some((path) => location.pathname.startsWith(path));
+  const aboveBottomNav = !standaloneLanding && location.pathname !== '/checkout';
+
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
+    <div className={`fixed right-4 z-50 flex flex-col gap-3 md:bottom-6 md:right-6 ${aboveBottomNav ? 'bottom-20' : 'bottom-6'}`}>
       {settings?.whatsapp_enabled && settings?.whatsapp_number && (
         <button
           onClick={handleWhatsAppClick}

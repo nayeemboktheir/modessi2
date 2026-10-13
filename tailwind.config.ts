@@ -53,6 +53,25 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        brand: {
+          DEFAULT: "hsl(var(--brand))",
+          deep: "hsl(var(--brand-deep))",
+          soft: "hsl(var(--brand-soft))",
+          blush: "hsl(var(--brand-blush))",
+        },
+        surface: {
+          DEFAULT: "hsl(var(--surface))",
+          warm: "hsl(var(--surface-warm))",
+          sand: "hsl(var(--surface-sand))",
+          paper: "hsl(var(--surface-paper))",
+        },
+        ink: {
+          DEFAULT: "hsl(var(--ink))",
+          soft: "hsl(var(--ink-soft))",
+          muted: "hsl(var(--ink-muted))",
+        },
+        line: "hsl(var(--line))",
+        gold: "hsl(var(--accent))",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -89,6 +108,33 @@ export default {
         shimmer: {
           "100%": { transform: "translateX(100%)" },
         },
+        marquee: {
+          from: { transform: "translateX(0)" },
+          to: { transform: "translateX(-50%)" },
+        },
+        "marquee-reverse": {
+          from: { transform: "translateX(-50%)" },
+          to: { transform: "translateX(0)" },
+        },
+        shine: {
+          "0%": { transform: "translateX(-120%) skewX(-20deg)" },
+          "60%, 100%": { transform: "translateX(220%) skewX(-20deg)" },
+        },
+        float: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-8px)" },
+        },
+        "ken-burns": {
+          from: { transform: "scale(1)" },
+          to: { transform: "scale(1.12)" },
+        },
+        "gradient-pan": {
+          "0%, 100%": { backgroundPosition: "0% 50%" },
+          "50%": { backgroundPosition: "100% 50%" },
+        },
+        "spin-slow": {
+          to: { transform: "rotate(360deg)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -96,6 +142,13 @@ export default {
         "scale-in": "scale-in 0.3s ease-out",
         "slide-in-right": "slide-in-right 0.3s ease-out",
         shimmer: "shimmer 2s infinite",
+        marquee: "marquee var(--marquee-duration, 30s) linear infinite",
+        "marquee-reverse": "marquee-reverse var(--marquee-duration, 30s) linear infinite",
+        shine: "shine 3.2s ease-in-out infinite",
+        float: "float 4s ease-in-out infinite",
+        "ken-burns": "ken-burns 9s ease-out forwards",
+        "gradient-pan": "gradient-pan 12s ease-in-out infinite",
+        "spin-slow": "spin-slow 28s linear infinite",
       },
     },
   },

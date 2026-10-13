@@ -15,6 +15,7 @@ import FaviconLoader from '@/components/FaviconLoader';
 import SocialChatWidget from '@/components/SocialChatWidget';
 
 import FashionHomePage from '@/pages/FashionHomePage';
+import StoreLayout from '@/components/layout/StoreLayout';
 
 
 
@@ -120,19 +121,21 @@ const App = () => (
             <CartDrawer />
             <Suspense fallback={<RouteFallback />}>
             <Routes>
-              {/* Main Pages */}
-              <Route path="/" element={<FashionHomePage />} />
-              <Route path="/products" element={<ProductsPage />} />
-              <Route path="/product/:slug" element={<ProductDetailPage />} />
-              <Route path="/cart" element={<CartPage />} />
-              <Route path="/checkout" element={<CheckoutPage />} />
-              <Route path="/wishlist" element={<WishlistPage />} />
-              <Route path="/about" element={<AboutPage />} />
-              <Route path="/contact" element={<ContactPage />} />
-              <Route path="/my-account" element={<MyAccountPage />} />
-              <Route path="/order-confirmation" element={<OrderConfirmationPage />} />
-              <Route path="/auth" element={<AuthPage />} />
-              <Route path="/reset-password" element={<ResetPasswordPage />} />
+              {/* Main Pages — share the storefront header, footer and phone tab bar */}
+              <Route element={<StoreLayout />}>
+                <Route path="/" element={<FashionHomePage />} />
+                <Route path="/products" element={<ProductsPage />} />
+                <Route path="/product/:slug" element={<ProductDetailPage />} />
+                <Route path="/cart" element={<CartPage />} />
+                <Route path="/checkout" element={<CheckoutPage />} />
+                <Route path="/wishlist" element={<WishlistPage />} />
+                <Route path="/about" element={<AboutPage />} />
+                <Route path="/contact" element={<ContactPage />} />
+                <Route path="/my-account" element={<MyAccountPage />} />
+                <Route path="/order-confirmation" element={<OrderConfirmationPage />} />
+                <Route path="/auth" element={<AuthPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
+              </Route>
               
               {/* Landing Pages */}
               <Route path="/step/:slug" element={<ProductLandingPage />} />
@@ -172,7 +175,9 @@ const App = () => (
               
 
               {/* Catch all - redirect to main page */}
-              <Route path="*" element={<FashionHomePage />} />
+              <Route element={<StoreLayout />}>
+                <Route path="*" element={<FashionHomePage />} />
+              </Route>
             </Routes>
             </Suspense>
           </BrowserRouter>

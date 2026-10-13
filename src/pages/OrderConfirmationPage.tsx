@@ -1,8 +1,8 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useEffect, useRef } from 'react';
-import { Button } from '@/components/ui/button';
+import { useEffect, useMemo, useRef } from 'react';
 import { CheckCircle, Package, Phone, Home, Truck, ArrowRight } from 'lucide-react';
-import { m } from 'framer-motion';
+import { m, useReducedMotion } from 'framer-motion';
+import { CountUp, Stagger, StaggerItem, EASE_OUT } from '@/components/motion';
 import { useFacebookPixel } from '@/hooks/useFacebookPixel';
 import { useServerTracking } from '@/hooks/useServerTracking';
 
@@ -57,6 +57,7 @@ const OrderConfirmationPage = () => {
     }
   };
 
+  const reduce = useReducedMotion();
   const { isReady: pixelReady, setUserData } = useFacebookPixel();
   const { trackPurchase: trackServerPurchase } = useServerTracking();
 
@@ -176,162 +177,211 @@ const OrderConfirmationPage = () => {
 
 
 
+  const reveal = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.55, ease: EASE_OUT } },
+  };
+
   return (
-    <main className="min-h-screen bg-gradient-to-b from-green-50 to-white py-12 px-4">
-      <div className="max-w-2xl mx-auto">
+    <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-brand-blush via-surface to-surface px-4 py-12">
+      {!reduce && <Confetti />}
+
+      <div className="relative mx-auto max-w-2xl">
         {/* Success Animation */}
-        <m.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: "spring", stiffness: 200, damping: 15 }}
-          className="text-center mb-8"
-        >
-          <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
-            <CheckCircle className="h-14 w-14 text-green-600" />
-          </div>
-        </m.div>
+        <div className="mb-8 text-center">
+          <m.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: 'spring', stiffness: 220, damping: 14 }}
+            className="relative mx-auto grid h-28 w-28 place-items-center"
+          >
+            {!reduce && (
+              <>
+                <m.span className="absolute inset-0 rounded-full bg-[#6B8E23]/15" initial={{ scale: 0.6, opacity: 1 }} animate={{ scale: 1.8, opacity: 0 }} transition={{ duration: 1.4, repeat: 2, ease: 'easeOut' }} />
+                <m.span className="absolute inset-0 rounded-full bg-[#6B8E23]/15" initial={{ scale: 0.6, opacity: 1 }} animate={{ scale: 1.8, opacity: 0 }} transition={{ duration: 1.4, delay: 0.5, repeat: 2, ease: 'easeOut' }} />
+              </>
+            )}
+            <span className="relative grid h-24 w-24 place-items-center rounded-full bg-white shadow-[0_20px_40px_-15px_rgba(107,142,35,0.6)]">
+              <svg viewBox="0 0 52 52" className="h-14 w-14" fill="none">
+                <m.circle cx="26" cy="26" r="23" stroke="#6B8E23" strokeWidth="3" initial={{ pathLength: reduce ? 1 : 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.6, delay: 0.2 }} />
+                <m.path d="M15 27 l7 7 l15 -16" stroke="#6B8E23" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" initial={{ pathLength: reduce ? 1 : 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.45, delay: 0.75, ease: 'easeOut' }} />
+              </svg>
+            </span>
+          </m.div>
+        </div>
 
         {/* Main Card */}
         <m.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white rounded-2xl shadow-xl p-8 text-center"
+          initial={reduce ? false : 'hidden'}
+          animate="show"
+          variants={{ hidden: {}, show: { transition: { staggerChildren: 0.09, delayChildren: 0.5 } } }}
+          className="rounded-[2rem] border border-line bg-white p-6 text-center shadow-[0_30px_60px_-35px_rgba(74,30,40,0.45)] sm:p-9"
         >
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
+          <m.h1 variants={reveal} className="mb-3 text-3xl font-bold text-ink md:text-4xl">
             🎉 অর্ডার সফল হয়েছে!
-          </h1>
-          <p className="text-lg text-gray-600 mb-6">
+          </m.h1>
+          <m.p variants={reveal} className="mb-7 text-lg text-ink-muted">
             আপনার অর্ডারটি সফলভাবে গ্রহণ করা হয়েছে
-          </p>
+          </m.p>
 
           {/* Order Number */}
           {orderNumber && (
-            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 mb-6 border border-green-200">
-              <p className="text-sm text-gray-500 mb-1">অর্ডার নম্বর</p>
-              <p className="font-mono text-2xl font-bold text-green-700">{orderNumber}</p>
-            </div>
+            <m.div variants={reveal} className="relative mb-6 overflow-hidden rounded-2xl bg-gradient-to-r from-brand to-brand-soft p-6 text-white">
+              <span className="pointer-events-none absolute -right-8 -top-10 h-32 w-32 rounded-full border-[16px] border-white/10" />
+              <p className="mb-1 text-sm text-white/75">অর্ডার নম্বর</p>
+              <p className="font-mono text-2xl font-bold tracking-wider">{orderNumber}</p>
+            </m.div>
           )}
 
-          {/* Customer Info */}
-          {(customerName || phone) && (
-            <div className="bg-gray-50 rounded-xl p-4 mb-6 text-left">
-              {customerName && (
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-blue-600 text-sm">👤</span>
+          <div className="mb-6 grid gap-4 sm:grid-cols-2">
+            {/* Customer Info */}
+            {(customerName || phone) && (
+              <m.div variants={reveal} className="rounded-2xl bg-surface-warm p-4 text-left">
+                {customerName && (
+                  <div className="mb-2 flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white">
+                      <span className="text-sm">👤</span>
+                    </div>
+                    <span className="text-ink-soft">{customerName}</span>
                   </div>
-                  <span className="text-gray-700">{customerName}</span>
-                </div>
-              )}
-              {phone && (
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                    <Phone className="h-4 w-4 text-green-600" />
+                )}
+                {phone && (
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white">
+                      <Phone className="h-4 w-4 text-brand" />
+                    </div>
+                    <span className="text-ink-soft">{phone}</span>
                   </div>
-                  <span className="text-gray-700">{phone}</span>
-                </div>
-              )}
-            </div>
-          )}
+                )}
+              </m.div>
+            )}
 
-          {/* Total */}
-          {total && (
-            <div className="bg-amber-50 rounded-xl p-4 mb-6 border border-amber-200">
-              <p className="text-sm text-amber-700 mb-1">মোট মূল্য</p>
-              <p className="text-3xl font-bold text-amber-800">৳{total.toLocaleString()}</p>
-            </div>
-          )}
+            {/* Total */}
+            {total && (
+              <m.div variants={reveal} className={'flex flex-col justify-center rounded-2xl border border-gold/30 bg-gold/10 p-4 ' + (customerName || phone ? '' : 'sm:col-span-2')}>
+                <p className="mb-1 text-sm text-ink-muted">মোট মূল্য</p>
+                <p className="text-3xl font-bold text-ink">
+                  ৳<CountUp value={total} format={(v) => Math.round(v).toLocaleString()} />
+                </p>
+              </m.div>
+            )}
+          </div>
 
           {/* Next Steps */}
-          <div className="bg-blue-50 rounded-xl p-6 mb-8 text-left">
-            <h3 className="font-bold text-blue-900 mb-4 flex items-center gap-2">
-              <Package className="h-5 w-5" />
+          <m.div variants={reveal} className="mb-8 rounded-2xl border border-line bg-surface p-6 text-left">
+            <h3 className="mb-5 flex items-center gap-2 font-bold text-ink">
+              <Package className="h-5 w-5 text-brand" />
               পরবর্তী ধাপসমূহ
             </h3>
-            <ul className="space-y-3">
-              <li className="flex items-start gap-3">
-                <div className="w-6 h-6 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-blue-800 text-xs font-bold">১</span>
-                </div>
-                <span className="text-gray-700">আমাদের টিম শীঘ্রই আপনার সাথে কল করে অর্ডার কনফার্ম করবে</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <div className="w-6 h-6 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-blue-800 text-xs font-bold">২</span>
-                </div>
-                <span className="text-gray-700">পণ্য প্যাকেজিং করে কুরিয়ারে হস্তান্তর করা হবে</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <div className="w-6 h-6 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-blue-800 text-xs font-bold">৩</span>
-                </div>
-                <span className="text-gray-700">পণ্য হাতে পেয়ে মূল্য পরিশোধ করুন (ক্যাশ অন ডেলিভারি)</span>
-              </li>
-            </ul>
-          </div>
+            <ol className="relative space-y-5">
+              <span className="absolute bottom-3 left-[13px] top-3 w-0.5 bg-line" />
+              {[
+                ['১', 'আমাদের টিম শীঘ্রই আপনার সাথে কল করে অর্ডার কনফার্ম করবে'],
+                ['২', 'পণ্য প্যাকেজিং করে কুরিয়ারে হস্তান্তর করা হবে'],
+                ['৩', 'পণ্য হাতে পেয়ে মূল্য পরিশোধ করুন (ক্যাশ অন ডেলিভারি)'],
+              ].map(([step, text], index) => (
+                <m.li
+                  key={step}
+                  initial={reduce ? false : { opacity: 0, x: -16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 1.1 + index * 0.18 }}
+                  className="relative flex items-start gap-3"
+                >
+                  <span className="relative z-10 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-brand text-xs font-bold text-white ring-4 ring-surface">{step}</span>
+                  <span className="pt-0.5 text-ink-soft">{text}</span>
+                </m.li>
+              ))}
+            </ol>
+          </m.div>
 
           {/* Delivery Info */}
-          <div className="flex items-center justify-center gap-4 mb-8 p-4 bg-green-50 rounded-xl border border-green-200">
-            <Truck className="h-8 w-8 text-green-600" />
+          <m.div variants={reveal} className="mb-8 flex items-center justify-center gap-4 rounded-2xl border border-[#6B8E23]/25 bg-[#6B8E23]/5 p-4">
+            <Truck className="h-8 w-8 animate-float text-[#6B8E23]" />
             <div className="text-left">
-              <p className="font-semibold text-green-800">ডেলিভারি সময়</p>
-              <p className="text-sm text-green-700">ঢাকায় ১-২ দিন • ঢাকার বাইরে ৩-৫ দিন</p>
+              <p className="font-semibold text-ink">ডেলিভারি সময়</p>
+              <p className="text-sm text-ink-muted">ঢাকায় ১-২ দিন • ঢাকার বাইরে ৩-৫ দিন</p>
             </div>
-          </div>
+          </m.div>
 
           {/* Contact */}
-          <div className="text-center mb-8 p-4 bg-gray-50 rounded-xl">
-            <p className="text-gray-600 mb-2">যেকোনো প্রশ্নে কল করুন</p>
-            <a href="tel:+8801995909243" className="text-xl font-bold text-primary hover:underline">
+          <m.div variants={reveal} className="mb-8 rounded-2xl bg-surface-warm p-4 text-center">
+            <p className="mb-2 text-ink-muted">যেকোনো প্রশ্নে কল করুন</p>
+            <a href="tel:+8801995909243" className="text-xl font-bold text-brand hover:underline">
               📞 +880 1995-909243
             </a>
-          </div>
+          </m.div>
 
           {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button
+          <m.div variants={reveal} className="flex flex-col justify-center gap-3 sm:flex-row">
+            <button
+              type="button"
               onClick={() => navigate('/')}
-              variant="outline"
-              size="lg"
-              className="gap-2"
+              className="group inline-flex h-12 items-center justify-center gap-2 rounded-full border border-line px-6 font-semibold text-ink-soft transition-colors hover:border-brand/40 hover:text-brand"
             >
               <Home className="h-5 w-5" />
               হোমপেজে যান
-            </Button>
-            <Button
+            </button>
+            <button
+              type="button"
               onClick={() => navigate('/products')}
-              size="lg"
-              className="gap-2 bg-green-600 hover:bg-green-700"
+              className="shine-sweep group relative inline-flex h-12 items-center justify-center gap-2 overflow-hidden rounded-full bg-brand px-6 font-semibold text-white shadow-cta transition-colors hover:bg-brand-deep"
             >
               আরও পণ্য দেখুন
-              <ArrowRight className="h-5 w-5" />
-            </Button>
-          </div>
+              <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+            </button>
+          </m.div>
         </m.div>
 
         {/* Trust Badges */}
-        <m.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="mt-8 grid grid-cols-3 gap-4 text-center"
-        >
-          <div className="bg-white p-4 rounded-xl shadow-sm">
-            <span className="text-2xl block mb-1">🔒</span>
-            <p className="text-xs text-gray-600">নিরাপদ পেমেন্ট</p>
-          </div>
-          <div className="bg-white p-4 rounded-xl shadow-sm">
-            <span className="text-2xl block mb-1">📦</span>
-            <p className="text-xs text-gray-600">দ্রুত ডেলিভারি</p>
-          </div>
-          <div className="bg-white p-4 rounded-xl shadow-sm">
-            <span className="text-2xl block mb-1">✅</span>
-            <p className="text-xs text-gray-600">১০০% গ্যারান্টি</p>
-          </div>
-        </m.div>
+        <Stagger immediate delay={1.4} className="mt-8 grid grid-cols-3 gap-3 text-center sm:gap-4">
+          {[
+            ['🔒', 'নিরাপদ পেমেন্ট'],
+            ['📦', 'দ্রুত ডেলিভারি'],
+            ['✅', '১০০% গ্যারান্টি'],
+          ].map(([icon, label]) => (
+            <StaggerItem key={label} className="rounded-2xl border border-line bg-white p-4 shadow-sm">
+              <span className="mb-1 block text-2xl">{icon}</span>
+              <p className="text-xs text-ink-muted">{label}</p>
+            </StaggerItem>
+          ))}
+        </Stagger>
       </div>
-    </main>
+    </div>
+  );
+};
+
+const CONFETTI_COLORS = ['#941e3d', '#e8a33c', '#f6c8d4', '#6B8E23', '#9c4359', '#f3e7d6'];
+
+/** One-shot burst of falling paper; pure transform/opacity so it stays cheap. */
+const Confetti = () => {
+  const pieces = useMemo(
+    () => Array.from({ length: 36 }).map((_, index) => ({
+      id: index,
+      left: Math.random() * 100,
+      drift: (Math.random() - 0.5) * 220,
+      rotate: Math.random() * 720 - 360,
+      delay: Math.random() * 0.5,
+      duration: 2.2 + Math.random() * 1.6,
+      size: 6 + Math.random() * 6,
+      color: CONFETTI_COLORS[index % CONFETTI_COLORS.length],
+      round: index % 3 === 0,
+    })),
+    [],
+  );
+
+  return (
+    <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-[90vh] overflow-hidden">
+      {pieces.map((piece) => (
+        <m.span
+          key={piece.id}
+          className="absolute top-0 block"
+          style={{ left: piece.left + '%', width: piece.size, height: piece.round ? piece.size : piece.size * 0.45, backgroundColor: piece.color, borderRadius: piece.round ? '9999px' : '2px' }}
+          initial={{ y: -40, x: 0, rotate: 0, opacity: 1 }}
+          animate={{ y: '85vh', x: piece.drift, rotate: piece.rotate, opacity: [1, 1, 0] }}
+          transition={{ duration: piece.duration, delay: 0.4 + piece.delay, ease: [0.2, 0.6, 0.4, 1] }}
+        />
+      ))}
+    </div>
   );
 };
 

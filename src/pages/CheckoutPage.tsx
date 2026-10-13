@@ -5,11 +5,12 @@ import { selectCartItems, selectCartTotal, clearCart, setCartItemVariation } fro
 import { useAuth } from '@/hooks/useAuth';
 import { createOrder } from '@/services/orderService';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { ShoppingBag, Truck, ArrowLeft, Loader2, CheckCircle, Banknote } from 'lucide-react';
+import { AnimatePresence, m } from 'framer-motion';
+import { CountUp, Reveal, Stagger, StaggerItem } from '@/components/motion';
 import { ShippingMethodSelector, ShippingZone, SHIPPING_RATES } from '@/components/checkout/ShippingMethodSelector';
 import { useFacebookPixel } from '@/hooks/useFacebookPixel';
 import { useServerTracking } from '@/hooks/useServerTracking';
@@ -460,51 +461,86 @@ const CheckoutPage = () => {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-brand" />
       </div>
     );
   }
 
+  const fieldClass = 'h-12 rounded-xl border-line bg-surface px-4 text-base transition-all focus-visible:border-brand focus-visible:bg-white focus-visible:ring-4 focus-visible:ring-brand/10 focus-visible:ring-offset-0 sm:text-sm';
+  const card = 'rounded-3xl border border-line bg-white p-5 shadow-[0_18px_40px_-30px_rgba(74,30,40,0.35)] sm:p-7';
+  const steps = ['Cart', 'Checkout', 'Confirmation'];
 
   return (
-    <main className="min-h-screen bg-muted/30 py-8">
-      <div className="container-custom">
-        {/* Header */}
-        <div className="mb-8">
-          <Link to="/cart" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-4">
-            <ArrowLeft className="h-4 w-4" />
+    <div className="min-h-screen bg-surface pb-12">
+      {/* Header */}
+      <section className="border-b border-line bg-gradient-to-br from-brand-blush via-surface-warm to-surface">
+        <div className="shell py-8 sm:py-10">
+          <Link to="/cart" className="group mb-4 inline-flex items-center gap-2 text-sm text-ink-muted transition-colors hover:text-brand">
+            <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
             Back to Cart
           </Link>
-          <h1 className="font-display text-3xl font-bold text-foreground">Checkout</h1>
-          {!user && (
-            <p className="text-muted-foreground mt-2">
-              Checking out as guest.{' '}
-              <Link to="/auth" className="text-primary hover:underline">
-                Sign in
-              </Link>{' '}
-              to track your orders.
-            </p>
-          )}
-        </div>
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <m.h1 initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="text-3xl font-semibold tracking-[-0.025em] text-ink sm:text-[40px]">Checkout</m.h1>
+              {!user && (
+                <p className="mt-2 text-ink-muted">
+                  Checking out as guest.{' '}
+                  <Link to="/auth" className="font-semibold text-brand hover:underline">
+                    Sign in
+                  </Link>{' '}
+                  to track your orders.
+                </p>
+              )}
+            </div>
 
+            {/* Progress */}
+            <ol className="flex items-center gap-2 text-xs font-semibold">
+              {steps.map((step, index) => {
+                const done = index < 1;
+                const active = index === 1;
+                return (
+                  <li key={step} className="flex items-center gap-2">
+                    <m.span
+                      initial={{ scale: 0.6, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ delay: 0.1 + index * 0.12, type: 'spring', stiffness: 400, damping: 20 }}
+                      className={'grid h-7 w-7 place-items-center rounded-full ' + (done ? 'bg-brand text-white' : active ? 'bg-brand text-white ring-4 ring-brand/15' : 'bg-white text-ink-muted ring-1 ring-line')}
+                    >
+                      {done ? <CheckCircle className="h-4 w-4" /> : index + 1}
+                    </m.span>
+                    <span className={active || done ? 'text-ink' : 'text-ink-muted'}>{step}</span>
+                    {index < steps.length - 1 && (
+                      <span className="relative mx-1 h-0.5 w-6 overflow-hidden rounded-full bg-line sm:w-10">
+                        {done && <m.span initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 0.3, duration: 0.6 }} className="absolute inset-0 origin-left bg-brand" />}
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      <div className="shell mt-8">
         <form onSubmit={handleSubmit}>
-          <div className="grid lg:grid-cols-3 gap-8">
+          <div className="grid gap-6 lg:grid-cols-3 lg:gap-8">
             {/* Left Column - Forms */}
-            <div className="lg:col-span-2 space-y-6">
+            <Stagger immediate stagger={0.12} delay={0.1} className="space-y-6 lg:col-span-2">
               {/* Shipping Information */}
-              <div className="bg-card rounded-xl p-6 shadow-sm">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                    <Truck className="h-5 w-5 text-primary" />
+              <StaggerItem className={card}>
+                <div className="mb-6 flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-blush">
+                    <Truck className="h-5 w-5 text-brand" />
                   </div>
-                  <h2 className="font-display text-xl font-semibold text-foreground">Delivery Information</h2>
+                  <h2 className="text-xl font-semibold text-ink">Delivery Information</h2>
                 </div>
-                
+
                 <div className="space-y-4">
-                  <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <Label htmlFor="name">Full Name *</Label>
+                      <Label htmlFor="name" className="text-ink-soft">Full Name *</Label>
                       <Input
                         id="name"
                         name="name"
@@ -512,10 +548,11 @@ const CheckoutPage = () => {
                         value={shippingForm.name}
                         onChange={handleInputChange}
                         required
+                        className={fieldClass}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="phone">Phone Number *</Label>
+                      <Label htmlFor="phone" className="text-ink-soft">Phone Number *</Label>
                       <Input
                         id="phone"
                         name="phone"
@@ -523,11 +560,13 @@ const CheckoutPage = () => {
                         value={shippingForm.phone}
                         onChange={handleInputChange}
                         required
+                        inputMode="tel"
+                        className={fieldClass}
                       />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="address">Full Address *</Label>
+                    <Label htmlFor="address" className="text-ink-soft">Full Address *</Label>
                     <Input
                       id="address"
                       name="address"
@@ -535,6 +574,7 @@ const CheckoutPage = () => {
                       value={shippingForm.address}
                       onChange={handleInputChange}
                       required
+                      className={fieldClass}
                     />
                   </div>
 
@@ -545,39 +585,42 @@ const CheckoutPage = () => {
                     onZoneChange={setShippingZone}
                   />
                 </div>
-              </div>
+              </StaggerItem>
 
               {/* Payment Method - Fixed COD */}
-              <div className="bg-card rounded-xl p-6 shadow-sm">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                    <Banknote className="h-5 w-5 text-primary" />
+              <StaggerItem className={card}>
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-blush">
+                    <Banknote className="h-5 w-5 text-brand" />
                   </div>
-                  <h2 className="font-display text-xl font-semibold text-foreground">Payment Method</h2>
+                  <h2 className="text-xl font-semibold text-ink">Payment Method</h2>
                 </div>
-                
-                <div className="flex items-center gap-4 p-4 rounded-lg border-2 border-primary bg-primary/5">
-                  <Banknote className="h-6 w-6 text-primary" />
-                  <div>
-                    <p className="font-medium text-foreground">Cash on Delivery</p>
-                    <p className="text-sm text-muted-foreground">Pay when you receive your order</p>
+
+                <div className="flex items-center gap-4 rounded-2xl border-2 border-brand bg-brand-blush/60 p-4">
+                  <span className="grid h-11 w-11 place-items-center rounded-full bg-white text-brand shadow-sm">
+                    <Banknote className="h-5 w-5" />
+                  </span>
+                  <div className="flex-1">
+                    <p className="font-medium text-ink">Cash on Delivery</p>
+                    <p className="text-sm text-ink-muted">Pay when you receive your order</p>
                   </div>
+                  <CheckCircle className="h-5 w-5 text-brand" />
                 </div>
-              </div>
-            </div>
+              </StaggerItem>
+            </Stagger>
 
             {/* Right Column - Order Summary */}
             <div className="lg:col-span-1">
-              <div className="bg-card rounded-xl p-6 shadow-sm sticky top-24">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                    <ShoppingBag className="h-5 w-5 text-primary" />
+              <Reveal direction="left" delay={0.2} className={card + ' sticky top-24'}>
+                <div className="mb-6 flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-blush">
+                    <ShoppingBag className="h-5 w-5 text-brand" />
                   </div>
-                  <h2 className="font-display text-xl font-semibold text-foreground">Order Summary</h2>
+                  <h2 className="text-xl font-semibold text-ink">Order Summary</h2>
                 </div>
 
                 {/* Cart Items */}
-                <div className="space-y-4 mb-6 max-h-64 overflow-y-auto">
+                <div className="mb-6 max-h-64 space-y-4 overflow-y-auto pr-1">
                   {cartItems.map((item) => {
                     const itemKey = item.variation?.id
                       ? `${item.product.id}-${item.variation.id}`
@@ -587,17 +630,17 @@ const CheckoutPage = () => {
 
                     return (
                       <div key={itemKey} className="flex gap-3">
-                        <div className="w-16 h-16 bg-muted rounded-lg overflow-hidden flex-shrink-0">
+                        <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl bg-surface-sand">
                           <img
                             loading="lazy"
                             decoding="async"
                             src={item.product.images[0] || '/placeholder.svg'}
                             alt={item.product.name}
-                            className="w-full h-full object-cover"
+                            className="h-full w-full object-cover"
                           />
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-foreground text-sm line-clamp-2">{item.product.name}</p>
+                        <div className="min-w-0 flex-1">
+                          <p className="line-clamp-2 text-sm font-medium text-ink">{item.product.name}</p>
 
                           {variations.length > 0 && (
                             <div className="mt-2">
@@ -615,7 +658,7 @@ const CheckoutPage = () => {
                                   );
                                 }}
                               >
-                                <SelectTrigger className="h-8 text-xs">
+                                <SelectTrigger className={'h-8 rounded-lg text-xs ' + (item.variation ? '' : 'border-brand/50 ring-2 ring-brand/10')}>
                                   <SelectValue placeholder="সাইজ নির্বাচন করুন" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -629,9 +672,9 @@ const CheckoutPage = () => {
                             </div>
                           )}
 
-                          <p className="text-sm text-muted-foreground mt-2">Qty: {item.quantity}</p>
+                          <p className="mt-2 text-sm text-ink-muted">Qty: {item.quantity}</p>
                         </div>
-                        <p className="font-semibold text-foreground text-sm">
+                        <p className="text-sm font-semibold text-ink">
                           {formatPrice(displayPrice * item.quantity)}
                         </p>
                       </div>
@@ -639,55 +682,58 @@ const CheckoutPage = () => {
                   })}
                 </div>
 
-                <Separator className="my-4" />
+                <Separator className="my-4 bg-line" />
 
                 {/* Pricing */}
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Subtotal</span>
-                    <span className="font-medium text-foreground">{formatPrice(cartTotal)}</span>
+                    <span className="text-ink-muted">Subtotal</span>
+                    <span className="font-medium text-ink">{formatPrice(cartTotal)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">
+                    <span className="text-ink-muted">
                       Shipping ({shippingZone === 'inside_dhaka' ? 'Inside Dhaka' : 'Outside Dhaka'})
                     </span>
-                    <span className="font-medium text-foreground">
-                      {formatPrice(shippingCost)}
-                    </span>
+                    <AnimatePresence mode="popLayout" initial={false}>
+                      <m.span key={shippingCost} initial={{ y: -10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 10, opacity: 0 }} className="font-medium text-ink">
+                        {formatPrice(shippingCost)}
+                      </m.span>
+                    </AnimatePresence>
                   </div>
                 </div>
 
-                <Separator className="my-4" />
+                <Separator className="my-4 bg-line" />
 
-                <div className="flex justify-between items-center mb-6">
-                  <span className="font-display text-lg font-semibold text-foreground">Total</span>
-                  <span className="font-display text-2xl font-bold text-primary">{formatPrice(total)}</span>
+                <div className="mb-6 flex items-center justify-between">
+                  <span className="text-lg font-semibold text-ink">Total</span>
+                  <CountUp value={total} format={(v) => formatPrice(Math.round(v))} className="text-2xl font-bold text-brand" />
                 </div>
 
-                <Button 
-                  type="submit" 
-                  className="w-full gradient-hero text-primary-foreground h-12 text-base"
+                <m.button
+                  type="submit"
+                  whileTap={{ scale: 0.98 }}
+                  className="shine-sweep relative flex h-14 w-full items-center justify-center overflow-hidden rounded-full bg-brand text-base font-semibold text-white shadow-cta transition-colors hover:bg-brand-deep disabled:cursor-not-allowed disabled:opacity-70"
                   disabled={isSubmitting || cartItems.length === 0}
                 >
                   {isSubmitting ? (
                     <>
-                      <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                       Processing...
                     </>
                   ) : (
                     <>Place Order • {formatPrice(total)}</>
                   )}
-                </Button>
+                </m.button>
 
-                <p className="text-xs text-center text-muted-foreground mt-4">
+                <p className="mt-4 text-center text-xs text-ink-muted">
                   By placing your order, you agree to our Terms of Service and Privacy Policy.
                 </p>
-              </div>
+              </Reveal>
             </div>
           </div>
         </form>
       </div>
-    </main>
+    </div>
   );
 };
 

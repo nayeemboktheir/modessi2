@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -40,6 +38,21 @@
     --ring: 340 70% 35%;
 
     --radius: 0.75rem;
+
+    /* Storefront palette — the exact tones the home page was built with,
+       named so every page can share them instead of repeating hex values. */
+    --brand: 344 66% 35%;
+    --brand-deep: 344 71% 27%;
+    --brand-soft: 345 40% 44%;
+    --brand-blush: 350 55% 96%;
+    --surface: 36 50% 98%;
+    --surface-warm: 30 43% 95%;
+    --surface-sand: 28 36% 91%;
+    --surface-paper: 36 100% 99%;
+    --ink: 9 14% 19%;
+    --ink-soft: 9 12% 32%;
+    --ink-muted: 17 9% 53%;
+    --line: 28 28% 88%;
 
     /* Custom tokens */
     --gradient-hero: linear-gradient(135deg, hsl(340 70% 35%) 0%, hsl(38 80% 50%) 100%);
@@ -131,6 +144,15 @@
     @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
   }
 
+  /* Storefront page width — matches the home page grid. */
+  .shell {
+    @apply mx-auto w-full max-w-[1280px] px-4 sm:px-6 lg:px-8;
+  }
+
+  .eyebrow {
+    @apply text-[11px] font-bold tracking-[0.15em] text-brand-soft;
+  }
+
   .gradient-hero {
     background: var(--gradient-hero);
   }
@@ -174,93 +196,61 @@
 }
 
 @layer utilities {
-  .animate-float {
-    animation: float 3s ease-in-out infinite;
+  .no-scrollbar {
+    scrollbar-width: none;
   }
 
-  .animate-pulse-soft {
-    animation: pulse-soft 2s ease-in-out infinite;
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 
-  .animate-slide-up {
-    animation: slide-up 0.5s ease-out;
+  .text-shadow-hero {
+    text-shadow: 0 1px 10px rgba(0, 0, 0, 0.42);
   }
 
-  .animate-fade-in {
-    animation: fade-in 0.5s ease-out;
+  /* Diagonal light sweep; parent needs `relative overflow-hidden`. */
+  .shine-sweep::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    width: 40%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+    animation: shine 3.2s ease-in-out infinite;
+    pointer-events: none;
   }
 
-  .animate-shimmer {
-    animation: shimmer 3s linear infinite;
+  .skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+    background-color: hsl(var(--surface-sand));
   }
 
-
-/* Hero banner copy */
-main > section:first-child > article > div.relative.z-10 > div > p:nth-of-type(2),
-main > section:first-child > article > div.relative.z-10 > div > div:last-child {
-  color: rgba(255, 255, 255, 0.92);
-  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.42);
-}
-
-main > section:first-child > article > div.relative.z-10 > div > div:last-child strong {
-  color: #fff;
-  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.42);
-}
-  @keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
+  .skeleton-shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+    animation: shimmer 1.6s infinite;
   }
 
-  @keyframes pulse-soft {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.8; }
-  }
-
-  @keyframes slide-up {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  @keyframes fade-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-
-  @keyframes shimmer {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
   }
 }
 
-/* Footer credit bar */
-footer > div:last-child > div {
-  font-size: 0.75rem;
-}
-
-footer > div:last-child > div > span:nth-child(2) {
-  font-size: 0;
-}
-
-footer > div:last-child > div > span:nth-child(2)::before {
-  color: #9d8f88;
-  content: 'Developed by ';
-  font-size: 0.75rem;
-}
-
-footer > div:last-child > div > span:nth-child(2)::after {
-  color: #9e2646;
-  content: 'PlatiRoll';
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-@media (min-width: 640px) {
-  footer > div:last-child > div {
-    font-size: 0.8125rem;
+/* Every looping decoration stops for people who asked the OS for less motion.
+   framer-motion animations are gated separately through useReducedMotion. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee,
+  .animate-marquee-reverse,
+  .animate-shine,
+  .animate-float,
+  .animate-ken-burns,
+  .animate-gradient-pan,
+  .animate-spin-slow,
+  .shine-sweep::after,
+  .skeleton-shimmer::after {
+    animation: none !important;
   }
-}
-/* Hide the ModessiLooks community strip. */
-main > section:has(> div > a[href="https://instagram.com"]) {
-  display: none;
 }
