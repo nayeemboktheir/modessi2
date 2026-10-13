@@ -1,9 +1,9 @@
 import type { LucideIcon } from 'lucide-react';
-import { ArrowRight, Gift, RotateCcw, ShieldCheck, Star, Truck } from 'lucide-react';
+import { ArrowRight, Gift, MoveUpRight, RotateCcw, ShieldCheck, Star, Truck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { m, useReducedMotion } from 'framer-motion';
 import { toast } from 'sonner';
-import { Marquee, Parallax, Reveal, Stagger, StaggerItem, EASE_OUT } from '@/components/motion';
+import { Marquee, Parallax, Reveal, EASE_OUT } from '@/components/motion';
 import { SectionHeading } from './SectionHeading';
 import type { Feature, Testimonial } from './content';
 
@@ -12,28 +12,66 @@ function iconFor(name?: string): LucideIcon {
   return icons[name || ''] || ShieldCheck;
 }
 
-export function TrustSection({ tagline, title, features }: { tagline: string; title: string; features: Feature[] }) {
+/**
+ * Uneven photo grid: widths alternate 5/7 then 7/5 on a 12-column grid, each card
+ * a product photo with the promise in a pill and a round arrow, sliding up into view.
+ */
+export function TrustSection({ tagline, title, features, images }: { tagline: string; title: string; features: Feature[]; images: string[] }) {
+  const reduce = useReducedMotion();
+  const last = features.length - 1;
+
+  const span = (index: number) => {
+    if (index === 0) return 'sm:col-span-5';
+    if (index === 1) return 'sm:col-span-7';
+    if (index === last - 1) return 'sm:col-span-7';
+    if (index === last) return 'sm:col-span-5';
+    return 'sm:col-span-6';
+  };
+
   return (
     <section className="bg-white py-14 sm:py-20">
       <div className="shell">
         <SectionHeading eyebrow={tagline} title={title} align="center" />
-        <Stagger className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4" stagger={0.12}>
+        <div className="grid grid-cols-12 gap-4">
           {features.map((feature, index) => {
             const Icon = iconFor(feature.icon);
+            const image = images.length ? images[index % images.length] : undefined;
             return (
-              <StaggerItem key={(feature.title || 'feature') + index}>
-                <div className="group relative h-full overflow-hidden rounded-3xl border border-line bg-surface p-5 text-center transition-all duration-500 hover:-translate-y-1.5 hover:border-brand/25 hover:bg-white hover:shadow-[0_24px_40px_-24px_rgba(110,25,50,0.45)] sm:p-7">
-                  <span className="absolute inset-x-0 top-0 h-1 origin-left scale-x-0 bg-gradient-to-r from-brand via-gold to-brand transition-transform duration-700 group-hover:scale-x-100" />
-                  <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-brand-blush text-brand transition-all duration-500 group-hover:rotate-[8deg] group-hover:bg-brand group-hover:text-white">
-                    <Icon className="h-6 w-6 animate-float" style={{ animationDelay: index * 0.4 + 's' }} />
+              <m.article
+                key={(feature.title || 'feature') + index}
+                initial={reduce ? false : { y: 50, opacity: 0 }}
+                whileInView={{ y: 0, opacity: 1 }}
+                transition={{ ease: 'easeOut', duration: 0.6 }}
+                viewport={{ once: false, amount: 0.25 }}
+                className={'group relative col-span-12 h-[240px] overflow-hidden rounded-3xl sm:h-[300px] lg:h-[340px] ' + span(index)}
+              >
+                <Link to="/about" aria-label={feature.title} className="absolute inset-0">
+                  {image ? (
+                    <img src={image} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" />
+                  ) : (
+                    <span className="grid h-full w-full place-items-center bg-gradient-to-br from-brand-blush to-surface-sand">
+                      <Icon className="h-16 w-16 text-brand-soft" />
+                    </span>
+                  )}
+                  <span className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
+                </Link>
+
+                <div className="pointer-events-none absolute bottom-0 flex w-full items-end justify-between gap-3 p-4 lg:bottom-2">
+                  <div className="rounded-2xl bg-ink/90 px-4 py-2.5 text-white backdrop-blur-sm">
+                    <h3 className="flex items-center gap-2 text-sm font-semibold lg:text-lg">
+                      <Icon className="h-4 w-4 shrink-0 text-[#f4c4d0] lg:h-5 lg:w-5" />
+                      {feature.title}
+                    </h3>
+                    {feature.desc && <p className="mt-0.5 text-[11px] text-white/70 lg:text-xs">{feature.desc}</p>}
+                  </div>
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand text-white transition-transform duration-500 group-hover:rotate-45 lg:h-12 lg:w-12">
+                    <MoveUpRight className="h-4 w-4 lg:h-5 lg:w-5" />
                   </span>
-                  <h3 className="mt-4 text-sm font-bold text-ink sm:text-[15px]">{feature.title}</h3>
-                  <p className="mt-1 text-xs text-ink-muted">{feature.desc}</p>
                 </div>
-              </StaggerItem>
+              </m.article>
             );
           })}
-        </Stagger>
+        </div>
       </div>
     </section>
   );

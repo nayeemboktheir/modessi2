@@ -75,6 +75,9 @@ export default function FashionHomePage() {
   const features = content.features_bar?.items?.length ? content.features_bar.items.slice(0, 4) : fallbackFeatures;
   const testimonials = (content.testimonials?.items || []).filter((item) => item.name && item.text).slice(0, 4);
   const storyImages = [...products, ...recent].map((product) => product.images?.[0]).filter(Boolean).filter((image, index, all) => all.indexOf(image) === index).slice(0, 3);
+  // Photos for the promise grid: skip the ones the story section already shows.
+  const allImages = [...products, ...newProducts, ...recent].map((product) => product.images?.[0]).filter(Boolean).filter((image, index, all) => all.indexOf(image) === index);
+  const trustImages = allImages.filter((image) => !storyImages.includes(image)).slice(0, 4);
 
   const goCategory = (slug: string) => navigate(slug ? '/products?category=' + slug : '/products');
 
@@ -111,6 +114,7 @@ export default function FashionHomePage() {
         tagline={content.why_choose_us?.tagline || 'MODESSI PROMISE'}
         title={content.why_choose_us?.title || 'কেন Modessi?'}
         features={features}
+        images={trustImages.length ? trustImages : allImages.slice(0, 4)}
       />
 
       <StorySection images={storyImages} />
