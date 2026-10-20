@@ -222,10 +222,11 @@ export default function AdminBotBhai() {
 
               <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
                 <div className="space-y-1">
-                  <Label htmlFor="botbhai-auto-sync">Auto-sync</Label>
+                  <Label htmlFor="botbhai-auto-sync">Auto-sync orders</Label>
                   <p className="text-sm text-muted-foreground">
-                    Mirror every new website order to BotBhai and push the new stock levels as soon as it is placed.
-                    Imported BotBhai orders also push stock back.
+                    Mirror every new website order to BotBhai with its stock as soon as it is placed, and import new
+                    chatbot orders the moment BotBhai's webhook reports them. Status changes travel both ways for
+                    orders already linked.
                   </p>
                 </div>
                 <Switch
@@ -281,8 +282,9 @@ export default function AdminBotBhai() {
             <Download className="h-5 w-5" /> Orders
           </CardTitle>
           <CardDescription>
-            Import pending and confirmed chatbot orders from the last 3 days. They appear in Orders with the source
-            “BotBhai” and deduct stock like any other order. Orders already imported, or pushed from here, are skipped.
+            Chatbot orders appear in Orders with the source “BotBhai” and deduct stock like any other order. The import
+            button pulls in pending and confirmed ones from the last 3 days; orders already imported, or pushed from
+            here, are skipped.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -296,6 +298,11 @@ export default function AdminBotBhai() {
               {pushing ? 'Pushing…' : 'Push missed website orders'}
             </Button>
           </div>
+          <p className="text-sm text-muted-foreground">
+            With auto-sync on these buttons are a catch-up for anything missed — for example orders placed while the
+            webhook was off. Webhook URL for BotBhai → Integrations → REST API → Webhooks:{' '}
+            <code className="break-all">{`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/botbhai-webhook`}</code>
+          </p>
           {lastImport && <pre className="whitespace-pre-wrap rounded-md bg-muted p-3 text-sm">{lastImport}</pre>}
           {lastPush && <pre className="whitespace-pre-wrap rounded-md bg-muted p-3 text-sm">{lastPush}</pre>}
         </CardContent>

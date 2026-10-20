@@ -533,7 +533,7 @@ export type ImportedOrder = {
 };
 
 /** Create one Modessi order from a BotBhai order. Returns null if it was already imported. */
-async function importOne(supabase: SupabaseClient, botbhaiOrderNumber: string): Promise<ImportedOrder | null> {
+export async function importOne(supabase: SupabaseClient, botbhaiOrderNumber: string): Promise<ImportedOrder | null> {
   const detail = unwrap((await botbhai('GET', `/orders/${enc(botbhaiOrderNumber)}`)).data) ?? {};
   const customer = detail.customer ?? {};
 
@@ -750,4 +750,107 @@ export async function importOrders(
   }
 
   return { imported, errors, remaining: Math.max(0, fresh.length - max) };
+}
+
+// ---------------------------------------------------------------------------
+// Order status, both ways
+// ---------------------------------------------------------------------------
+
+// Statuses both sides share. Modessi lets an admin jump between any of them;
+// BotBhai only allows these steps, so a jump is walked one step at a time.
+const BOTBHAI_TRANSITIONS: Record<string, string[]> = {
+  pending: ['confirmed', 'cancelled'],
+  confirmed: ['processing', 'cancelled'],
+  processing: ['shipped', 'cancelled'],
+  shipped: ['delivered', 'returned'],
+};
+
+export const ORDER_STATUSES = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'returned'];
+
+function statusPath(from: string, to: string): string[] | null {
+  const queue: string[][] = [[from]];
+  const seen = new Set([from]);
+  while (queue.length > 0) {
+    const path = queue.shift()!;
+    const last = path[path.length - 1];
+    if (last === to) return path.slice(1);
+    for (const next of BOTBHAI_TRANSITIONS[last] ?? []) {
+      if (!seen.has(next)) {
+        seen.add(next);
+        queue.push([...path, next]);
+      }
+    }
+  }
+  return null;
+}
+
+export async function remoteOrderStatus(botbhaiOrderNumber: string): Promise<string | null> {
+  const detail = unwrap((await botbhai('GET', `/orders/${enc(botbhaiOrderNumber)}`)).data);
+  return detail?.status ? String(detail.status) : null;
+}
+
+export type PushStatusResult =
+  | { status: 'pushed'; botbhaiOrderNumber: string; steps: string[] }
+  | { status: 'skipped'; reason: string };
+
+/**
+ * Bring a linked BotBhai order to the status the Modessi order now has. BotBhai
+ * answers each step with an order.status_changed webhook; botbhai-webhook sees the
+ * status already matches (or is a step behind BotBhai's current one) and ignores it.
+ */
+export async function pushOrderStatus(supabase: SupabaseClient, orderId: string): Promise<PushStatusResult> {
+  const { data: link } = await supabase
+    .from('botbhai_order_links')
+    .select('botbhai_order_number')
+    .eq('order_id', orderId)
+    .maybeSingle();
+  if (!link) return { status: 'skipped', reason: 'order is not linked to BotBhai' };
+
+  const { data: order, error } = await supabase.from('orders').select('status').eq('id', orderId).single();
+  if (error) throw error;
+
+  const target = String(order.status);
+  if (!ORDER_STATUSES.includes(target)) return { status: 'skipped', reason: `BotBhai has no "${target}" status` };
+
+  const current = await remoteOrderStatus(link.botbhai_order_number);
+  if (!current) throw new Error(`BotBhai order ${link.botbhai_order_number} has no status`);
+  if (current === target) return { status: 'skipped', reason: `already ${target} on BotBhai` };
+
+  const steps = statusPath(current, target);
+  if (!steps) return { status: 'skipped', reason: `BotBhai cannot move an order from ${current} to ${target}` };
+
+  for (const step of steps) {
+    await botbhai('PATCH', `/orders/${enc(link.botbhai_order_number)}/status`, { status: step });
+  }
+
+  return { status: 'pushed', botbhaiOrderNumber: link.botbhai_order_number, steps };
+}
+
+export type ApplyStatusResult =
+  | { status: 'updated'; orderId: string; from: string; to: string }
+  | { status: 'skipped'; reason: string };
+
+/** Set the linked Modessi order to a status BotBhai reported, unless it already has it. */
+export async function applyRemoteStatus(
+  supabase: SupabaseClient,
+  botbhaiOrderNumber: string,
+  status: string,
+): Promise<ApplyStatusResult> {
+  if (!ORDER_STATUSES.includes(status)) return { status: 'skipped', reason: `unknown status "${status}"` };
+
+  const { data: link } = await supabase
+    .from('botbhai_order_links')
+    .select('order_id')
+    .eq('botbhai_order_number', botbhaiOrderNumber)
+    .maybeSingle();
+  if (!link) return { status: 'skipped', reason: 'order is not linked' };
+
+  const { data: order, error } = await supabase.from('orders').select('status').eq('id', link.order_id).single();
+  if (error) throw error;
+  if (order.status === status) return { status: 'skipped', reason: `already ${status}` };
+
+  const { error: updateError } = await supabase.from('orders').update({ status }).eq('id', link.order_id);
+  if (updateError) throw updateError;
+
+  return { status: 'updated', orderId: link.order_id, from: order.status, to: status };
 }

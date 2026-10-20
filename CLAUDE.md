@@ -151,9 +151,15 @@ function, driven from `/admin/botbhai`. Unlike the couriers, its key is **env-on
 (`BOTBHAI_API_KEY` on the edge-functions container, scopes `products:*` + `orders:*`) and never
 lives in `admin_settings`. Modessi is the source of truth for catalogue and stock (pushed as
 absolute figures); orders cross both ways and `botbhai_order_links` records each one so imports are
-never duplicated or echoed back. Imported orders get `order_source = 'botbhai'`. `place-order`
-mirrors new orders only while `admin_settings.botbhai_auto_sync` is `'true'`; there is no
-scheduler, so importing chatbot orders is a button press.
+never duplicated or echoed back. Imported orders get `order_source = 'botbhai'`. While
+`admin_settings.botbhai_auto_sync` is `'true'` (the default since `20261021120000`), `place-order`
+mirrors new orders and the public [`botbhai-webhook`](supabase/functions/botbhai-webhook/index.ts)
+imports chatbot orders as BotBhai reports them. That function is gated only by an HMAC signature
+(`BOTBHAI_WEBHOOK_SECRET`, env-only), must be listed in `FUNCTIONS_NO_VERIFY_JWT`, and dedupes on
+`botbhai_webhook_deliveries`. Status changes cross both ways for linked orders: AdminOrders calls
+`botbhai-sync` `push_status`, which walks BotBhai's allowed transitions one step at a time, and the
+webhook applies only the status BotBhai currently holds, so those intermediate steps never echo
+back. The Import / Push buttons on `/admin/botbhai` remain as a catch-up.
 
 `place-order` is the checkout path: it uses the service-role key so guests can order, responds
 immediately, and defers SMS / email work to `EdgeRuntime.waitUntil` — which is why the router allows

@@ -8,6 +8,7 @@
 //   push_stock          { productIds } current stock for those products
 //   push_order          { orderId } mirror one order (retry for a failed auto-push)
 //   push_recent_orders  { days } mirror website orders not yet on BotBhai
+//   push_status         { orderIds } bring linked BotBhai orders to their Modessi status
 //   import_orders       { days } pull new chatbot orders in as order_source 'botbhai'
 //
 // The BotBhai key lives only in this container's BOTBHAI_API_KEY env var.
@@ -22,6 +23,7 @@ import {
   botbhaiConfigured,
   importOrders,
   pushOrder,
+  pushOrderStatus,
   pushProducts,
   pushStock,
 } from '../_shared/botbhai.ts';
@@ -175,6 +177,26 @@ Deno.serve(async (req) => {
         }
 
         return json({ results, remaining: todo.length - batch.length });
+      }
+
+      case 'push_status': {
+        const ids: string[] = Array.isArray(body.orderIds) ? body.orderIds.map(String).slice(0, 100) : [];
+        const results: Array<{ orderId: string; status: string; detail?: string }> = [];
+
+        for (const id of ids) {
+          try {
+            const r = await pushOrderStatus(supabase, id);
+            results.push({
+              orderId: id,
+              status: r.status,
+              detail: r.status === 'pushed' ? `${r.botbhaiOrderNumber}: ${r.steps.join(' -> ')}` : r.reason,
+            });
+          } catch (err) {
+            results.push({ orderId: id, status: 'failed', detail: (err as Error).message });
+          }
+        }
+
+        return json({ results });
       }
 
       case 'import_orders': {

@@ -956,10 +956,36 @@ export default function AdminOrders() {
       if (order) {
         sendStatusSms(order, newStatus);
       }
+      pushBotbhaiStatus([orderId]);
     } catch (error) {
       toast.error('Failed to update order status');
     } finally {
       setUpdating(false);
+    }
+  };
+
+  // Orders that crossed to or from BotBhai carry their status over, so the chatbot
+  // tells the customer the same thing the shop does. Unlinked orders are skipped server-side.
+  const pushBotbhaiStatus = async (orderIds: string[]) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('botbhai-sync', {
+        body: { action: 'push_status', orderIds },
+      });
+      if (error) {
+        // BotBhai not set up on this stack: nothing to keep in step.
+        const payload = await (error as { context?: Response }).context?.json().catch(() => null);
+        if (payload?.code === 'not_configured') return;
+        throw error;
+      }
+      const failed = (data?.results ?? []).filter((r: { status: string }) => r.status === 'failed');
+      if (failed.length > 0) {
+        toast.warning(`BotBhai status update failed for ${failed.length} order(s)`, {
+          description: failed.map((f: { detail?: string }) => f.detail).join('; '),
+        });
+      }
+    } catch (err) {
+      console.error('BotBhai status push failed:', err);
+      toast.warning('Could not update the order status on BotBhai');
     }
   };
 
@@ -1307,6 +1333,7 @@ export default function AdminOrders() {
       }
 
       const successCount = updatedIds.size;
+      if (successCount > 0) pushBotbhaiStatus(Array.from(updatedIds));
 
       if (failCount > 0) {
         toast.warning(`Updated ${successCount} orders, ${failCount} failed`);
