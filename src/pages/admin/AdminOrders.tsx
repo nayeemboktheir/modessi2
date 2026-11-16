@@ -209,6 +209,9 @@ const ORDERS_FETCH_LIMIT = 2000;
 // sessionStorage holds ~5MB; orders carry their line items, so persisting the whole
 // set silently blew the quota (the failure was swallowed) once a shop got busy.
 const ORDERS_CACHE_MAX_ROWS = 300;
+// Partner-originated orders are managed and settled from Admin → Partner Orders.
+// They must not appear in the shop's regular order queue.
+const PARTNER_ORDER_SOURCE = 'maxora';
 
 const ORDER_SELECT = `
   id, order_number, status, payment_status, payment_method, total, subtotal, shipping_cost, discount,
@@ -230,6 +233,9 @@ const normalizeOrderRow = (order: BaseOrderRow): Order => ({
     price: Number(item.price),
   })),
 });
+
+const isPartnerOrder = (order: Pick<Order, 'order_source'>): boolean =>
+  order.order_source.trim().toLowerCase() === PARTNER_ORDER_SOURCE;
 
 const mergeUniqueOrders = (primary: BaseOrderRow[], additional: BaseOrderRow[]): Order[] => {
   const merged = new Map<string, Order>();
@@ -259,7 +265,7 @@ const readOrdersCache = (allowStale = false): Order[] => {
     const isFresh = Date.now() - parsed.timestamp < ORDERS_CACHE_TTL;
 
     if (Array.isArray(parsed.data) && parsed.data.length > 0 && (allowStale || isFresh)) {
-      return parsed.data;
+      return parsed.data.filter((order) => !isPartnerOrder(order));
     }
   } catch {
     // ignore cache parse errors
@@ -307,6 +313,7 @@ const fetchOrderRows = async ({
         supabase
           .from('orders')
           .select(ORDER_SELECT)
+          .neq('order_source', PARTNER_ORDER_SOURCE)
           .order('created_at', { ascending: false })
           .range(from, to),
         timeoutMs,
@@ -374,7 +381,10 @@ const fetchAllOrderRows = async ({
 const fetchOrdersTotalCount = async (timeoutMs: number): Promise<number | null> => {
   try {
     const { count, error } = await withTimeout(
-      supabase.from('orders').select('id', { count: 'exact', head: true }),
+      supabase
+        .from('orders')
+        .select('id', { count: 'exact', head: true })
+        .neq('order_source', PARTNER_ORDER_SOURCE),
       timeoutMs,
       'orders_total_count'
     );
@@ -393,6 +403,7 @@ const fetchReturnedOrderRows = async (timeoutMs: number): Promise<BaseOrderRow[]
       supabase
         .from('orders')
         .select(ORDER_SELECT)
+        .neq('order_source', PARTNER_ORDER_SOURCE)
         .eq('status', 'returned')
         .order('created_at', { ascending: false })
         .range(0, ORDERS_FETCH_LIMIT - 1),
@@ -425,6 +436,7 @@ const fetchOrdersMatchingReturnValues = async (
       supabase
         .from('orders')
         .select(ORDER_SELECT)
+        .neq('order_source', PARTNER_ORDER_SOURCE)
         .in(field, chunk),
       timeoutMs,
       `returned_orders_${field}`
@@ -563,7 +575,8 @@ export default function AdminOrders() {
       setOrdersTruncated(truncated);
       if (totalCount !== null) setTotalOrderCount(totalCount);
 
-      const normalizedOrders = mergeUniqueOrders(baseOrders, returnedOrders);
+      const normalizedOrders = mergeUniqueOrders(baseOrders, returnedOrders)
+        .filter((order) => !isPartnerOrder(order));
 
       setOrders(normalizedOrders);
       persistOrdersCache(normalizedOrders);
@@ -593,6 +606,8 @@ export default function AdminOrders() {
 
     try {
       const createdOrder = await getOrderById(orderId) as Order;
+      if (isPartnerOrder(createdOrder)) return;
+
       setOrders((prev) => {
         const exists = prev.some((order) => order.id === createdOrder.id);
         const next = exists
@@ -638,6 +653,8 @@ export default function AdminOrders() {
       void (async () => {
         try {
           const createdOrder = await getOrderById(newId) as Order;
+          if (isPartnerOrder(createdOrder)) return;
+
           setOrders((prev) => {
             // The admin's own manual order has already been inserted locally.
             if (prev.some((order) => order.id === createdOrder.id)) return prev;
@@ -678,7 +695,8 @@ export default function AdminOrders() {
         ORDERS_QUERY_TIMEOUT_MS,
       );
       if (matchedOrders.length > 0) {
-        setOrders((previous) => mergeUniqueOrders(previous, matchedOrders));
+        setOrders((previous) => mergeUniqueOrders(previous, matchedOrders)
+          .filter((order) => !isPartnerOrder(order)));
       }
     } catch (error) {
       console.error('Error fetching Steadfast return requests:', error);
