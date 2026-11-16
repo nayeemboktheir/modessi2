@@ -42,6 +42,7 @@ const AdminLayout = lazy(() => import('@/components/admin/AdminLayout'));
 const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'));
 const AdminProducts = lazy(() => import('@/pages/admin/AdminProducts'));
 const AdminWholesalePrices = lazy(() => import('@/pages/admin/AdminWholesalePrices'));
+const AdminPartnerOrders = lazy(() => import('@/pages/admin/AdminPartnerOrders'));
 const AdminCategories = lazy(() => import('@/pages/admin/AdminCategories'));
 const AdminOrders = lazy(() => import('@/pages/admin/AdminOrders'));
 const AdminIncompleteOrders = lazy(() => import('@/pages/admin/AdminIncompleteOrders'));
@@ -153,6 +154,7 @@ const App = () => (
               <Route path="/admin/reports" element={<AdminLayout><AdminReports /></AdminLayout>} />
               <Route path="/admin/products" element={<AdminLayout><AdminProducts /></AdminLayout>} />
               <Route path="/admin/wholesale-prices" element={<AdminLayout><AdminWholesalePrices /></AdminLayout>} />
+              <Route path="/admin/partner-orders" element={<AdminLayout><AdminPartnerOrders /></AdminLayout>} />
               <Route path="/admin/categories" element={<AdminLayout><AdminCategories /></AdminLayout>} />
               <Route path="/admin/orders" element={<AdminLayout><AdminOrders /></AdminLayout>} />
               <Route path="/admin/incomplete-orders" element={<AdminLayout><AdminIncompleteOrders /></AdminLayout>} />

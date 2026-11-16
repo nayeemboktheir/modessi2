@@ -26,6 +26,7 @@ import {
   Shield,
   Tags,
   Bot,
+  Handshake,
 
   
 } from 'lucide-react';
@@ -51,6 +52,7 @@ const adminNavItems = [
   { title: 'Reports', url: '/admin/reports', icon: BarChart3 },
   { title: 'Products', url: '/admin/products', icon: Package },
   { title: 'Wholesale Prices', url: '/admin/wholesale-prices', icon: Tags },
+  { title: 'Partner Orders', url: '/admin/partner-orders', icon: Handshake },
 
   { title: 'Categories', url: '/admin/categories', icon: FolderTree },
   { title: 'Orders', url: '/admin/orders', icon: ShoppingCart },
