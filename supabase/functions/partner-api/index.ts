@@ -19,8 +19,9 @@
 // Auth, two layers:
 //   - The router wants a JWT signed by this stack: the partner sends Modessi's anon key as
 //     `Authorization: Bearer` (and `apikey`, for Kong). That alone proves nothing, it is public.
-//   - The real gate is `x-partner-key`, checked against the PARTNER_KEYS env var on the
-//     edge-functions container: comma-separated `name:secret` pairs, e.g. `maxora:7f3c…`.
+//   - The real gate is `x-partner-key`, checked against admin_settings.partner_keys (or, if
+//     that row is empty, the PARTNER_KEYS env var on the edge-functions container):
+//     comma-separated `name:secret` pairs, e.g. `maxora:7f3c…`, secrets at least 16 chars.
 //     The name becomes the order's order_source and the partner in partner_order_links.
 //
 // Everything runs with the service role, so a partner only ever sees its own orders.
@@ -43,13 +44,23 @@ function constantTimeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
+/**
+ * The `name:secret,name:secret` list: admin_settings.partner_keys first (admin-only under RLS,
+ * like the courier keys), else the PARTNER_KEYS env var. Same order as the courier functions,
+ * so a key can be added or rotated from the database without recreating the container.
+ */
+async function loadPartnerKeys(supabase: SupabaseClient): Promise<string> {
+  const { data } = await supabase.from('admin_settings').select('value').eq('key', 'partner_keys').maybeSingle();
+  return String(data?.value || Deno.env.get('PARTNER_KEYS') || '').trim();
+}
+
 /** The partner name for this request's x-partner-key, or null. */
-function resolvePartner(req: Request): string | null {
+function resolvePartner(req: Request, partnerKeys: string): string | null {
   const presented = (req.headers.get('x-partner-key') ?? '').trim();
   if (presented.length < 16) return null;
 
   let match: string | null = null;
-  for (const pair of (Deno.env.get('PARTNER_KEYS') ?? '').split(',')) {
+  for (const pair of partnerKeys.split(',')) {
     const idx = pair.indexOf(':');
     if (idx <= 0) continue;
     const name = pair.slice(0, idx).trim().toLowerCase();
@@ -553,13 +564,16 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
-  const partner = resolvePartner(req);
-  if (!partner) return json({ error: 'Invalid partner key' }, 401);
+  // Cheap reject before touching the database.
+  if ((req.headers.get('x-partner-key') ?? '').trim().length < 16) return json({ error: 'Invalid partner key' }, 401);
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!supabaseUrl || !serviceKey) return json({ error: 'Server not configured' }, 500);
   const supabase = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+
+  const partner = resolvePartner(req, await loadPartnerKeys(supabase));
+  if (!partner) return json({ error: 'Invalid partner key' }, 401);
 
   let body: any;
   try {

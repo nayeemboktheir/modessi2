@@ -136,7 +136,10 @@ as a single long-lived router that verifies the JWT and spawns a user worker per
   `courier_lookup_cache` and [`_shared/courierCache.ts`](supabase/functions/_shared/courierCache.ts).
 - Secrets (courier keys, SMS credentials) are container env vars in Coolify. The Resend key and the
   order-email sender are the exception: they live in `admin_settings`
-  (`resend_api_key`, `order_email_from`).
+  (`resend_api_key`, `order_email_from`). So do the reseller keys for `partner-api`
+  (`partner_keys`, `name:secret,...`, env `PARTNER_KEYS` as fallback) and the Steadfast webhook
+  token (`steadfast_webhook_token`). `admin_settings` is safe for secrets because anonymous reads
+  are limited to an allowlist of public keys; any other key is admin/service-role only.
 - Courier functions read `admin_settings` **first** and fall back to the environment, so Steadfast
   and Carrybee work with no env vars at all. The exception is
   [`courier-history`](supabase/functions/courier-history/index.ts), which reads
