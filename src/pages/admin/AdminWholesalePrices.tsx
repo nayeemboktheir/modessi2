@@ -35,6 +35,9 @@ import { toast } from 'sonner';
 import { Search, ChevronDown, ChevronRight, Save, Tags } from 'lucide-react';
 import { DataPagination } from '@/components/admin/DataPagination';
 import { usePagination } from '@/hooks/usePagination';
+import { useSearchParams } from 'react-router-dom';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { WholesaleOrdersTab } from '@/components/admin/WholesaleOrdersTab';
 
 interface Variation {
   id: string;
@@ -68,6 +71,59 @@ const keyFor = (productId: string, variationId: string | null) =>
   `${productId}::${variationId ?? 'base'}`;
 
 export default function AdminWholesalePrices() {
+  // The tab lives in the URL so the sidebar badge and links can open Orders directly.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') === 'orders' ? 'orders' : 'prices';
+
+  const { data: pendingCount = 0 } = useQuery({
+    queryKey: ['pending-wholesale-orders-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('wholesale_orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
+      if (error) throw error;
+      return count || 0;
+    },
+    staleTime: 60000,
+    refetchInterval: 120000,
+  });
+
+  return (
+    <Tabs
+      value={tab}
+      onValueChange={(v) => setSearchParams(v === 'orders' ? { tab: 'orders' } : {}, { replace: true })}
+      className="space-y-6"
+    >
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+        <div className="flex items-center gap-3">
+          <Tags className="h-6 w-6 text-primary" />
+          <h1 className="font-display text-2xl font-bold">Wholesale</h1>
+        </div>
+        <TabsList>
+          <TabsTrigger value="prices">Prices</TabsTrigger>
+          <TabsTrigger value="orders" className="gap-2">
+            Orders
+            {pendingCount > 0 && (
+              <Badge variant="destructive" className="h-5 min-w-[20px] justify-center px-1.5 text-xs">
+                {pendingCount}
+              </Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
+      </div>
+
+      <TabsContent value="prices" className="mt-0">
+        <WholesalePricesTab />
+      </TabsContent>
+      <TabsContent value="orders" className="mt-0">
+        <WholesaleOrdersTab />
+      </TabsContent>
+    </Tabs>
+  );
+}
+
+function WholesalePricesTab() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [categoryId, setCategoryId] = useState<string>('all');
@@ -294,19 +350,14 @@ export default function AdminWholesalePrices() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Tags className="h-6 w-6 text-primary" />
-        <div>
-          <h1 className="font-display text-2xl font-bold">Wholesale Prices</h1>
-          <p className="text-sm text-muted-foreground">
-            {pricedCount} of {data?.products.length || 0} products priced
-          </p>
-        </div>
-      </div>
-
       <Card>
         <CardHeader className="space-y-4">
-          <CardTitle className="text-base">Catalogue</CardTitle>
+          <CardTitle className="text-base">
+            Catalogue
+            <span className="ml-2 text-sm font-normal text-muted-foreground">
+              {pricedCount} of {data?.products.length || 0} products priced
+            </span>
+          </CardTitle>
           <div className="flex flex-col gap-3 md:flex-row md:items-center">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

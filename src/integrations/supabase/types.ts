@@ -967,6 +967,118 @@ export type Database = {
         }
         Relationships: []
       }
+      wholesale_order_items: {
+        Row: {
+          created_at: string
+          id: string
+          line_total: number
+          order_id: string
+          product_id: string | null
+          product_image: string | null
+          product_name: string
+          quantity: number
+          unit_price: number
+          variation_id: string | null
+          variation_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          line_total: number
+          order_id: string
+          product_id?: string | null
+          product_image?: string | null
+          product_name: string
+          quantity: number
+          unit_price: number
+          variation_id?: string | null
+          variation_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          line_total?: number
+          order_id?: string
+          product_id?: string | null
+          product_image?: string | null
+          product_name?: string
+          quantity?: number
+          unit_price?: number
+          variation_id?: string | null
+          variation_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wholesale_order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "wholesale_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wholesale_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wholesale_order_items_variation_id_fkey"
+            columns: ["variation_id"]
+            isOneToOne: false
+            referencedRelation: "product_variations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wholesale_orders: {
+        Row: {
+          address: string
+          admin_note: string | null
+          buyer_name: string
+          created_at: string
+          id: string
+          notes: string | null
+          order_number: string
+          phone: string
+          shop_name: string | null
+          status: string
+          subtotal: number
+          total_quantity: number
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          admin_note?: string | null
+          buyer_name: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          order_number?: string
+          phone: string
+          shop_name?: string | null
+          status?: string
+          subtotal?: number
+          total_quantity?: number
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          admin_note?: string | null
+          buyer_name?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          order_number?: string
+          phone?: string
+          shop_name?: string | null
+          status?: string
+          subtotal?: number
+          total_quantity?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       wholesale_prices: {
         Row: {
           created_at: string
@@ -1066,6 +1178,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      place_wholesale_order: {
+        Args: { p_buyer: Json; p_items: Json }
+        Returns: Json
       }
       rate_limit_hit: {
         Args: {

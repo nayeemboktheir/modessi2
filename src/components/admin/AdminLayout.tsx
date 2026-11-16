@@ -120,6 +120,25 @@ function AdminSidebar() {
     refetchInterval: 120000,
   });
 
+  // Pending orders from wholesale.modessi.shop. Same key as the Orders tab, which
+  // invalidates it when an order's status changes.
+  const { data: pendingWholesaleCount = 0 } = useQuery({
+    queryKey: ['pending-wholesale-orders-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('wholesale_orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
+      if (error) throw error;
+      return count || 0;
+    },
+    enabled: isAdmin,
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchInterval: 120000,
+  });
+
   // Any write to orders can change the pending count -- a new order, a status change
   // moving one out of pending, a deletion -- so re-count rather than adjusting locally.
   // Debounced because a bulk status change fires one event per row.
@@ -181,7 +200,12 @@ function AdminSidebar() {
                             {unreadContactCount}
                           </Badge>
                         )}
-                        {isActive && item.url !== '/admin/contact-submissions' && item.url !== '/admin/orders' && <ChevronRight className="h-4 w-4 ml-auto group-data-[collapsible=icon]:hidden" />}
+                        {item.url === '/admin/wholesale-prices' && pendingWholesaleCount > 0 && (
+                          <Badge variant="destructive" className="ml-auto text-xs px-1.5 py-0.5 min-w-[20px] h-5 flex items-center justify-center group-data-[collapsible=icon]:hidden">
+                            {pendingWholesaleCount}
+                          </Badge>
+                        )}
+                        {isActive && item.url !== '/admin/contact-submissions' && item.url !== '/admin/orders' && !(item.url === '/admin/wholesale-prices' && pendingWholesaleCount > 0) && <ChevronRight className="h-4 w-4 ml-auto group-data-[collapsible=icon]:hidden" />}
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

@@ -88,8 +88,12 @@ assertions are a **post-import** check: once the store is trading they drift by 
 (private repo `tanviralamtusar/Modessi-Wholesale`, deployed as its own Coolify app) that reads
 `products`, `product_variations`, `categories` and `wholesale_prices` **anonymously** — which is why
 `wholesale_prices` carries an `"Anyone can view active wholesale prices"` SELECT policy. It holds
-only the anon key and cannot write. Schema or RLS changes to those four tables break it, and it has
-to be redeployed separately whenever the backend URL or anon key changes.
+only the anon key and cannot write tables. Schema or RLS changes to those four tables break it, and it has
+to be redeployed separately whenever the backend URL or anon key changes. Its only write path is the
+`place_wholesale_order(p_buyer, p_items)` RPC (SECURITY DEFINER, granted to anon), which prices each
+line from `wholesale_prices` server-side and writes `wholesale_orders` / `wholesale_order_items`.
+Those tables are admin-only, kept apart from `orders` (no courier, SMS, pixels or stock deduction),
+and worked from `/admin/wholesale-prices?tab=orders`.
 
 **Authorization is entirely in Postgres.** Every table has RLS; admin access is gated by
 `public.has_role(auth.uid(), 'admin')` against `user_roles` (enum `app_role`: `admin` | `user`).
