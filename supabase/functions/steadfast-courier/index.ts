@@ -27,6 +27,32 @@ interface SteadfastOrderRequest {
 interface UpstreamConsignment {
   consignment_id?: string | number;
   tracking_code?: string;
+  /** Steadfast's public tracking page (https://steadfast.com.bd/tl/<hash>). */
+  tracking_link?: string;
+}
+
+const trackingLinkOf = (consignment: UpstreamConsignment | undefined) =>
+  typeof consignment?.tracking_link === 'string' && /^https?:\/\//.test(consignment.tracking_link)
+    ? consignment.tracking_link
+    : null;
+
+// Writes the consignment with its tracking_link, and retries without it if the column is not
+// there yet (migration 20261117130000 not applied) so the tracking number is never lost.
+async function updateWithLink(
+  supabase: { from: (table: string) => any },
+  table: 'orders' | 'wholesale_orders',
+  id: string,
+  fields: Record<string, unknown>,
+  trackingLink: string | null,
+) {
+  if (trackingLink) {
+    const { error } = await supabase.from(table).update({ ...fields, tracking_link: trackingLink }).eq('id', id);
+    if (!error) return null;
+    if (!/tracking_link/.test(error.message ?? '')) return error;
+    console.warn(`${table}.tracking_link missing; saving the consignment without it`);
+  }
+  const { error } = await supabase.from(table).update(fields).eq('id', id);
+  return error;
 }
 
 const json = (body: unknown, status: number) => new Response(JSON.stringify(body), {
@@ -118,15 +144,18 @@ async function saveWholesaleConsignment(
   const trackingCode = consignment.tracking_code ?? consignmentId;
   if (!trackingCode) return;
 
-  const { error } = await supabase
-    .from('wholesale_orders')
-    .update({
+  const error = await updateWithLink(
+    supabase,
+    'wholesale_orders',
+    wholesaleOrderId,
+    {
       tracking_number: trackingCode,
       steadfast_consignment_id: consignmentId ?? trackingCode,
       courier_sent_at: new Date().toISOString(),
       status: 'shipped',
-    })
-    .eq('id', wholesaleOrderId);
+    },
+    trackingLinkOf(consignment),
+  );
 
   if (error) console.error(`Could not save Steadfast consignment for wholesale order ${wholesaleOrderId}:`, error.message);
 }
@@ -141,14 +170,17 @@ async function saveConsignment(
   const trackingCode = consignment.tracking_code ?? consignmentId;
   if (!trackingCode) return;
 
-  const { error } = await supabase
-    .from('orders')
-    .update({
+  const error = await updateWithLink(
+    supabase,
+    'orders',
+    orderId,
+    {
       tracking_number: trackingCode,
       steadfast_consignment_id: consignmentId ?? trackingCode,
       status: 'processing',
-    })
-    .eq('id', orderId);
+    },
+    trackingLinkOf(consignment),
+  );
 
   if (error) console.error(`Could not save Steadfast consignment for order ${orderId}:`, error.message);
 }
@@ -229,6 +261,7 @@ Deno.serve(async (req) => {
       message: 'Order sent to Steadfast successfully',
       consignment_id: response.consignment?.consignment_id,
       tracking_code: response.consignment?.tracking_code,
+      tracking_link: trackingLinkOf(response.consignment),
       data: upstream.data,
     }, 200);
   } catch (error: unknown) {

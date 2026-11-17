@@ -56,6 +56,7 @@ import { OrderEditDialog } from '@/components/admin/OrderEditDialog';
 import { DataPagination } from '@/components/admin/DataPagination';
 import { DEFAULT_PAGE_SIZE, usePagination } from '@/hooks/usePagination';
 import { useRealtimeTable } from '@/hooks/useRealtimeTable';
+import { trackingUrl } from '@/lib/trackingUrl';
 
 interface SteadfastStatus {
   tracking_code: string;
@@ -71,6 +72,7 @@ interface SteadfastSelectedSendResult {
   success: boolean;
   tracking_code?: string;
   consignment_id?: string;
+  tracking_link?: string | null;
   error?: string;
 }
 
@@ -152,6 +154,7 @@ interface Order {
   notes: string | null;
   invoice_note: string | null;
   steadfast_note: string | null;
+  tracking_link?: string | null;
   steadfast_consignment_id?: string | null;
   created_at: string;
   order_items: OrderItem[];
@@ -213,10 +216,10 @@ const ORDERS_CACHE_MAX_ROWS = 300;
 // They must not appear in the shop's regular order queue.
 const PARTNER_ORDER_SOURCE = 'maxora';
 
+// `*` rather than a column list so tracking_link (migration 20261117130000) comes through once it
+// exists without breaking the page on a database that has not had it applied yet.
 const ORDER_SELECT = `
-  id, order_number, status, payment_status, payment_method, total, subtotal, shipping_cost, discount,
-  shipping_name, shipping_phone, shipping_street, shipping_city, shipping_district, shipping_postal_code,
-  tracking_number, notes, invoice_note, steadfast_note, steadfast_consignment_id, created_at, order_source, is_printed,
+  *,
   order_items (id, order_id, product_id, product_name, product_image, quantity, price, variation_name)
 `;
 
@@ -1095,8 +1098,8 @@ export default function AdminOrders() {
       if (data?.tracking_code) {
         setTrackingNumber(data.tracking_code);
         // Update local state with tracking info
-        setOrders(prev => prev.map(o => 
-          o.id === order.id ? { ...o, tracking_number: data.tracking_code, steadfast_consignment_id: data.consignment_id } : o
+        setOrders(prev => prev.map(o =>
+          o.id === order.id ? { ...o, tracking_number: data.tracking_code, steadfast_consignment_id: data.consignment_id, tracking_link: data.tracking_link ?? o.tracking_link } : o
         ));
         if (selectedOrder?.id === order.id) {
           setSelectedOrder(prev => prev ? { ...prev, tracking_number: data.tracking_code } : prev);
@@ -1172,6 +1175,7 @@ export default function AdminOrders() {
               success: true,
               tracking_code: String(data.tracking_code),
               consignment_id: data.consignment_id ? String(data.consignment_id) : undefined,
+              tracking_link: data.tracking_link ?? null,
             };
           } catch (error) {
             return {
@@ -1196,6 +1200,7 @@ export default function AdminOrders() {
             ...order,
             tracking_number: result.tracking_code,
             steadfast_consignment_id: result.consignment_id ?? result.tracking_code,
+            tracking_link: result.tracking_link ?? order.tracking_link,
             status: 'processing',
           }
           : order;
@@ -1947,7 +1952,7 @@ export default function AdminOrders() {
                   <TableCell>
                     {order.tracking_number ? (
                       <a 
-                        href={/^\d+$/.test(order.tracking_number) ? `https://steadfast.com.bd/t/${order.tracking_number}` : `https://merchant.carrybee.com/order-track/${order.tracking_number}`}
+                        href={trackingUrl(order) ?? undefined}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex"

@@ -22,6 +22,7 @@ import { format } from 'date-fns';
 import { bn } from 'date-fns/locale';
 import { AnimatePresence, m } from 'framer-motion';
 import { Stagger, StaggerItem } from '@/components/motion';
+import { trackingUrl } from '@/lib/trackingUrl';
 
 interface OrderItem {
   id: string;
@@ -300,7 +301,7 @@ const OrderCard = ({ order }: { order: Order }) => {
                 <span className="rounded bg-white px-2 py-1 font-mono">{order.tracking_number}</span>
               </div>
               <a
-                href={/^\d+$/.test(order.tracking_number) ? `https://steadfast.com.bd/t/${order.tracking_number}` : `https://merchant.carrybee.com/order-track/${order.tracking_number}`}
+                href={trackingUrl(order) ?? undefined}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1 font-semibold text-brand hover:underline"

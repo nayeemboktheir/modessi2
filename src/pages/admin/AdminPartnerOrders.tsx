@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { updateOrderStatus } from '@/services/adminService';
+import { trackingUrl } from '@/lib/trackingUrl';
 import { InvoicePrintDialog } from '@/components/admin/InvoicePrintDialog';
 import { StickerPrintDialog } from '@/components/admin/StickerPrintDialog';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -54,12 +55,9 @@ const statusOptions = [
   { value: 'cancelled', label: 'Cancelled', icon: XCircle },
 ];
 
-// The settlement fields plus everything the invoice and sticker print dialogs read.
-const ORDER_FIELDS = `id, order_number, status, shipping_name, courier_status, courier_cod_amount, courier_delivery_charge,
-  tracking_number, payment_status, payment_method, total, subtotal, shipping_cost, discount, shipping_phone,
-  shipping_street, shipping_city, shipping_district, shipping_postal_code, notes, invoice_note, steadfast_note,
-  steadfast_consignment_id, created_at, is_printed,
-  order_items (id, product_name, product_image, quantity, price, variation_name)`;
+// The whole order row (settlement fields, what the print dialogs read, and tracking_link once
+// migration 20261117130000 has added it — `*` keeps the page working before that) plus items.
+const ORDER_FIELDS = `*, order_items (id, product_name, product_image, quantity, price, variation_name)`;
 
 interface PartnerOrder {
   id: string;
@@ -275,7 +273,7 @@ export default function AdminPartnerOrders() {
       return;
     }
     setSendingSteadfast(true);
-    const sent: { id: string; tracking: string; consignment: string }[] = [];
+    const sent: { id: string; tracking: string; consignment: string; link: string | null }[] = [];
     const failed: string[] = [];
     const concurrency = 5;
     for (let i = 0; i < toSend.length; i += concurrency) {
@@ -305,7 +303,12 @@ export default function AdminPartnerOrders() {
               return;
             }
             const tracking = String(data.tracking_code);
-            sent.push({ id: o.id, tracking, consignment: data.consignment_id ? String(data.consignment_id) : tracking });
+            sent.push({
+              id: o.id,
+              tracking,
+              consignment: data.consignment_id ? String(data.consignment_id) : tracking,
+              link: data.tracking_link ?? null,
+            });
           } catch (err) {
             failed.push(`#${o.order_number}: ${(err as Error).message}`);
           }
@@ -313,11 +316,12 @@ export default function AdminPartnerOrders() {
       );
     }
     for (const s of sent) {
+      const patch = { tracking_number: s.tracking, steadfast_consignment_id: s.consignment, tracking_link: s.link };
       try {
         await updateOrderStatus(s.id, 'shipped');
-        patchOrders([s.id], { tracking_number: s.tracking, steadfast_consignment_id: s.consignment, status: 'shipped' });
+        patchOrders([s.id], { ...patch, status: 'shipped' });
       } catch {
-        patchOrders([s.id], { tracking_number: s.tracking, steadfast_consignment_id: s.consignment, status: 'processing' });
+        patchOrders([s.id], { ...patch, status: 'processing' });
       }
     }
     setSelected(new Set());
@@ -664,7 +668,17 @@ export default function AdminPartnerOrders() {
                         </TableCell>
                         <TableCell>
                           <div className="capitalize">{r.orders?.courier_status?.replace(/_/g, ' ') ?? '—'}</div>
-                          {r.orders?.tracking_number && <div className="text-xs text-muted-foreground">{r.orders.tracking_number}</div>}
+                          {r.orders?.tracking_number && (
+                            <a
+                              href={trackingUrl(r.orders as { tracking_number: string; tracking_link?: string | null }) ?? undefined}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-primary underline-offset-2 hover:underline"
+                              title="Track on Steadfast"
+                            >
+                              {r.orders.tracking_number} ↗
+                            </a>
+                          )}
                         </TableCell>
                         <TableCell className="text-right tabular-nums">{formatTk(r.orders?.courier_cod_amount ?? r.cod_amount)}</TableCell>
                         <TableCell className="text-right tabular-nums">{formatTk(r.wholesale_total)}</TableCell>

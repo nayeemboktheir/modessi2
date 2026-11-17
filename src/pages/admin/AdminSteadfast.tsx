@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Eye, Landmark, Loader2, MapPinned, PackageSearch, ReceiptText, RotateCcw, Search, Wallet } from 'lucide-react';
+import { Eye, Landmark, Link2, Loader2, MapPinned, PackageCheck, PackageSearch, ReceiptText, RotateCcw, Search, Wallet } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,9 @@ type ManagementAction =
   | 'get_return_requests'
   | 'get_payments'
   | 'get_payment'
-  | 'get_police_stations';
+  | 'get_police_stations'
+  | 'backfill_tracking_links'
+  | 'sync_returns';
 
 interface OperationResult {
   title: string;
@@ -166,6 +168,30 @@ export default function AdminSteadfast() {
     }
   };
 
+  const backfillLinks = async () => {
+    try {
+      const value = await invokeManagement('backfill_tracking_links');
+      setLastResult({ title: 'Tracking links', value });
+      const failures = value?.failures?.length ?? 0;
+      const message = `Filled ${value?.updated ?? 0} tracking link(s) from ${value?.found ?? 0} parcels on the way`;
+      if (failures) toast.warning(message, { description: value.failures.join('; ') });
+      else toast.success(message);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not fill tracking links');
+    }
+  };
+
+  const syncReturns = async () => {
+    try {
+      const value = await invokeManagement('sync_returns');
+      setLastResult({ title: 'Returns', value });
+      const message = `Checked ${value?.checked ?? 0} returning parcel(s): ${value?.received ?? 0} back with you, ${value?.restocked ?? 0} restocked`;
+      toast.success(value?.more ? `${message}. More remain — run it again.` : message);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not sync returns');
+    }
+  };
+
   const isRunning = (operation: string) => activeOperation === operation;
   const BusyIcon = () => <Loader2 className="mr-2 h-4 w-4 animate-spin" />;
 
@@ -306,6 +332,41 @@ export default function AdminSteadfast() {
           </Button>
         </CardContent>
       </Card>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Link2 className="h-5 w-5" />Fill tracking links</CardTitle>
+            <CardDescription>
+              Parcels booked before Modessi kept Steadfast&apos;s tracking link have only a code. This reads every parcel
+              still in review or on the way and saves its tracking link. Finished parcels are not listed by Steadfast.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={backfillLinks} disabled={isRunning('backfill_tracking_links')}>
+              {isRunning('backfill_tracking_links') && <BusyIcon />}
+              Fill missing links
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><PackageCheck className="h-5 w-5" />Sync returns</CardTitle>
+            <CardDescription>
+              Asks Steadfast how far each cancelled or partly delivered parcel has got on its way back. When a cancelled
+              parcel is back with you, its stock is put back once (parcels cancelled after this was set up; partly
+              delivered ones are left to you). Turn off with admin setting steadfast_restock_returns.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={syncReturns} disabled={isRunning('sync_returns')}>
+              {isRunning('sync_returns') && <BusyIcon />}
+              Sync returns
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
 
       {lastResult && (
         <Card>
