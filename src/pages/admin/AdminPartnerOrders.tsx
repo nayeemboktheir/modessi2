@@ -11,6 +11,7 @@ import {
   Package,
   Plus,
   Printer,
+  Send,
   ShoppingBag,
   Tag,
   Trash2,
@@ -56,7 +57,7 @@ const statusOptions = [
 // The settlement fields plus everything the invoice and sticker print dialogs read.
 const ORDER_FIELDS = `id, order_number, status, shipping_name, courier_status, courier_cod_amount, courier_delivery_charge,
   tracking_number, payment_status, payment_method, total, subtotal, shipping_cost, discount, shipping_phone,
-  shipping_street, shipping_city, shipping_district, shipping_postal_code, notes, invoice_note,
+  shipping_street, shipping_city, shipping_district, shipping_postal_code, notes, invoice_note, steadfast_note,
   steadfast_consignment_id, created_at, is_printed,
   order_items (id, product_name, product_image, quantity, price, variation_name)`;
 
@@ -121,6 +122,7 @@ export default function AdminPartnerOrders() {
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [stickerOpen, setStickerOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState('pending');
+  const [sendingSteadfast, setSendingSteadfast] = useState(false);
 
   const linksQuery = useQuery({
     queryKey: ['partner-order-links'],
@@ -259,6 +261,70 @@ export default function AdminPartnerOrders() {
     else toast.success(`Updated ${done.length} orders to ${status}`);
     setSelected(new Set());
     setBulkUpdating(false);
+  };
+
+  // Same steadfast-courier call as Admin → Orders, but collecting the COD the partner asked for.
+  // steadfast-courier marks the order 'processing'; a partner parcel handed to the courier is
+  // shipped, so it is moved on to 'shipped' to keep the status tabs in step with the cards.
+  const sendToSteadfast = async () => {
+    const links = rows.filter((r) => r.orders && selected.has(r.orders.id));
+    const toSend = links.filter((r) => !r.orders!.tracking_number);
+    const skipped = links.length - toSend.length;
+    if (toSend.length === 0) {
+      toast.error('The selected orders are already with Steadfast');
+      return;
+    }
+    setSendingSteadfast(true);
+    const sent: { id: string; tracking: string; consignment: string }[] = [];
+    const failed: string[] = [];
+    const concurrency = 5;
+    for (let i = 0; i < toSend.length; i += concurrency) {
+      await Promise.all(
+        toSend.slice(i, i + concurrency).map(async (r) => {
+          const o = r.orders!;
+          const items = (o.order_items as { product_name: string; variation_name: string | null; quantity: number }[]) ?? [];
+          const address = `${o.shipping_street}, ${o.shipping_district}, ${o.shipping_city}${o.shipping_postal_code ? `, ${o.shipping_postal_code}` : ''}`;
+          const note =
+            (o.steadfast_note as string) ||
+            (o.notes as string) ||
+            `Order items: ${items.map((it) => `${it.product_name}${it.variation_name ? ` (${it.variation_name})` : ''} x${it.quantity}`).join(', ')}`;
+          try {
+            const { data, error } = await supabase.functions.invoke('steadfast-courier', {
+              body: {
+                orderId: o.id,
+                invoice: o.order_number,
+                recipient_name: o.shipping_name,
+                recipient_phone: o.shipping_phone,
+                recipient_address: address,
+                cod_amount: Number(r.cod_amount ?? o.total ?? 0),
+                note,
+              },
+            });
+            if (error || data?.error || !data?.success || !data?.tracking_code) {
+              failed.push(`#${o.order_number}: ${data?.error || data?.message || error?.message || 'failed'}`);
+              return;
+            }
+            const tracking = String(data.tracking_code);
+            sent.push({ id: o.id, tracking, consignment: data.consignment_id ? String(data.consignment_id) : tracking });
+          } catch (err) {
+            failed.push(`#${o.order_number}: ${(err as Error).message}`);
+          }
+        }),
+      );
+    }
+    for (const s of sent) {
+      try {
+        await updateOrderStatus(s.id, 'shipped');
+        patchOrders([s.id], { tracking_number: s.tracking, steadfast_consignment_id: s.consignment, status: 'shipped' });
+      } catch {
+        patchOrders([s.id], { tracking_number: s.tracking, steadfast_consignment_id: s.consignment, status: 'processing' });
+      }
+    }
+    setSelected(new Set());
+    setSendingSteadfast(false);
+    const extra = skipped ? ` (${skipped} already with Steadfast, skipped)` : '';
+    if (failed.length) toast.warning(`Sent ${sent.length}, ${failed.length} failed${extra}`, { description: failed.join('; ') });
+    else toast.success(`Sent ${sent.length} order${sent.length === 1 ? '' : 's'} to Steadfast${extra}`);
   };
 
   const togglePrinted = async (order: PartnerOrder) => {
@@ -497,6 +563,10 @@ export default function AdminPartnerOrders() {
                   <Button variant="outline" className="gap-2" onClick={() => setStickerOpen(true)}>
                     <Tag className="h-4 w-4" />
                     Print {selectedOrders.length} Sticker{selectedOrders.length > 1 ? 's' : ''}
+                  </Button>
+                  <Button className="gap-2" onClick={sendToSteadfast} disabled={sendingSteadfast}>
+                    {sendingSteadfast ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    {sendingSteadfast ? 'Sending...' : `Send ${selectedOrders.length} to Steadfast`}
                   </Button>
                 </div>
               )}
