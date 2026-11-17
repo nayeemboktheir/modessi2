@@ -125,7 +125,9 @@ export const OrderSticker = forwardRef<HTMLDivElement, OrderStickerProps>(
             <p style={{ color: '#c53030', margin: '3px 0', fontSize: '14px', fontWeight: '600' }}>{order.shipping_name}</p>
             <p style={{ color: '#c53030', margin: '3px 0', fontSize: '14px', fontWeight: '600' }}>{order.shipping_phone}</p>
             <p style={{ color: '#c53030', margin: '3px 0', fontSize: '12px' }}>
-              {order.shipping_street}, {order.shipping_district}, {order.shipping_city}
+              {[order.shipping_street, order.shipping_district, order.shipping_city]
+                .filter((part) => part && part.trim() && part.toLowerCase() !== 'n/a')
+                .join(', ')}
             </p>
           </div>
 

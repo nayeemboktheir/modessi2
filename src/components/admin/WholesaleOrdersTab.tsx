@@ -44,6 +44,8 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { InvoicePrintDialog } from '@/components/admin/InvoicePrintDialog';
+import { StickerPrintDialog } from '@/components/admin/StickerPrintDialog';
 import { toast } from 'sonner';
 import {
   ChevronDown,
@@ -56,6 +58,8 @@ import {
   Truck,
   Loader2,
   ExternalLink,
+  Printer,
+  Tag,
 } from 'lucide-react';
 import { DataPagination } from '@/components/admin/DataPagination';
 import { usePagination } from '@/hooks/usePagination';
@@ -93,6 +97,40 @@ const shipFormFor = (order: Order): ShipForm => ({
   cod_amount: String(Number(order.subtotal)),
   note: order.notes ?? '',
   item_description: `Wholesale ${order.order_number} - ${order.total_quantity} pcs`,
+});
+
+/**
+ * A wholesale order in the shape the shared invoice / sticker components print. Wholesale has
+ * one free-text address and no delivery charge or discount, so total = subtotal.
+ */
+const toPrintable = (order: Order) => ({
+  id: order.id,
+  order_number: order.order_number,
+  status: order.status,
+  payment_status: 'unpaid',
+  payment_method: 'cod',
+  total: Number(order.subtotal),
+  subtotal: Number(order.subtotal),
+  shipping_cost: 0,
+  discount: 0,
+  shipping_name: order.shop_name ? `${order.buyer_name} (${order.shop_name})` : order.buyer_name,
+  shipping_phone: order.phone,
+  shipping_street: order.address,
+  shipping_city: '',
+  shipping_district: '',
+  shipping_postal_code: null,
+  tracking_number: order.tracking_number,
+  steadfast_consignment_id: order.steadfast_consignment_id,
+  notes: order.notes,
+  created_at: order.created_at,
+  order_items: order.wholesale_order_items.map((item) => ({
+    id: item.id,
+    product_name: item.product_name,
+    product_image: item.product_image,
+    variation_name: item.variation_name,
+    quantity: item.quantity,
+    price: Number(item.unit_price),
+  })),
 });
 
 /** Creates the Steadfast consignment for one wholesale order. Throws with Steadfast's message. */
@@ -148,6 +186,9 @@ export function WholesaleOrdersTab() {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkShipOpen, setBulkShipOpen] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  // Orders currently in the print dialog; a single row's print button sets just that one.
+  const [printOrders, setPrintOrders] = useState<Order[]>([]);
+  const [printKind, setPrintKind] = useState<'invoice' | 'sticker' | null>(null);
 
   const { data: orders = [], isLoading, error } = useQuery({
     queryKey: WHOLESALE_ORDERS_QUERY_KEY,
@@ -439,6 +480,30 @@ export function WholesaleOrdersTab() {
                 </Select>
                 <Button
                   size="sm"
+                  variant="outline"
+                  className="h-8"
+                  onClick={() => {
+                    setPrintOrders(selectedOrders);
+                    setPrintKind('invoice');
+                  }}
+                >
+                  <Printer className="mr-1 h-3.5 w-3.5" /> Print {selectedOrders.length} invoice
+                  {selectedOrders.length === 1 ? '' : 's'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8"
+                  onClick={() => {
+                    setPrintOrders(selectedOrders);
+                    setPrintKind('sticker');
+                  }}
+                >
+                  <Tag className="mr-1 h-3.5 w-3.5" /> Print {selectedOrders.length} sticker
+                  {selectedOrders.length === 1 ? '' : 's'}
+                </Button>
+                <Button
+                  size="sm"
                   className="h-8"
                   disabled={bulkBusy || shippableSelected.length === 0}
                   onClick={() => setBulkShipOpen(true)}
@@ -597,6 +662,19 @@ export function WholesaleOrdersTab() {
                               <Truck className="mr-1 h-3.5 w-3.5" /> Steadfast
                             </Button>
                           )}
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8"
+                            aria-label="Print invoice"
+                            title="Print invoice"
+                            onClick={() => {
+                              setPrintOrders([order]);
+                              setPrintKind('invoice');
+                            }}
+                          >
+                            <Printer className="h-4 w-4" />
+                          </Button>
                           <Button asChild size="icon" variant="ghost" className="h-8 w-8" aria-label="Call buyer">
                             <a href={`tel:${order.phone}`}>
                               <Phone className="h-4 w-4" />
@@ -800,6 +878,19 @@ export function WholesaleOrdersTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <InvoicePrintDialog
+        orders={printKind === 'invoice' ? printOrders.map(toPrintable) : []}
+        open={printKind === 'invoice'}
+        onOpenChange={(open) => !open && setPrintKind(null)}
+        markPrinted={false}
+      />
+      <StickerPrintDialog
+        orders={printKind === 'sticker' ? printOrders.map(toPrintable) : []}
+        open={printKind === 'sticker'}
+        onOpenChange={(open) => !open && setPrintKind(null)}
+        markPrinted={false}
+      />
 
       <AlertDialog open={bulkShipOpen} onOpenChange={(open) => !open && !bulkBusy && setBulkShipOpen(false)}>
         <AlertDialogContent>

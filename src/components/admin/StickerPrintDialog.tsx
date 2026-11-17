@@ -47,6 +47,8 @@ interface StickerPrintDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onOrdersPrinted?: (orderIds: string[]) => void;
+  /** Set false for orders outside the `orders` table (wholesale), which have no is_printed. */
+  markPrinted?: boolean;
 }
 
 export function StickerPrintDialog({
@@ -54,6 +56,7 @@ export function StickerPrintDialog({
   open,
   onOpenChange,
   onOrdersPrinted,
+  markPrinted = true,
 }: StickerPrintDialogProps) {
   const printRef = useRef<HTMLDivElement>(null);
   const [shopName, setShopName] = useState('Your Shop');
@@ -119,7 +122,7 @@ export function StickerPrintDialog({
       }
     `,
     onAfterPrint: () => {
-      markOrdersAsPrinted();
+      if (markPrinted) markOrdersAsPrinted();
     },
   });
 

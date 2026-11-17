@@ -47,6 +47,8 @@ interface InvoicePrintDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onOrdersPrinted?: (orderIds: string[]) => void;
+  /** Set false for orders outside the `orders` table (wholesale), which have no is_printed. */
+  markPrinted?: boolean;
 }
 
 export function InvoicePrintDialog({
@@ -54,6 +56,7 @@ export function InvoicePrintDialog({
   open,
   onOpenChange,
   onOrdersPrinted,
+  markPrinted = true,
 }: InvoicePrintDialogProps) {
   const printRef = useRef<HTMLDivElement>(null);
   const [shopName, setShopName] = useState('Your Shop');
@@ -120,7 +123,7 @@ export function InvoicePrintDialog({
     `,
     onAfterPrint: () => {
       // Mark orders as printed after user prints
-      markOrdersAsPrinted();
+      if (markPrinted) markOrdersAsPrinted();
     },
   });
 
