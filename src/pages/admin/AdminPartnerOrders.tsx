@@ -156,23 +156,38 @@ export default function AdminPartnerOrders() {
   const payments = useMemo(() => (paymentsQuery.data ?? []).filter((p) => p.partner === current), [paymentsQuery.data, current]);
   const totals = useMemo(() => settlementTotals(rows.map(parcelOf), payments), [rows, payments]);
 
-  // The same figures as `totals.earned`, split into its parts: what customers paid on delivered
-  // parcels, minus Modessi's wholesale, minus Steadfast's charges (returned parcels included).
+  // The cards count a parcel from the moment it ships (marked Shipped/Delivered, or handed to the
+  // courier), not only once Steadfast confirms delivery. Until Steadfast reports, a shipped parcel
+  // counts at the COD the partner asked for and an estimated delivery charge — hence the "~".
+  // Returned parcels count only their delivery charge, which is the partner's.
   const breakdown = useMemo(() => {
-    const b = { selling: 0, wholesale: 0, delivery: 0 };
+    const b = { selling: 0, wholesale: 0, delivery: 0, shipped: 0, delivered: 0, returned: 0, estimated: false };
     for (const r of rows) {
       const p = parcelOf(r);
       const s = settleParcel(p);
       const charge = Number(p.courier_delivery_charge ?? DEFAULT_DELIVERY_CHARGE);
-      if (s.status === 'delivered' && s.owed != null) {
-        b.selling += Number(p.courier_cod_amount ?? p.cod_amount ?? 0);
-        b.wholesale += Number(p.wholesale_total ?? 0);
+      const wholesale = p.wholesale_total == null ? null : Number(p.wholesale_total);
+      if (s.status === 'returned') {
+        b.returned++;
         b.delivery += charge;
-      } else if (s.status === 'returned') {
-        b.delivery += charge;
+        b.estimated ||= s.estimated;
+        continue;
       }
+      if (wholesale == null) continue; // no wholesale price yet: flagged "check" in the table
+      const shipped =
+        s.status === 'delivered' ||
+        (s.status === 'pending' &&
+          (['shipped', 'delivered'].includes(p.status) || !!r.orders?.tracking_number || !!r.orders?.steadfast_consignment_id));
+      if (!shipped) continue;
+      if (s.status === 'delivered') b.delivered++;
+      else b.shipped++;
+      const confirmed = s.status === 'delivered';
+      b.selling += Number((confirmed ? p.courier_cod_amount : null) ?? p.cod_amount ?? 0);
+      b.wholesale += wholesale;
+      b.delivery += charge;
+      b.estimated ||= !confirmed || p.courier_delivery_charge == null;
     }
-    return b;
+    return { ...b, net: b.selling - b.wholesale - b.delivery };
   }, [rows]);
 
   const reload = () => queryClient.invalidateQueries({ queryKey: ['partner-payments'] });
@@ -338,8 +353,8 @@ export default function AdminPartnerOrders() {
                 Balance with {current}
               </CardTitle>
               <p className="text-sm text-muted-foreground">
-                Per delivered parcel Modessi owes the partner what it collected minus wholesale and delivery; a returned
-                parcel's delivery charge is the partner's.
+                Counted from the moment a parcel ships: what the customer pays minus wholesale and delivery; a returned
+                parcel's delivery charge is the partner's. ~ figures firm up once Steadfast reports delivery.
               </p>
             </CardHeader>
             <CardContent className="space-y-5">
@@ -347,8 +362,8 @@ export default function AdminPartnerOrders() {
                 {[
                   {
                     label: 'Confirmed Selling',
-                    value: formatTk(breakdown.selling),
-                    sub: `${totals.delivered} delivered order${totals.delivered === 1 ? '' : 's'}`,
+                    value: `${breakdown.shipped ? '~' : ''}${formatTk(breakdown.selling)}`,
+                    sub: `${breakdown.shipped} shipped, ${breakdown.delivered} delivered`,
                     icon: Wallet,
                   },
                   {
@@ -359,13 +374,13 @@ export default function AdminPartnerOrders() {
                   },
                   {
                     label: '− Delivery',
-                    value: `${totals.estimated ? '~' : ''}${formatTk(breakdown.delivery)}`,
-                    sub: `Steadfast charges${totals.returned ? `, incl. ${totals.returned} returned` : ''}`,
+                    value: `${breakdown.estimated ? '~' : ''}${formatTk(breakdown.delivery)}`,
+                    sub: `Steadfast charges${breakdown.returned ? `, incl. ${breakdown.returned} returned` : ''}`,
                     icon: Truck,
                   },
                   {
                     label: '= Owed to partner',
-                    value: `${totals.estimated ? '~' : ''}${formatTk(totals.earned)}`,
+                    value: `${breakdown.estimated ? '~' : ''}${formatTk(breakdown.net)}`,
                     sub: 'Selling − Wholesale − Delivery',
                     icon: TrendingUp,
                     highlight: true,
@@ -381,9 +396,9 @@ export default function AdminPartnerOrders() {
                   </div>
                 ))}
               </div>
-              {(totals.estimated || totals.review > 0) && (
+              {(breakdown.estimated || totals.review > 0) && (
                 <p className="text-xs text-muted-foreground">
-                  {totals.estimated && '~ Some parcels use an estimated ৳130 delivery charge until Steadfast reports the real one (set up the Steadfast webhook). '}
+                  {breakdown.estimated && '~ Shipped parcels count at the partner\'s COD and an estimated ৳130 delivery charge until Steadfast reports the real figures. '}
                   {totals.review > 0 && `${totals.review} parcel${totals.review === 1 ? ' needs' : 's need'} a check (partly delivered or no wholesale price).`}
                 </p>
               )}

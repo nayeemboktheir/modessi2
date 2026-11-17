@@ -65,7 +65,9 @@ fi
 # A directory's fingerprint is the sorted list of its files' checksums, so a
 # change to any file inside it shows up.
 fingerprint() {
-  local d="$1"
+  # Strip a trailing slash: "$SRC"/*/ yields "dir/", and the sed below would then look
+  # for "dir//", never match, and leave absolute paths in - so every function read CHANGED.
+  local d="${1%/}"
   [ -d "$d" ] || { echo "ABSENT"; return; }
   find "$d" -type f ! -name '.DS_Store' -exec md5sum {} + 2>/dev/null \
     | sed "s#$d/##" | sort -k2 | md5sum | cut -d' ' -f1
@@ -116,7 +118,10 @@ cat <<'MENU'
   1 3 7 ...  deploy these numbers
   q  quit
 MENU
-printf 'choice: '; read -r choice
+# Read from the terminal, not stdin: under `curl ... | bash` stdin is the script itself,
+# so a plain `read` hits end-of-input and the menu exits with "nothing done".
+printf 'choice: '
+if [ -r /dev/tty ]; then read -r choice < /dev/tty; else read -r choice; fi
 
 selected=()
 case "${choice:-q}" in
