@@ -92,8 +92,10 @@ only the anon key and cannot write tables. Schema or RLS changes to those four t
 to be redeployed separately whenever the backend URL or anon key changes. Its only write path is the
 `place_wholesale_order(p_buyer, p_items)` RPC (SECURITY DEFINER, granted to anon), which prices each
 line from `wholesale_prices` server-side and writes `wholesale_orders` / `wholesale_order_items`.
-Those tables are admin-only, kept apart from `orders` (no courier, SMS, pixels or stock deduction),
-and worked from `/admin/wholesale-prices?tab=orders`.
+Those tables are admin-only, kept apart from `orders` (no SMS, pixels or stock deduction),
+and worked from `/admin/wholesale-prices?tab=orders`. Steadfast dispatch is manual from that tab:
+`steadfast-courier` takes `wholesaleOrderId` in place of `orderId` and records the consignment on
+`wholesale_orders.tracking_number`.
 
 **Authorization is entirely in Postgres.** Every table has RLS; admin access is gated by
 `public.has_role(auth.uid(), 'admin')` against `user_roles` (enum `app_role`: `admin` | `user`).

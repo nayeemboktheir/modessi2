@@ -1036,6 +1036,7 @@ export type Database = {
           address: string
           admin_note: string | null
           buyer_name: string
+          courier_sent_at: string | null
           created_at: string
           id: string
           notes: string | null
@@ -1043,14 +1044,17 @@ export type Database = {
           phone: string
           shop_name: string | null
           status: string
+          steadfast_consignment_id: string | null
           subtotal: number
           total_quantity: number
+          tracking_number: string | null
           updated_at: string
         }
         Insert: {
           address: string
           admin_note?: string | null
           buyer_name: string
+          courier_sent_at?: string | null
           created_at?: string
           id?: string
           notes?: string | null
@@ -1058,14 +1062,17 @@ export type Database = {
           phone: string
           shop_name?: string | null
           status?: string
+          steadfast_consignment_id?: string | null
           subtotal?: number
           total_quantity?: number
+          tracking_number?: string | null
           updated_at?: string
         }
         Update: {
           address?: string
           admin_note?: string | null
           buyer_name?: string
+          courier_sent_at?: string | null
           created_at?: string
           id?: string
           notes?: string | null
@@ -1073,8 +1080,10 @@ export type Database = {
           phone?: string
           shop_name?: string | null
           status?: string
+          steadfast_consignment_id?: string | null
           subtotal?: number
           total_quantity?: number
+          tracking_number?: string | null
           updated_at?: string
         }
         Relationships: []

@@ -9,6 +9,8 @@ import {
 
 interface SteadfastOrderRequest {
   orderId?: string;
+  /** A wholesale_orders row instead of an orders row. Mutually exclusive with orderId. */
+  wholesaleOrderId?: string;
   invoice: string;
   recipient_name: string;
   recipient_phone: string;
@@ -90,6 +92,45 @@ async function findAlreadyDispatched(
   );
 }
 
+async function findWholesaleDispatched(
+  supabase: { from: (table: string) => any },
+  wholesaleOrderId: string,
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('wholesale_orders')
+    .select('tracking_number')
+    .eq('id', wholesaleOrderId)
+    .maybeSingle();
+  if (error) {
+    console.error('Could not check existing wholesale consignment:', error.message);
+    return null;
+  }
+  return data?.tracking_number ?? null;
+}
+
+async function saveWholesaleConsignment(
+  supabase: { from: (table: string) => any },
+  wholesaleOrderId: string,
+  consignment: UpstreamConsignment | undefined,
+) {
+  if (!consignment) return;
+  const consignmentId = consignment.consignment_id ? String(consignment.consignment_id) : undefined;
+  const trackingCode = consignment.tracking_code ?? consignmentId;
+  if (!trackingCode) return;
+
+  const { error } = await supabase
+    .from('wholesale_orders')
+    .update({
+      tracking_number: trackingCode,
+      steadfast_consignment_id: consignmentId ?? trackingCode,
+      courier_sent_at: new Date().toISOString(),
+      status: 'shipped',
+    })
+    .eq('id', wholesaleOrderId);
+
+  if (error) console.error(`Could not save Steadfast consignment for wholesale order ${wholesaleOrderId}:`, error.message);
+}
+
 async function saveConsignment(
   supabase: { from: (table: string) => any },
   orderId: string | undefined,
@@ -134,6 +175,23 @@ Deno.serve(async (req) => {
     const validationError = validateOrder(order);
     if (validationError) return json({ error: validationError }, 400);
 
+    if (order.orderId && order.wholesaleOrderId) {
+      return json({ error: 'Send either orderId or wholesaleOrderId, not both' }, 400);
+    }
+
+    if (order.wholesaleOrderId) {
+      const existing = await findWholesaleDispatched(supabase, order.wholesaleOrderId);
+      if (existing) {
+        return json({
+          success: true,
+          alreadyDispatched: true,
+          message: 'Order was already sent to Steadfast',
+          consignment_id: existing,
+          tracking_code: existing,
+        }, 200);
+      }
+    }
+
     if (order.orderId) {
       const existing = (await findAlreadyDispatched(supabase, [order.orderId])).get(order.orderId);
       if (existing) {
@@ -161,7 +219,11 @@ Deno.serve(async (req) => {
       }, upstream.ok ? 400 : 502);
     }
 
-    await saveConsignment(supabase, order.orderId, response.consignment);
+    if (order.wholesaleOrderId) {
+      await saveWholesaleConsignment(supabase, order.wholesaleOrderId, response.consignment);
+    } else {
+      await saveConsignment(supabase, order.orderId, response.consignment);
+    }
     return json({
       success: true,
       message: 'Order sent to Steadfast successfully',
