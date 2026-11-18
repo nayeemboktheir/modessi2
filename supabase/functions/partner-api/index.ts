@@ -28,6 +28,7 @@
 
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.89.0';
 import { getSteadfastCredentials, hasSteadfastCredentials, requestSteadfast } from '../_shared/steadfast.ts';
+import { buildCourierUpdate, courierOutcome } from '../_shared/steadfastStatus.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -472,7 +473,7 @@ async function orderStatus(supabase: SupabaseClient, partner: string, body: any)
   const { data, error } = await supabase
     .from('partner_order_links')
     .select(
-      'partner_order_id, cod_amount, wholesale_total, orders(id, order_number, status, tracking_number, steadfast_consignment_id, steadfast_sent_at, courier_status, courier_cod_amount, courier_delivery_charge, updated_at)',
+      'partner_order_id, cod_amount, wholesale_total, orders(id, order_number, status, tracking_number, steadfast_consignment_id, steadfast_sent_at, courier_status, courier_status_updated_at, courier_cod_amount, courier_delivery_charge, updated_at)',
     )
     .eq('partner', partner)
     .in('partner_order_id', ids);
@@ -480,17 +481,36 @@ async function orderStatus(supabase: SupabaseClient, partner: string, body: any)
 
   const rows = (data ?? []) as any[];
 
-  // The webhook keeps courier_status current. Ask Steadfast directly only for parcels it has
-  // not reported on yet (e.g. the webhook is not set up), a few at a time.
+  // The webhook keeps courier_status current. When it is silent (not set up in Steadfast, or a
+  // missed call) ask Steadfast directly for every parcel whose courier outcome is not final yet,
+  // whatever the order status says (an admin may mark an order delivered by hand), and save the
+  // answer on the order so Modessi's own pages see it too. Only courier fields are written here;
+  // the order status is left to the admin and the webhook.
   const credentials = await getSteadfastCredentials(supabase);
-  const live = new Map<string, string | null>();
   const toAsk = rows
     .map((r) => r.orders)
-    .filter((ord) => ord?.steadfast_consignment_id && !ord.courier_status && !['delivered', 'cancelled', 'returned'].includes(ord.status));
+    .filter((ord) => ord?.steadfast_consignment_id && courierOutcome(ord.courier_status ?? null) === 'pending')
+    .slice(0, 40);
   if (hasSteadfastCredentials(credentials)) {
     for (let i = 0; i < toAsk.length; i += 5) {
       await Promise.all(
-        toAsk.slice(i, i + 5).map(async (ord) => live.set(ord.id, await deliveryStatus(credentials, String(ord.steadfast_consignment_id)))),
+        toAsk.slice(i, i + 5).map(async (ord) => {
+          const status = await deliveryStatus(credentials, String(ord.steadfast_consignment_id));
+          if (!status || status === ord.courier_status) return;
+          const result = buildCourierUpdate(
+            { status: ord.status, courier_status: ord.courier_status, courier_status_updated_at: ord.courier_status_updated_at ?? null },
+            { status },
+            Date.now(),
+          );
+          if (!result.apply) return;
+          const update = {
+            courier_status: result.update.courier_status,
+            courier_status_updated_at: result.update.courier_status_updated_at,
+          };
+          const { error: saveError } = await supabase.from('orders').update(update).eq('id', ord.id);
+          if (saveError) console.error('partner-api: saving courier status failed', ord.id, saveError.message);
+          Object.assign(ord, update);
+        }),
       );
     }
   }
@@ -508,7 +528,7 @@ async function orderStatus(supabase: SupabaseClient, partner: string, body: any)
         tracking_number: ord?.tracking_number ?? null,
         consignment_id: ord?.steadfast_consignment_id ?? null,
         sent_at: ord?.steadfast_sent_at ?? null,
-        delivery_status: ord ? ord.courier_status ?? live.get(ord.id) ?? null : null,
+        delivery_status: ord?.courier_status ?? null,
         courier_cod_amount: num(ord?.courier_cod_amount),
         courier_delivery_charge: num(ord?.courier_delivery_charge),
         cod_amount: Number(r.cod_amount),
