@@ -6,6 +6,7 @@ import {
   Check,
   CheckCircle,
   Clock,
+  Eye,
   Handshake,
   Loader2,
   Package,
@@ -36,6 +37,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 
 // Admin → Partner Orders: orders resellers (e.g. Maxora Outlet) sent through partner-api,
@@ -121,6 +123,8 @@ export default function AdminPartnerOrders() {
   const [stickerOpen, setStickerOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState('pending');
   const [sendingSteadfast, setSendingSteadfast] = useState(false);
+  // Order id rather than the row, so the dialog follows patchOrders (status changes, printing).
+  const [viewingId, setViewingId] = useState<string | null>(null);
 
   const linksQuery = useQuery({
     queryKey: ['partner-order-links'],
@@ -375,6 +379,9 @@ export default function AdminPartnerOrders() {
   };
 
   const error = linksQuery.error ?? paymentsQuery.error;
+  const viewing = viewingId ? rows.find((r) => r.orders?.id === viewingId) ?? null : null;
+  const viewingOrder = viewing?.orders ?? null;
+  const viewingSettle = viewing ? settleParcel(parcelOf(viewing)) : null;
 
   return (
     <div className="space-y-6">
@@ -592,12 +599,13 @@ export default function AdminPartnerOrders() {
                     <TableHead className="text-right">Wholesale</TableHead>
                     <TableHead className="text-right">Delivery</TableHead>
                     <TableHead className="text-right">Owed to partner</TableHead>
+                    <TableHead className="w-10" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {visibleRows.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={11} className="py-8 text-center text-sm text-muted-foreground">
+                      <TableCell colSpan={12}className="py-8 text-center text-sm text-muted-foreground">
                         No orders found
                       </TableCell>
                     </TableRow>
@@ -616,7 +624,17 @@ export default function AdminPartnerOrders() {
                           )}
                         </TableCell>
                         <TableCell className="font-medium">
-                          #{r.orders?.order_number ?? '—'}
+                          {r.orders ? (
+                            <button
+                              type="button"
+                              onClick={() => setViewingId(r.orders!.id)}
+                              className="text-left hover:text-primary hover:underline underline-offset-2"
+                            >
+                              #{r.orders.order_number}
+                            </button>
+                          ) : (
+                            '—'
+                          )}
                           <div className="text-xs font-normal text-muted-foreground">{format(new Date(r.created_at), 'dd MMM')}</div>
                         </TableCell>
                         <TableCell>
@@ -692,6 +710,19 @@ export default function AdminPartnerOrders() {
                           {s.owed != null ? `${s.estimated ? '~' : ''}${formatTk(s.owed)}` : s.expected != null ? `(~${formatTk(s.expected)})` : '—'}
                           {s.review && <div className="text-xs font-normal text-amber-600">check</div>}
                         </TableCell>
+                        <TableCell>
+                          {r.orders && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8"
+                              onClick={() => setViewingId(r.orders!.id)}
+                              aria-label={`View ${r.orders.order_number}`}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </TableCell>
                       </TableRow>
                     );
                   })}
@@ -701,6 +732,132 @@ export default function AdminPartnerOrders() {
           </Card>
         </>
       )}
+
+      <Dialog open={!!viewingOrder} onOpenChange={(open) => !open && setViewingId(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Order #{viewingOrder?.order_number}</DialogTitle>
+          </DialogHeader>
+          {viewing && viewingOrder && (
+            <div className="space-y-6">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <h3 className="mb-2 font-medium">Customer</h3>
+                  <div className="space-y-1 text-sm text-muted-foreground">
+                    <p>{viewingOrder.shipping_name}</p>
+                    <p>{viewingOrder.shipping_phone as string}</p>
+                    <p>{viewingOrder.shipping_street as string}</p>
+                    <p>
+                      {viewingOrder.shipping_district as string}, {viewingOrder.shipping_city as string}
+                    </p>
+                    {!!viewingOrder.shipping_postal_code && <p>{viewingOrder.shipping_postal_code as string}</p>}
+                  </div>
+                </div>
+                <div>
+                  <h3 className="mb-2 font-medium">Order</h3>
+                  <div className="space-y-1 text-sm text-muted-foreground">
+                    <p className="capitalize">Partner: {viewing.partner}</p>
+                    <p>Partner #: {viewing.partner_order_number ?? '—'}</p>
+                    <p>Placed: {format(new Date(viewing.created_at), 'PPpp')}</p>
+                    {viewing.updated_at && <p>Changed by partner: {format(new Date(viewing.updated_at), 'PPpp')}</p>}
+                    {!!viewingOrder.notes && <p>Notes: {viewingOrder.notes as string}</p>}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="mb-2 font-medium">Items</h3>
+                <div className="divide-y rounded-lg border">
+                  {((viewingOrder.order_items as {
+                    id: string;
+                    product_name: string;
+                    product_image: string | null;
+                    quantity: number;
+                    price: number;
+                    variation_name: string | null;
+                  }[]) ?? []).map((item) => (
+                    <div key={item.id} className="flex items-center gap-3 p-3">
+                      {item.product_image && (
+                        <img src={item.product_image} alt={item.product_name} className="h-12 w-12 rounded object-cover" />
+                      )}
+                      <div className="flex-1">
+                        <p className="font-medium">{item.product_name}</p>
+                        {item.variation_name && <p className="text-sm font-medium text-blue-600">Size: {item.variation_name}</p>}
+                        <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
+                      </div>
+                      <p className="font-medium tabular-nums">{formatTk(Number(item.price))}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1 border-t pt-4 text-sm">
+                {[
+                  ['Collect from customer (partner COD)', formatTk(viewing.cod_amount)],
+                  ['Collected (Steadfast)', formatTk(viewingOrder.courier_cod_amount)],
+                  ['Wholesale (Modessi)', formatTk(viewing.wholesale_total)],
+                  ['Delivery charge (Steadfast)', formatTk(viewingOrder.courier_delivery_charge)],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex justify-between">
+                    <span className="text-muted-foreground">{label}</span>
+                    <span className="tabular-nums">{value}</span>
+                  </div>
+                ))}
+                <div className="mt-2 flex justify-between border-t pt-2 text-base font-semibold">
+                  <span>Owed to partner</span>
+                  <span className="tabular-nums">
+                    {viewingSettle?.owed != null
+                      ? `${viewingSettle.estimated ? '~' : ''}${formatTk(viewingSettle.owed)}`
+                      : viewingSettle?.expected != null
+                        ? `(~${formatTk(viewingSettle.expected)})`
+                        : '—'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid gap-4 border-t pt-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Select
+                    value={viewingOrder.status}
+                    onValueChange={(v) => changeStatus(viewingOrder, v)}
+                    disabled={updatingId === viewingOrder.id}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {statusOptions.map((s) => (
+                        <SelectItem key={s.value} value={s.value}>
+                          {s.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Courier</Label>
+                  <div className="text-sm">
+                    <div className="capitalize">{viewingOrder.courier_status?.replace(/_/g, ' ') ?? 'No update yet'}</div>
+                    {viewingOrder.tracking_number ? (
+                      <a
+                        href={trackingUrl(viewingOrder as { tracking_number: string; tracking_link?: string | null }) ?? undefined}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary underline-offset-2 hover:underline"
+                      >
+                        {viewingOrder.tracking_number} ↗
+                      </a>
+                    ) : (
+                      <div className="text-xs text-muted-foreground">Not sent to Steadfast</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <InvoicePrintDialog
         orders={selectedOrders as never}

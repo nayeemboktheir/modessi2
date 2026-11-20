@@ -484,8 +484,11 @@ async function orderStatus(supabase: SupabaseClient, partner: string, body: any)
   // The webhook keeps courier_status current. When it is silent (not set up in Steadfast, or a
   // missed call) ask Steadfast directly for every parcel whose courier outcome is not final yet,
   // whatever the order status says (an admin may mark an order delivered by hand), and save the
-  // answer on the order so Modessi's own pages see it too. Only courier fields are written here;
-  // the order status is left to the admin and the webhook.
+  // answer on the order so Modessi's own pages see it too. The order status moves under the same
+  // rules as the webhook (buildCourierUpdate / nextOrderStatus): an in-flight order follows a final
+  // outcome, a status an admin set by hand is kept. Writing only the courier fields used to strand
+  // orders at 'shipped' next to a 'delivered' courier status, because this poll usually beats the
+  // webhook and the webhook then saw nothing new.
   const credentials = await getSteadfastCredentials(supabase);
   const toAsk = rows
     .map((r) => r.orders)
@@ -503,12 +506,15 @@ async function orderStatus(supabase: SupabaseClient, partner: string, body: any)
             Date.now(),
           );
           if (!result.apply) return;
-          const update = {
+          const update: Record<string, unknown> = {
             courier_status: result.update.courier_status,
             courier_status_updated_at: result.update.courier_status_updated_at,
           };
+          if (typeof result.update.status === 'string') update.status = result.update.status;
+          if (result.conflict) console.warn(`partner-api: ${ord.order_number} status kept — ${result.conflict}`);
           const { error: saveError } = await supabase.from('orders').update(update).eq('id', ord.id);
           if (saveError) console.error('partner-api: saving courier status failed', ord.id, saveError.message);
+          else if (update.status) console.log(`partner-api: ${ord.order_number} status ${ord.status} → ${update.status}`);
           Object.assign(ord, update);
         }),
       );

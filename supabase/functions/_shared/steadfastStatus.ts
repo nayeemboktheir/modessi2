@@ -75,9 +75,13 @@ export function parseSteadfastTime(raw: unknown): number | null {
  *   event, or an answer with no time, cannot undo a final outcome.
  * - Otherwise (including one final outcome correcting another) the newer event wins;
  *   unknown times are treated as newer.
+ * - The same status again is always applied: it changes nothing that could regress, and it is how
+ *   the webhook's amounts (COD collected, delivery charge) land when a status-API poll already
+ *   stored that status with a later "now" timestamp.
  */
 export function shouldApply(stored: CourierState, incoming: CourierState): boolean {
   if (!incoming.status) return false;
+  if (incoming.status === stored.status) return true;
   const storedOutcome = courierOutcome(stored.status);
   const incomingOutcome = courierOutcome(incoming.status);
   if (storedOutcome !== 'pending' && incomingOutcome === 'pending') {
